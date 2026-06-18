@@ -81,7 +81,7 @@ import { Button, Badge, DataTable, useToast } from "@carbon/design-system";
 
 ## Components
 
-Forms: Button · Input · Textarea · Checkbox · Switch · Select · MoneyInput · SearchSelect
+Forms: Button · Input · Textarea · Checkbox · Switch · Select · MoneyInput · SearchSelect · AddressAutocomplete
 Overlays: Dialog · AlertDialog · DropdownMenu · Sheet · Popover · Tooltip · CommandPalette · Toast
 Data display: Badge · StatusBadge · DataTable · Tabs · Progress · Skeleton · Separator · ScrollArea · EmptyState · PageHeader
 

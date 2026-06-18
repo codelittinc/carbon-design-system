@@ -13,6 +13,7 @@ export { cn } from "./lib/cn";
 export { formatMoney, formatDate, formatPeriodLabel } from "./lib/format";
 
 // ── Components ──
+export * from "./components/ui/address-autocomplete";
 export * from "./components/ui/button";
 export * from "./components/ui/badge";
 export * from "./components/ui/status-badge";
