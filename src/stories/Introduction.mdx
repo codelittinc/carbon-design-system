@@ -1,0 +1,44 @@
+import { Meta } from "@storybook/blocks";
+
+<Meta title="Introduction" />
+
+# CarbonOS Design System
+
+**"Refined Carbon"** — the shared component library and design language behind Carbon Backbone.
+
+Dark-mode-first. Data-dense but breathable. A warm amber accent over carbon blacks,
+with monospace numerals for accounting alignment.
+
+---
+
+## Principles
+
+- **Dark-mode-first.** Surfaces are built up from carbon blacks (`carbon-950` → `carbon-850`),
+  not down from white. Light is the exception, not the default.
+- **Data-dense, but breathable.** A tighter spacing scale keeps financial tables legible without
+  feeling cramped.
+- **Tabular numerals.** Money and counts render in `JetBrains Mono` with `tabular-nums` so
+  columns line up to the decimal.
+- **One accent.** Amber carries primary actions, active states, and focus. Semantic colors
+  (success / warning / error / info) are reserved for status.
+
+## Using the system
+
+Import the tokens once at your app root, then import components by name:
+
+```ts
+import "@carbon/design-system/styles";
+import { Button, Badge, DataTable } from "@carbon/design-system";
+```
+
+All components are built on **Radix UI** primitives, styled with **Tailwind v4** tokens, and
+composed with **class-variance-authority**. Every class name resolves to a design token defined
+in `src/styles/theme.css` — there are no magic hex values in component code.
+
+## What's inside
+
+- **Foundations** — the raw tokens: Colors, Typography, Spacing, and Radius.
+- **Components** — forms, overlays, and data-display primitives, each with live controls.
+
+Browse the sidebar to explore. Every component story has an **autodocs** page generated from its
+props.
