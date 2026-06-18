@@ -14,7 +14,12 @@
     "storybook": "storybook dev -p 6006",
     "build": "storybook build",
     "build-storybook": "storybook build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "heroku-postbuild": "pnpm run build && cp serve.json storybook-static/serve.json",
+    "start": "serve storybook-static -l tcp://0.0.0.0:${PORT:-6006}"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -37,6 +42,7 @@
     "lucide-react": "^1.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "serve": "^14.2.4",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
