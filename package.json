@@ -15,7 +15,6 @@
     "build": "storybook build",
     "build-storybook": "storybook build",
     "typecheck": "tsc --noEmit",
-    "heroku-postbuild": "pnpm run build",
     "start": "node server.js"
   },
   "engines": {
