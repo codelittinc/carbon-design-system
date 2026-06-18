@@ -16,7 +16,7 @@ import { Eye, Pencil, Copy, FileText, Ban, Trash2 } from "lucide-react";
  * (view / edit / delete) in tenant, lease, and charge lists.
  */
 const meta: Meta = {
-  title: "Components/DropdownMenu",
+  title: "Components/Overlays/DropdownMenu",
   tags: ["autodocs"],
 };
 export default meta;

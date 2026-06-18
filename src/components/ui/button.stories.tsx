@@ -8,7 +8,7 @@ import { Button } from "./button";
  * four sizes (including an icon-only size) via class-variance-authority.
  */
 const meta: Meta<typeof Button> = {
-  title: "Components/Button",
+  title: "Components/Forms/Button",
   component: Button,
   tags: ["autodocs"],
 };

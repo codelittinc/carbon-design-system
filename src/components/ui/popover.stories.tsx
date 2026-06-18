@@ -8,7 +8,7 @@ import { Input } from "./input";
  * inline editors and filter controls that don't warrant a full dialog.
  */
 const meta: Meta = {
-  title: "Components/Popover",
+  title: "Components/Overlays/Popover",
   tags: ["autodocs"],
 };
 export default meta;

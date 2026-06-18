@@ -7,7 +7,7 @@ import { Separator } from "./separator";
  * divide inline items such as account summary metrics.
  */
 const meta: Meta<typeof Separator> = {
-  title: "Components/Separator",
+  title: "Components/Data Display/Separator",
   component: Separator,
   tags: ["autodocs"],
 };

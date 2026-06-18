@@ -18,7 +18,7 @@ import { Input } from "./input";
  * quick-edit panels (e.g. tenant details) that should not interrupt the page.
  */
 const meta: Meta = {
-  title: "Components/Sheet",
+  title: "Components/Overlays/Sheet",
   tags: ["autodocs"],
 };
 export default meta;

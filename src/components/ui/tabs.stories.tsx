@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
  * a tenant detail view into Overview, Ledger, and Documents.
  */
 const meta: Meta<typeof Tabs> = {
-  title: "Components/Tabs",
+  title: "Components/Data Display/Tabs",
   component: Tabs,
   tags: ["autodocs"],
 };

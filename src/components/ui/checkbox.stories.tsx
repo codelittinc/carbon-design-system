@@ -7,7 +7,7 @@ import { Checkbox } from "./checkbox";
  * "send receipt", "include in rent roll", row selection in tables.
  */
 const meta: Meta<typeof Checkbox> = {
-  title: "Components/Checkbox",
+  title: "Components/Forms/Checkbox",
   component: Checkbox,
   tags: ["autodocs"],
 };

@@ -7,7 +7,7 @@ import { Switch } from "./switch";
  * autopay, late-fee waivers, statement delivery preferences.
  */
 const meta: Meta<typeof Switch> = {
-  title: "Components/Switch",
+  title: "Components/Forms/Switch",
   component: Switch,
   tags: ["autodocs"],
 };

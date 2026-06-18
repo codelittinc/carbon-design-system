@@ -6,7 +6,7 @@ import { Textarea } from "./textarea";
  * lease memos, maintenance descriptions. It forwards all native textarea props.
  */
 const meta: Meta<typeof Textarea> = {
-  title: "Components/Textarea",
+  title: "Components/Forms/Textarea",
   component: Textarea,
   tags: ["autodocs"],
 };

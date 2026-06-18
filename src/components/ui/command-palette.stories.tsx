@@ -10,7 +10,7 @@ import { Home, Users, FileText, Receipt, CreditCard, Plus } from "lucide-react";
  * as using the button below. `open` is fully controlled by the parent.
  */
 const meta: Meta = {
-  title: "Components/CommandPalette",
+  title: "Components/Overlays/CommandPalette",
   tags: ["autodocs"],
 };
 export default meta;

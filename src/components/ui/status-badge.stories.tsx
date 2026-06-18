@@ -7,7 +7,7 @@ import { StatusBadge } from "./status-badge";
  * spaces. Unrecognized statuses fall back to the neutral "default" variant.
  */
 const meta: Meta<typeof StatusBadge> = {
-  title: "Components/StatusBadge",
+  title: "Components/Data Display/StatusBadge",
   component: StatusBadge,
   tags: ["autodocs"],
 };

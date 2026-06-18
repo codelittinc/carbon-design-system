@@ -18,7 +18,7 @@ import { Button } from "./button";
  * charges, deleting records, and other accounting-sensitive operations.
  */
 const meta: Meta = {
-  title: "Components/AlertDialog",
+  title: "Components/Overlays/AlertDialog",
   tags: ["autodocs"],
 };
 export default meta;

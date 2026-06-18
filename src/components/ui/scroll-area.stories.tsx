@@ -8,7 +8,7 @@ import { StatusBadge } from "./status-badge";
  * Useful for long tenant lists and ledger feeds inside fixed panels.
  */
 const meta: Meta<typeof ScrollArea> = {
-  title: "Components/ScrollArea",
+  title: "Components/Data Display/ScrollArea",
   component: ScrollArea,
   tags: ["autodocs"],
 };

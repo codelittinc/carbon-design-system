@@ -9,7 +9,7 @@ import { MoneyInput } from "./money-input";
  * in parentheses. Always drive it with useState.
  */
 const meta: Meta<typeof MoneyInput> = {
-  title: "Components/MoneyInput",
+  title: "Components/Forms/MoneyInput",
   component: MoneyInput,
   tags: ["autodocs"],
 };

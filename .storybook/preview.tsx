@@ -28,6 +28,7 @@ const preview: Preview = {
           "Foundations",
           ["Colors", "Typography", "Spacing", "Radius"],
           "Components",
+          ["Forms", "Overlays", "Data Display"],
         ],
       },
     },

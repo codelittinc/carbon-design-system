@@ -9,7 +9,7 @@ import { Info } from "lucide-react";
  * attaches to a real focusable element.
  */
 const meta: Meta = {
-  title: "Components/Tooltip",
+  title: "Components/Overlays/Tooltip",
   tags: ["autodocs"],
 };
 export default meta;

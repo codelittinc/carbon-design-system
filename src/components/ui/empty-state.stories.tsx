@@ -8,7 +8,7 @@ import { Button } from "./button";
  * Supports an optional icon, description, and action node (typically a Button).
  */
 const meta: Meta<typeof EmptyState> = {
-  title: "Components/EmptyState",
+  title: "Components/Data Display/EmptyState",
   component: EmptyState,
   tags: ["autodocs"],
 };

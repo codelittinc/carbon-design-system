@@ -8,7 +8,7 @@ import { StatusBadge } from "./status-badge";
  * status column (StatusBadge) and a right-aligned money column.
  */
 const meta: Meta<typeof DataTable> = {
-  title: "Components/DataTable",
+  title: "Components/Data Display/DataTable",
   component: DataTable,
   tags: ["autodocs"],
 };

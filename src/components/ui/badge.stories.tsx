@@ -6,7 +6,7 @@ import { Badge } from "./badge";
  * counts, and categorical tags throughout the property-management UI.
  */
 const meta: Meta<typeof Badge> = {
-  title: "Components/Badge",
+  title: "Components/Data Display/Badge",
   component: Badge,
   tags: ["autodocs"],
 };

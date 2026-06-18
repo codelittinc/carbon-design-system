@@ -6,7 +6,7 @@ import { Input } from "./input";
  * names, emails, unit numbers. It forwards all native input props and a ref.
  */
 const meta: Meta<typeof Input> = {
-  title: "Components/Input",
+  title: "Components/Forms/Input",
   component: Input,
   tags: ["autodocs"],
 };

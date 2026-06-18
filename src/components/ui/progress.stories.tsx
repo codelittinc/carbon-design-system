@@ -8,7 +8,7 @@ import { Progress } from "./progress";
  * lease-renewal completion.
  */
 const meta: Meta<typeof Progress> = {
-  title: "Components/Progress",
+  title: "Components/Data Display/Progress",
   component: Progress,
   tags: ["autodocs"],
 };

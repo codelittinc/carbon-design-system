@@ -8,7 +8,7 @@ import { Button } from "./button";
  * Variants: "default" | "success" | "error". Toasts auto-dismiss after ~4s.
  */
 const meta: Meta = {
-  title: "Components/Toast",
+  title: "Components/Overlays/Toast",
   tags: ["autodocs"],
 };
 export default meta;

@@ -10,7 +10,7 @@ import { SearchSelect } from "./search-select";
  * filters on its own.
  */
 const meta: Meta<typeof SearchSelect> = {
-  title: "Components/SearchSelect",
+  title: "Components/Forms/SearchSelect",
   component: SearchSelect,
   tags: ["autodocs"],
 };

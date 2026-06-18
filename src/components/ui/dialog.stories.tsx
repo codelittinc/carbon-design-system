@@ -19,7 +19,7 @@ import { Input } from "./input";
  * product for confirmations and short forms (e.g. recording a payment).
  */
 const meta: Meta = {
-  title: "Components/Dialog",
+  title: "Components/Overlays/Dialog",
   tags: ["autodocs"],
 };
 export default meta;

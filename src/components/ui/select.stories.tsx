@@ -15,7 +15,7 @@ import {
  * Trigger / Value / Content / Item primitives.
  */
 const meta: Meta<typeof Select> = {
-  title: "Components/Select",
+  title: "Components/Forms/Select",
   component: Select,
   tags: ["autodocs"],
 };

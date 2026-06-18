@@ -9,7 +9,7 @@ import { Button } from "./button";
  * sections like Tenants, Leases, and Reports.
  */
 const meta: Meta<typeof PageHeader> = {
-  title: "Components/PageHeader",
+  title: "Components/Data Display/PageHeader",
   component: PageHeader,
   tags: ["autodocs"],
 };

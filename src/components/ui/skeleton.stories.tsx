@@ -6,7 +6,7 @@ import { Skeleton } from "./skeleton";
  * mirror the shape of content while it loads (tenant cards, ledger rows, etc.).
  */
 const meta: Meta<typeof Skeleton> = {
-  title: "Components/Skeleton",
+  title: "Components/Data Display/Skeleton",
   component: Skeleton,
   tags: ["autodocs"],
 };
