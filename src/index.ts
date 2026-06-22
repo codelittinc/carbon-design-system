@@ -46,3 +46,4 @@ export * from "./components/ui/definition-list";
 export * from "./components/ui/filter-bar";
 export * from "./components/ui/stat-card";
 export * from "./components/ui/date-range-picker";
+export * from "./components/ui/theme";
