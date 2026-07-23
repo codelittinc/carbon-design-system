@@ -1,13 +1,17 @@
 name: Publish to GitHub Packages
 
-# Publishes @codelittinc/carbon-design-system to GitHub Packages when a GitHub
-# Release is published. The release tag should match the package.json version
-# (e.g. tag v0.1.0 → version 0.1.0). Republishing an existing version fails, so
-# bump the version before cutting a release.
+# Publishes @codelittinc/carbon-design-system to GitHub Packages.
+#
+# Fires on every push to main: bump the version in package.json (see CLAUDE.md)
+# and the merge publishes it. Also runs on published Releases and manual
+# dispatch. If the current package.json version is already on the registry the
+# publish step is skipped (not failed), so a merge that forgot to bump is a
+# no-op rather than a red pipeline.
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
-  # Allow a manual run from the Actions tab for the current package.json version.
   workflow_dispatch:
 
 jobs:
@@ -33,8 +37,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check whether this version is already published
+        id: check
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Package version: $VERSION"
+          if npm view "@codelittinc/carbon-design-system@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION is already published — skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # `prepack` (pnpm run build:lib) runs automatically and produces dist/.
       - name: Publish
+        if: steps.check.outputs.publish == 'true'
         run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
