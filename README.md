@@ -72,12 +72,39 @@ utilities used throughout the components — there are no hard-coded hex values 
 | **Spacing** | tightened scale `px → 20` (1px → 80px) |
 | **Radius** | `sm` 4px · `md` 6px · `lg` 8px · `xl` 12px |
 
+## Installation
+
+Published to **GitHub Packages** under the `@codelittinc` scope. Point the scope
+at the GitHub registry (once per consuming project) in an `.npmrc`:
+
+```
+@codelittinc:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+`GITHUB_TOKEN` needs the `read:packages` scope. Then:
+
+```sh
+pnpm add @codelittinc/carbon-design-system
+```
+
 ## Usage in an app
 
 ```ts
-import "@carbon/design-system/styles";
-import { Button, Badge, DataTable, useToast } from "@carbon/design-system";
+import "@codelittinc/carbon-design-system/styles";
+import { Button, Badge, DataTable, useToast } from "@codelittinc/carbon-design-system";
 ```
+
+A single component can be imported from its subpath to avoid pulling the whole
+barrel:
+
+```ts
+import { Button } from "@codelittinc/carbon-design-system/button";
+```
+
+> **Tailwind consumers:** the components ship pre-built with literal utility
+> class names, so add the package to your Tailwind sources so those classes are
+> generated — in Tailwind v4: `@source "../node_modules/@codelittinc/carbon-design-system/dist";`
 
 ## Components
 

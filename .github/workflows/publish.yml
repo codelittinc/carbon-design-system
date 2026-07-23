@@ -1,0 +1,40 @@
+name: Publish to GitHub Packages
+
+# Publishes @codelittinc/carbon-design-system to GitHub Packages when a GitHub
+# Release is published. The release tag should match the package.json version
+# (e.g. tag v0.1.0 → version 0.1.0). Republishing an existing version fails, so
+# bump the version before cutting a release.
+on:
+  release:
+    types: [published]
+  # Allow a manual run from the Actions tab for the current package.json version.
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@codelittinc"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `prepack` (pnpm run build:lib) runs automatically and produces dist/.
+      - name: Publish
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

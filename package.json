@@ -1,12 +1,36 @@
 {
-  "name": "@carbon/design-system",
+  "name": "@codelittinc/carbon-design-system",
   "version": "0.1.0",
   "description": "CarbonOS Design System — Refined Carbon. Shared React UI components and design tokens.",
-  "private": true,
   "type": "module",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codelittinc/carbon-design-system.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "src/styles"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./button": {
+      "types": "./dist/button.d.ts",
+      "import": "./dist/button.js"
+    },
     "./styles": "./src/styles/theme.css"
   },
   "scripts": {
@@ -14,11 +38,17 @@
     "storybook": "storybook dev -p 6006",
     "build": "storybook build",
     "build-storybook": "storybook build",
+    "build:lib": "tsup",
+    "prepack": "pnpm run build:lib",
     "typecheck": "tsc --noEmit",
     "start": "node server.js"
   },
   "engines": {
     "node": "22.x"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -38,10 +68,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "lucide-react": "^1.14.0",
     "express": "^4.19.2",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "lucide-react": "^1.14.0",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
@@ -54,12 +82,15 @@
     "@storybook/react-vite": "^8.6.14",
     "@tailwindcss/vite": "^4.2.4",
     "@types/google.maps": "^3.64.0",
-    "i18next": "^23.11.5",
-    "react-i18next": "^14.1.2",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.4",
+    "i18next": "^23.11.5",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-i18next": "^14.1.2",
     "storybook": "^8.6.14",
     "tailwindcss": "^4.2.4",
+    "tsup": "^8.3.5",
     "typescript": "^5.8.3",
     "vite": "^6.0.0",
     "vite-tsconfig-paths": "^5.1.4"

@@ -2,10 +2,10 @@
  * CarbonOS Design System — public entry point.
  *
  * Import design tokens once at your app root:
- *   import "@carbon/design-system/styles";
+ *   import "@codelittinc/carbon-design-system/styles";
  *
  * Then import components:
- *   import { Button, Badge, Dialog } from "@carbon/design-system";
+ *   import { Button, Badge, Dialog } from "@codelittinc/carbon-design-system";
  */
 
 // ── Utilities ──
