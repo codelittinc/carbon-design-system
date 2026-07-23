@@ -47,3 +47,11 @@ export * from "./components/ui/filter-bar";
 export * from "./components/ui/stat-card";
 export * from "./components/ui/date-range-picker";
 export * from "./components/ui/theme";
+export * from "./components/ui/account-combobox";
+export * from "./components/ui/multi-status-filter";
+export * from "./components/ui/structured-address-input";
+// `address-combobox` exports an `AddressAutocomplete` that returns a structured
+// address (via Google Places New API). It's aliased to `AddressCombobox` so it
+// coexists with the simpler string-only `address-autocomplete` above.
+export { AddressAutocomplete as AddressCombobox } from "./components/ui/address-combobox";
+export * from "./components/ui/postal-address";
