@@ -1,25 +1,24 @@
 name: Publish to GitHub Packages
 
-# Publishes @codelittinc/carbon-design-system to GitHub Packages.
+# Publishes @codelittinc/carbon-design-system to GitHub Packages and cuts a
+# matching GitHub Release.
 #
-# Fires on every push to main: bump the version in package.json (see CLAUDE.md)
-# and the merge publishes it. Also runs on published Releases and manual
-# dispatch. If the current package.json version is already on the registry the
-# publish step is skipped (not failed), so a merge that forgot to bump is a
-# no-op rather than a red pipeline.
+# Fires on every push to main: bump the version in package.json and add a
+# CHANGELOG entry (see CLAUDE.md); the merge then publishes that version and
+# creates a `v<version>` release with those notes. If the current version is
+# already on the registry, both steps are skipped (not failed), so a merge that
+# forgot to bump is a no-op rather than a red pipeline.
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write # create the git tag + GitHub Release
+      packages: write # publish to GitHub Packages
     steps:
       - uses: actions/checkout@v4
 
@@ -44,8 +43,9 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "Package version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if npm view "@codelittinc/carbon-design-system@$VERSION" version >/dev/null 2>&1; then
-            echo "Version $VERSION is already published — skipping."
+            echo "Version $VERSION is already published — skipping publish + release."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -57,3 +57,26 @@ jobs:
         run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        if: steps.check.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          # Pull the notes for this version out of CHANGELOG.md: everything
+          # between "## [VERSION]" and the next "## " heading.
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
+            flag && /^## / { exit }
+            flag { print }
+          ' CHANGELOG.md)
+
+          TAG="v$VERSION"
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "No CHANGELOG entry for $VERSION — falling back to auto-generated notes."
+            gh release create "$TAG" --title "$TAG" --target "$GITHUB_SHA" --generate-notes
+          else
+            printf '%s\n' "$NOTES" > /tmp/release-notes.md
+            gh release create "$TAG" --title "$TAG" --target "$GITHUB_SHA" --notes-file /tmp/release-notes.md
+          fi
