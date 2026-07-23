@@ -39,6 +39,7 @@
     "build": "storybook build",
     "build-storybook": "storybook build",
     "build:lib": "tsup",
+    "prepare": "pnpm run build:lib",
     "prepack": "pnpm run build:lib",
     "typecheck": "tsc --noEmit",
     "start": "node server.js"
