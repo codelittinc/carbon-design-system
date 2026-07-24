@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CarbonOS Design System — Refined Carbon. Shared React UI components and design tokens.",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/codelittinc/carbon-design-system.git"
