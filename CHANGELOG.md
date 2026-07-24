@@ -8,6 +8,15 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [0.1.1] - 2026-07-24
+
+### Changed
+
+- Moved `express` from `dependencies` to `devDependencies`. It is only used by
+  the Storybook deploy server (`server.js`), which is not part of the published
+  package, so consuming apps no longer pull `express` and its dependency tree
+  into their `node_modules`.
+
 ## [0.1.0] - 2026-07-23
 
 ### Added

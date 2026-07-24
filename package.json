@@ -1,6 +1,6 @@
 {
   "name": "@codelittinc/carbon-design-system",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CarbonOS Design System — Refined Carbon. Shared React UI components and design tokens.",
   "type": "module",
   "license": "MIT",
