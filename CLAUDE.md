@@ -27,6 +27,29 @@ Changes that do **not** touch the published surface — Storybook stories,
 If you forget to bump, the publish on `main` is **skipped** (the registry rejects
 re-publishing an existing version), so the app never receives your change. Bump.
 
+## Rebuild and commit `dist/` on every source change
+
+`dist/` is **committed to git**, because consumers install this package as a git
+dependency pinned to a commit SHA (e.g.
+`"@codelittinc/carbon-design-system": "github:codelittinc/carbon-design-system#<sha>"`).
+Those installs use the `dist/` **that is in the commit** — the git-dep `prepare`
+build is not something we rely on to be correct. So a commit whose `src/` and
+`dist/` disagree ships **stale code** to every app on that SHA.
+
+**Whenever you change anything under `src/` (or the build config), you MUST
+rebuild and commit `dist/` in the same commit:**
+
+```
+pnpm run build:lib   # regenerates dist/index.js, dist/button.js, + .d.ts
+git add dist          # commit the rebuilt artifacts alongside the src change
+```
+
+Do not hand-edit files in `dist/` — always regenerate them. A change to `src/`
+without a matching `dist/` update in the same commit is a bug, even if
+`package.json`/`CHANGELOG.md` were bumped correctly. The full library is bundled
+into `dist/index.js` (all components import from the package root); `dist/button.js`
+is just the extra `./button` subpath.
+
 ## Publishing — automatic on `main`
 
 `.github/workflows/publish.yml` runs on **every push to `main`** (plus manual
