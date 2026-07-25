@@ -8,6 +8,21 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [0.2.1] - 2026-07-25
+
+Test infrastructure only — no change to the published component surface (`dist/`
+is byte-identical to `0.2.0`).
+
+### Added
+
+- Test runner: Vitest + Testing Library (jsdom) via `vitest.config.ts` /
+  `vitest.setup.ts` and a `pnpm test` script.
+- Integration coverage for the address cluster
+  (`StructuredAddressInput` + `AddressAutocomplete` + `parseGooglePlaceAddress`),
+  ported from carbon-backbone. It mocks `@/lib/google-places` — this package's
+  own Google Places loader seam — so the coverage can live here as the app
+  deletes its local copies (carbon-backbone issue #276).
+
 ## [0.2.0] - 2026-07-25
 
 Sync improvements that had diverged into the carbon-backbone app back into the
