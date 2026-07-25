@@ -182,7 +182,13 @@ var STATUS_MAP = {
   PARTIALLY_PAID: "info",
   PARTIALLY_FULFILLED: "info",
   IN_PROGRESS: "info",
-  APPLICANT: "info"
+  APPLICANT: "info",
+  // Renewal pipeline statuses.
+  NOT_STARTED: "warning",
+  RENEWED: "success",
+  WENT_MTM: "info",
+  // Unit: an application landed but no lease is signed — still available to others.
+  VACANT_APPLICANT_PENDING: "accent"
 };
 function StatusBadge({ status, className }) {
   const variant = STATUS_MAP[status] ?? "default";
@@ -785,7 +791,9 @@ function clean(raw) {
   const neg = raw.trim().startsWith("-");
   const digits = raw.replace(/[^0-9.]/g, "");
   const parts = digits.split(".");
-  const joined = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : digits;
+  const hasDot = parts.length > 1;
+  const intPart = (parts[0] ?? "").replace(/^0+(?=\d)/, "");
+  const joined = hasDot ? `${intPart}.${parts.slice(1).join("")}` : intPart;
   return (neg ? "-" : "") + joined;
 }
 function formatForDisplay(value) {
@@ -914,9 +922,10 @@ function SearchSelect({
   placeholder = "Search...",
   className,
   clearable = true,
-  renderOption
+  renderOption,
+  autoFocus = false
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const ref = useRef(null);
   const inputRef = useRef(null);
@@ -988,6 +997,7 @@ function SearchSelect({
           "input",
           {
             ref: inputRef,
+            autoFocus,
             type: "text",
             value: query,
             onChange: (e) => handleQueryChange(e.target.value),

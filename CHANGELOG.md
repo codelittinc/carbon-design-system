@@ -8,6 +8,26 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [0.2.0] - 2026-07-25
+
+Sync improvements that had diverged into the carbon-backbone app back into the
+published components.
+
+### Added
+
+- `StatusBadge`: new status mappings for the renewal pipeline — `NOT_STARTED`
+  (warning), `RENEWED` (success), `WENT_MTM` (info), and `VACANT_APPLICANT_PENDING`
+  (accent).
+- `SearchSelect`: new `autoFocus` prop. When set, the dropdown opens and the
+  search input takes focus on mount — intended for use inside dialogs so a
+  keyboard user can start typing immediately.
+
+### Fixed
+
+- `MoneyInput`: strip leading zeros while typing so a default `0` no longer
+  lingers (`"05"` → `"5"`), while still preserving a lone `"0"` and the `"0"` in
+  `"0.50"`.
+
 ## [0.1.1] - 2026-07-24
 
 ### Changed

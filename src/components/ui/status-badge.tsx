@@ -24,6 +24,12 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   PARTIALLY_FULFILLED: "info",
   IN_PROGRESS: "info",
   APPLICANT: "info",
+  // Renewal pipeline statuses.
+  NOT_STARTED: "warning",
+  RENEWED: "success",
+  WENT_MTM: "info",
+  // Unit: an application landed but no lease is signed — still available to others.
+  VACANT_APPLICANT_PENDING: "accent",
 };
 
 interface StatusBadgeProps {

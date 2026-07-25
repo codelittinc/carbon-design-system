@@ -20,6 +20,12 @@ interface SearchSelectProps {
   className?: string;
   clearable?: boolean;
   renderOption?: (option: SearchSelectOption) => React.ReactNode;
+  /**
+   * Open the dropdown and focus the search input on mount. Used inside dialogs
+   * so a keyboard user can type a name immediately — without this the closed
+   * trigger button takes focus (it looks highlighted but can't be typed into).
+   */
+  autoFocus?: boolean;
 }
 
 export function SearchSelect({
@@ -32,8 +38,11 @@ export function SearchSelect({
   className,
   clearable = true,
   renderOption,
+  autoFocus = false,
 }: SearchSelectProps) {
-  const [open, setOpen] = useState(false);
+  // Start open when auto-focusing so the search input is rendered on the first
+  // paint and can receive focus (the input only exists in the DOM while open).
+  const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +119,7 @@ export function SearchSelect({
             <Search size={14} className="text-text-muted" />
             <input
               ref={inputRef}
+              autoFocus={autoFocus}
               type="text"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}

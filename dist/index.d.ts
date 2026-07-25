@@ -211,8 +211,14 @@ interface SearchSelectProps {
     className?: string;
     clearable?: boolean;
     renderOption?: (option: SearchSelectOption) => React.ReactNode;
+    /**
+     * Open the dropdown and focus the search input on mount. Used inside dialogs
+     * so a keyboard user can type a name immediately — without this the closed
+     * trigger button takes focus (it looks highlighted but can't be typed into).
+     */
+    autoFocus?: boolean;
 }
-declare function SearchSelect({ value, onChange, onSearch, options, loading, placeholder, className, clearable, renderOption, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, options, loading, placeholder, className, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */

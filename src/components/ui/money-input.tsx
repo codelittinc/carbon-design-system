@@ -13,7 +13,11 @@ function clean(raw: string): string {
   const neg = raw.trim().startsWith("-");
   const digits = raw.replace(/[^0-9.]/g, "");
   const parts = digits.split(".");
-  const joined = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : digits;
+  const hasDot = parts.length > 1;
+  // Strip leading zeros so a default "0" doesn't linger when typing ("05" -> "5"),
+  // while keeping a lone "0" and the "0" in "0.50".
+  const intPart = (parts[0] ?? "").replace(/^0+(?=\d)/, "");
+  const joined = hasDot ? `${intPart}.${parts.slice(1).join("")}` : intPart;
   return (neg ? "-" : "") + joined;
 }
 
