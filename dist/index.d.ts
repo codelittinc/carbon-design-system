@@ -213,10 +213,27 @@ interface SearchSelectProps {
     value: string | null;
     onChange: (value: string | null) => void;
     onSearch: (query: string) => void;
+    /**
+     * Fires immediately on every keystroke, un-debounced — before the debounced
+     * `onSearch`. Use it when editing the query must take effect at once rather
+     * than after the debounce, e.g. to invalidate a prior selection the moment the
+     * user starts typing a replacement (so a stale value can't be submitted during
+     * the debounce window). `onSearch` remains the throttled hook for the actual
+     * fetch.
+     */
+    onQueryChange?: (query: string) => void;
     options: SearchSelectOption[];
     loading?: boolean;
     placeholder?: string;
     className?: string;
+    /**
+     * Applied to the trigger `<button>`, so an external `<label htmlFor={id}>` can
+     * name the control (the trigger is a labelable button). Without it the label
+     * has nothing to bind to and assistive tech can't announce the field.
+     */
+    id?: string;
+    /** Marks the trigger `aria-required`, so assistive tech announces the field as required. */
+    required?: boolean;
     /**
      * Override styling of the trigger `<button>`. Merged after the default
      * classes via `cn`, so a consumer can restyle the control for a differently
@@ -236,7 +253,7 @@ interface SearchSelectProps {
      */
     autoFocus?: boolean;
 }
-declare function SearchSelect({ value, onChange, onSearch, options, loading, placeholder, className, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, required, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */

@@ -917,10 +917,13 @@ function SearchSelect({
   value,
   onChange,
   onSearch,
+  onQueryChange,
   options,
   loading = false,
   placeholder = "Search...",
   className,
+  id,
+  required,
   triggerClassName,
   contentClassName,
   optionClassName,
@@ -968,10 +971,11 @@ function SearchSelect({
   const handleQueryChange = useCallback(
     (q) => {
       setQuery(q);
+      onQueryChange?.(q);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => onSearch(q), 300);
     },
-    [onSearch]
+    [onSearch, onQueryChange]
   );
   const handleSelect = useCallback(
     (val) => {
@@ -1047,9 +1051,11 @@ function SearchSelect({
       "button",
       {
         ref: triggerRef,
+        id,
         type: "button",
         "aria-haspopup": "listbox",
         "aria-expanded": open,
+        "aria-required": required || void 0,
         "aria-controls": open ? listboxId : void 0,
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),

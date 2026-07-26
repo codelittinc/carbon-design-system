@@ -8,6 +8,36 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.2.0] - 2026-07-26
+
+Follow-up to [#17](https://github.com/codelittinc/carbon-design-system/issues/17):
+closes the two gaps that surfaced when `SearchSelect` replaced carbon-backbone's
+hand-rolled PO picker — immediate query invalidation and trigger labeling.
+
+### Added
+
+- **`onQueryChange`** on `SearchSelect` — fires immediately on every keystroke,
+  un-debounced, before the debounced `onSearch`. A consumer that clears a prior
+  selection when the query is edited previously had to do it in `onSearch`, which
+  left the stale selection live during the 300 ms debounce (long enough to submit
+  the old value). `onQueryChange` invalidates it at once; `onSearch` stays the
+  throttled hook for the actual fetch.
+- **`id`** on `SearchSelect` — applied to the trigger `<button>` so an external
+  `<label htmlFor={id}>` can name the control. The trigger is a labelable button,
+  so this gives it an accessible name and makes the label click-to-focus.
+- **`required`** on `SearchSelect` — marks the trigger `aria-required` so
+  assistive tech announces the field as required.
+
+### Changed
+
+- The `LightSurfaceOverride` story now also demonstrates `id` + `<label>`,
+  `required`, and `onQueryChange`-based selection invalidation.
+
+### Notes
+
+- All three props are optional and additive → **minor** bump `1.1.0 → 1.2.0`.
+  Default rendering and existing consumers are unchanged.
+
 ## [1.1.0] - 2026-07-26
 
 Closes [#17](https://github.com/codelittinc/carbon-design-system/issues/17):
