@@ -8,6 +8,37 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.1.0] - 2026-07-26
+
+Closes [#17](https://github.com/codelittinc/carbon-design-system/issues/17):
+`SearchSelect` is now keyboard-accessible and its trigger/dropdown can be
+restyled for non-dark surfaces.
+
+### Added
+
+- **Keyboard navigation** for `SearchSelect`, following the standard combobox
+  a11y pattern:
+  - `ArrowDown` / `ArrowUp` move an active option with wrap-around. When the list
+    is closed they open it **and** activate the first / last option, so
+    `ArrowDown` then `Enter` selects the first result without an extra keypress.
+  - `Enter` selects the active option; `Escape` closes the list.
+  - Closing the list (via `Escape` or selecting an option) **returns focus to
+    the trigger**, so keyboard focus never falls back to `<body>`. Tabbing out
+    of the widget also closes the list, so it never lingers open with
+    `aria-expanded="true"` after focus has left.
+  - A single combobox is exposed: the search input is the `role="combobox"`
+    (with `aria-expanded` / `aria-controls` / `aria-autocomplete="list"` /
+    `aria-activedescendant`); the trigger is a plain button with
+    `aria-haspopup="listbox"` + `aria-expanded`. Options are `role="option"` +
+    `aria-selected` inside a `role="listbox"`, kept out of the Tab sequence
+    (`tabIndex={-1}`) since focus stays on the input.
+  - The active option scrolls into view and follows mouse hover.
+- **Style-override props** on `SearchSelect` — `triggerClassName`,
+  `contentClassName`, and `optionClassName` — each merged after the default
+  classes via `cn`, so a consumer can restyle the control (trigger, dropdown
+  panel, options) for a differently themed surface (e.g. a light-themed public
+  page) without forking the component.
+
 ## [1.0.0] - 2026-07-26
 
 ### Removed (breaking)
