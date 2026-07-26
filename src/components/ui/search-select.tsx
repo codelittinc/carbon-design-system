@@ -179,22 +179,32 @@ export function SearchSelect({
     [onSearch, onQueryChange],
   );
 
+  // Selecting or clearing abandons any in-flight query: cancel the pending
+  // debounced onSearch so it can't fire afterwards and hand the parent a query
+  // whose result set omits the just-chosen option — which would blank the
+  // trigger while the value stays selected (and submittable).
+  const cancelPendingSearch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
   const handleSelect = useCallback(
     (val: string) => {
+      cancelPendingSearch();
       onChange(val);
       setQuery("");
       closeList();
     },
-    [onChange, closeList],
+    [onChange, closeList, cancelPendingSearch],
   );
 
   const handleClear = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      cancelPendingSearch();
       onChange(null);
       setQuery("");
     },
-    [onChange],
+    [onChange, cancelPendingSearch],
   );
 
   // Close when focus leaves the widget (e.g. Tab to the next page control), so
