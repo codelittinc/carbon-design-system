@@ -980,21 +980,26 @@ function SearchSelect({
     },
     [onSearch, onQueryChange]
   );
+  const cancelPendingSearch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
   const handleSelect = useCallback(
     (val) => {
+      cancelPendingSearch();
       onChange(val);
       setQuery("");
       closeList();
     },
-    [onChange, closeList]
+    [onChange, closeList, cancelPendingSearch]
   );
   const handleClear = useCallback(
     (e) => {
       e.stopPropagation();
+      cancelPendingSearch();
       onChange(null);
       setQuery("");
     },
-    [onChange]
+    [onChange, cancelPendingSearch]
   );
   const handleBlur = useCallback((e) => {
     const next = e.relatedTarget;

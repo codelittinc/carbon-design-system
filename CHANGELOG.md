@@ -8,6 +8,17 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.3.1] - 2026-07-26
+
+### Fixed
+
+- **`SearchSelect` no longer lets a stale debounced `onSearch` fire after a
+  selection or clear.** Selecting an option (or clicking the clear button) now
+  cancels the pending debounce, so a query typed just before the choice can't
+  fire afterwards and hand the parent a result set that omits the chosen option
+  — which previously blanked the trigger while the value stayed selected. Adds
+  tests covering cancellation on both select and clear.
+
 ## [1.3.0] - 2026-07-26
 
 Follow-up to [#19](https://github.com/codelittinc/carbon-design-system/pull/19):

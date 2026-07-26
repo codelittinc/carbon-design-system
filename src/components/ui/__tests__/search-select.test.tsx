@@ -128,6 +128,24 @@ describe("SearchSelect", () => {
     expect(screen.queryByPlaceholderText("Search...")).not.toBeInTheDocument();
   });
 
+  it("cancels a pending debounced onSearch when an option is selected", () => {
+    // A fast user types then selects from the still-visible results before the
+    // 300ms debounce elapses. The abandoned query must NOT fire afterwards — if
+    // it did, the parent could refetch a result set omitting the just-selected
+    // option, blanking the trigger while the value stays selected.
+    const onSearch = vi.fn();
+    render(<Harness onSearch={onSearch} />);
+    fireEvent.click(getTrigger());
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "ban" },
+    });
+    fireEvent.click(screen.getByText("Banana"));
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
   it("clear button calls onChange(null)", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} initialValue="a" />);
@@ -136,6 +154,21 @@ describe("SearchSelect", () => {
     expect(clear).toBeDefined();
     fireEvent.click(clear!);
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it("cancels a pending debounced onSearch when the value is cleared", () => {
+    const onSearch = vi.fn();
+    render(<Harness onSearch={onSearch} initialValue="a" />);
+    fireEvent.click(getTrigger());
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "xyz" },
+    });
+    const clear = screen.getAllByRole("button").find((el) => el.getAttribute("tabindex") === "-1");
+    fireEvent.click(clear!);
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(onSearch).not.toHaveBeenCalled();
   });
 
   it("opens on mount when autoFocus is set", () => {
