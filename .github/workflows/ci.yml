@@ -1,0 +1,41 @@
+name: CI
+
+# Runs the checks that must pass before merging (see CLAUDE.md): typecheck,
+# the Vitest suite, and the library build. Fires on every push to any branch
+# and on manual dispatch.
+on:
+  push:
+  workflow_dispatch:
+
+# Cancel an in-progress run when a new commit is pushed to the same branch, so
+# rapid pushes don't pile up redundant runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from package.json's `packageManager` field; do not also set
+      # `version` here or action-setup errors on the duplicate.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build library
+        run: pnpm run build:lib
