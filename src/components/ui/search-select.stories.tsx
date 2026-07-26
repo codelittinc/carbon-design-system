@@ -128,10 +128,11 @@ export const Loading: StoryObj<typeof SearchSelect> = {
  * navigation (ArrowUp/Down, Enter, Escape) works the same on any surface.
  *
  * It also shows the labeling and invalidation props: `id` binds an external
- * `<label htmlFor>` to the trigger and `required` marks it `aria-required`;
- * `onQueryChange` fires immediately (before the debounced `onSearch`) so a prior
- * selection is cleared the instant the user edits the query — no stale value can
- * survive the debounce window.
+ * `<label htmlFor>` to the trigger, `ariaLabel` names both the trigger and the
+ * opened combobox input (so it isn't announced as "Search…"), and `required`
+ * marks the combobox input `aria-required`; `onQueryChange` fires immediately
+ * (before the debounced `onSearch`) so a prior selection is cleared the instant
+ * the user edits the query — no stale value can survive the debounce window.
  */
 export const LightSurfaceOverride: StoryObj<typeof SearchSelect> = {
   render: () => <LightThemedSearchSelect />,
@@ -170,6 +171,7 @@ function LightThemedSearchSelect() {
       </label>
       <SearchSelect
         id="story-po"
+        ariaLabel={t("poLabel")}
         required
         value={value}
         onChange={setValue}

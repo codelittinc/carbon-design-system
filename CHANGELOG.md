@@ -8,6 +8,37 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.3.0] - 2026-07-26
+
+Follow-up to [#19](https://github.com/codelittinc/carbon-design-system/pull/19):
+fixes two `SearchSelect` accessibility gaps in the labeling props shipped in
+1.2.0. Both concern the `combobox` search input, which receives focus once the
+dropdown opens.
+
+### Added
+
+- **`ariaLabel`** on `SearchSelect` — accessible name applied as `aria-label` to
+  **both** the trigger `<button>` and the search `combobox` input. An external
+  `<label htmlFor={id}>` only names the trigger; once the dropdown opens, focus
+  moves to the search input, which the label can't reach — so assistive tech
+  announced its placeholder ("Search…") instead of the field name (e.g.
+  "Purchase order"). `ariaLabel` names both elements so the field is announced
+  consistently whether it's open or closed.
+
+### Fixed
+
+- **`required` now applies `aria-required` to the `combobox` input**, not the
+  trigger `<button>`. `aria-required` is not a supported state on the `button`
+  role, so assistive tech ignored it and never announced the field as required.
+  It now lives on the element that carries the `combobox` role and receives
+  focus, where the state is valid.
+
+### Notes
+
+- `ariaLabel` is optional and additive; the `aria-required` move is a bug fix
+  with no API change → **minor** bump `1.2.0 → 1.3.0`. Default rendering and
+  existing consumers are unchanged.
+
 ## [1.2.0] - 2026-07-26
 
 Follow-up to [#17](https://github.com/codelittinc/carbon-design-system/issues/17):

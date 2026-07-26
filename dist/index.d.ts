@@ -230,9 +230,25 @@ interface SearchSelectProps {
      * Applied to the trigger `<button>`, so an external `<label htmlFor={id}>` can
      * name the control (the trigger is a labelable button). Without it the label
      * has nothing to bind to and assistive tech can't announce the field.
+     *
+     * Note: an external `<label htmlFor={id}>` only names the *trigger*. Once the
+     * dropdown opens, focus moves to the search `combobox` input, which the label
+     * can't reach — so it would be announced by its placeholder ("Search…")
+     * instead of the field name. Pass `ariaLabel` to name both elements.
      */
     id?: string;
-    /** Marks the trigger `aria-required`, so assistive tech announces the field as required. */
+    /**
+     * Accessible name applied as `aria-label` to *both* the trigger `<button>` and
+     * the search `combobox` input. Use this so the field is announced with the same
+     * name whether focus is on the closed trigger or the opened input — an external
+     * `<label htmlFor={id}>` only reaches the trigger.
+     */
+    ariaLabel?: string;
+    /**
+     * Marks the field `aria-required`, applied to the `combobox` input (the
+     * element with the combobox role that receives focus). `aria-required` is not
+     * a supported state on the trigger's `button` role, so it lives on the input.
+     */
     required?: boolean;
     /**
      * Override styling of the trigger `<button>`. Merged after the default
@@ -253,7 +269,7 @@ interface SearchSelectProps {
      */
     autoFocus?: boolean;
 }
-declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, required, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, ariaLabel, required, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */
