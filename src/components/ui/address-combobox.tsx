@@ -169,7 +169,7 @@ export function AddressAutocomplete({
       ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
       : variant === "vendor"
         ? "flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50";
+        : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
   const optionsVisible = searchActive && suggestions.length > 0;
   const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
   const optionClass =

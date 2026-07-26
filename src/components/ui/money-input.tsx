@@ -73,7 +73,7 @@ const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(
           type="text"
           inputMode="decimal"
           className={cn(
-            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
           value={focused ? value : formatForDisplay(value)}

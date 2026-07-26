@@ -95,7 +95,7 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
       mounted = false;
     };
   }, [handlePlaceSelect]);
-  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500" : "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50";
+  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500" : "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
   return /* @__PURE__ */ jsx(
     "input",
     {
@@ -110,11 +110,11 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
   );
 }
 var buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-amber-500 text-carbon-950 hover:bg-amber-400",
+        default: "bg-accent text-carbon-950 hover:bg-accent-hover",
         destructive: "bg-red-600 text-white hover:bg-red-500",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
@@ -146,11 +146,11 @@ var badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-surface-overlay text-text-secondary",
-        accent: "bg-amber-500/15 text-accent-text",
-        success: "bg-green-500/15 text-success-text",
-        warning: "bg-amber-500/15 text-accent-text",
-        error: "bg-red-500/15 text-error-text",
-        info: "bg-blue-500/15 text-info-text"
+        accent: "bg-accent-muted text-accent-text",
+        success: "bg-success-soft text-success-text",
+        warning: "bg-accent-muted text-accent-text",
+        error: "bg-error-soft text-error-text",
+        info: "bg-info-soft text-info-text"
       }
     },
     defaultVariants: {
@@ -202,7 +202,7 @@ var Input = forwardRef(
       {
         type,
         className: cn(
-          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
           className
         ),
         ref,
@@ -218,7 +218,7 @@ var Textarea = forwardRef(
       "textarea",
       {
         className: cn(
-          "flex min-h-[80px] w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex min-h-[80px] w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
           className
         ),
         ref,
@@ -233,7 +233,7 @@ var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   {
     ref,
     className: cn(
-      "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-amber-500 data-[state=checked]:bg-amber-500 data-[state=checked]:text-carbon-950",
+      "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-carbon-950",
       className
     ),
     ...props,
@@ -246,7 +246,7 @@ var Switch = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   {
     ref,
     className: cn(
-      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-border",
+      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-accent data-[state=unchecked]:bg-border",
       className
     ),
     ...props,
@@ -269,7 +269,7 @@ var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @_
   {
     ref,
     className: cn(
-      "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
       className
     ),
     ...props,
@@ -349,7 +349,7 @@ var DialogContent = forwardRef(({ className, children, ...props }, ref) => /* @_
       ...props,
       children: [
         children,
-        /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-500/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
+        /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
       ]
     }
   )
@@ -497,7 +497,7 @@ var SheetContent = forwardRef(
         ...props,
         children: [
           children,
-          /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-500/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
+          /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
         ]
       }
     )
@@ -549,7 +549,7 @@ var Progress = forwardRef(({ className, value, ...props }, ref) => /* @__PURE__ 
     children: /* @__PURE__ */ jsx(
       ProgressPrimitive.Indicator,
       {
-        className: "h-full bg-amber-500 transition-all",
+        className: "h-full bg-accent transition-all",
         style: { width: `${value ?? 0}%` }
       }
     )
@@ -574,7 +574,7 @@ var TabsTrigger = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ j
   {
     ref,
     className: cn(
-      "inline-flex items-center justify-center px-3 pb-2 pt-1 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary data-[state=active]:border-b-2 data-[state=active]:border-amber-500 data-[state=active]:text-accent-text data-[state=active]:-mb-px",
+      "inline-flex items-center justify-center px-3 pb-2 pt-1 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary data-[state=active]:border-b-2 data-[state=active]:border-accent data-[state=active]:text-accent-text data-[state=active]:-mb-px",
       className
     ),
     ...props
@@ -658,7 +658,7 @@ function ToastProvider({ children }) {
       {
         className: cn(
           "flex w-80 items-start gap-3 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right",
-          t.variant === "error" ? "border-red-500/30 bg-red-500/10" : t.variant === "success" ? "border-green-500/30 bg-green-500/10" : "border-border bg-surface-raised"
+          t.variant === "error" ? "border-error-border bg-error-soft" : t.variant === "success" ? "border-success-border bg-success-soft" : "border-border bg-surface-raised"
         ),
         children: [
           /* @__PURE__ */ jsxs("div", { className: "flex-1", children: [
@@ -744,7 +744,7 @@ function DataTable({
           className: cn(
             "border-b border-border-subtle transition-colors last:border-0",
             onRowClick && "cursor-pointer hover:bg-surface-overlay",
-            row.getIsSelected() && "bg-amber-500/5"
+            row.getIsSelected() && "bg-accent-muted"
           ),
           onClick: () => onRowClick?.(row.original),
           children: row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))
@@ -834,7 +834,7 @@ var MoneyInput = forwardRef(
           type: "text",
           inputMode: "decimal",
           className: cn(
-            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
             className
           ),
           value: focused ? value : formatForDisplay(value),
@@ -971,7 +971,7 @@ function SearchSelect({
           setOpen(!open);
           if (!open) setTimeout(() => inputRef.current?.focus(), 0);
         },
-        className: "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-amber-500/50",
+        className: "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
         children: [
           /* @__PURE__ */ jsx("span", { className: selectedOption ? "text-text-primary" : "text-text-muted", children: selectedOption?.label ?? placeholder }),
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
@@ -1013,7 +1013,7 @@ function SearchSelect({
           onClick: () => handleSelect(option.value),
           className: cn(
             "flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors hover:bg-surface-overlay",
-            option.value === value && "bg-amber-500/10 text-accent-text"
+            option.value === value && "bg-accent-muted text-accent-text"
           ),
           children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("div", { className: "text-text-primary", children: option.label }),
@@ -1312,10 +1312,10 @@ function AccountCombobox({
     }
   };
   const inputClasses = variant === "inline" ? cn(
-    "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-amber-500/50",
+    "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-accent/50",
     selected ? "text-text-primary" : "text-text-faint"
   ) : cn(
-    "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/50",
+    "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50",
     clearable && selected ? "pr-8" : "",
     selected ? "text-text-primary" : "text-text-muted"
   );
@@ -1374,10 +1374,10 @@ function AccountCombobox({
             className: cn(
               "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-surface-overlay",
               i === highlightIdx && "bg-surface-overlay",
-              a.id === value && "text-amber-400"
+              a.id === value && "text-accent-text"
             ),
             children: [
-              /* @__PURE__ */ jsx("span", { className: "shrink-0 font-[family-name:var(--font-mono)] text-amber-400", children: a.accountNumber }),
+              /* @__PURE__ */ jsx("span", { className: "shrink-0 font-[family-name:var(--font-mono)] text-accent-text", children: a.accountNumber }),
               /* @__PURE__ */ jsx("span", { className: "truncate text-text-primary", children: a.name })
             ]
           },
@@ -1416,7 +1416,7 @@ function MultiStatusFilter({
         type: "button",
         "aria-label": `${label} filter`,
         className: cn(
-          "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-amber-500/50",
+          "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-accent/50",
           className
         ),
         children: [
@@ -1425,7 +1425,7 @@ function MultiStatusFilter({
             ":"
           ] }),
           /* @__PURE__ */ jsx("span", { className: "max-w-[12rem] truncate", children: summary }),
-          selected.length > 0 && selected.length < options.length && /* @__PURE__ */ jsx("span", { className: "rounded-full bg-amber-500/20 px-1.5 text-xs tabular-nums text-amber-400", children: selected.length }),
+          selected.length > 0 && selected.length < options.length && /* @__PURE__ */ jsx("span", { className: "rounded-full bg-accent-muted px-1.5 text-xs tabular-nums text-accent-text", children: selected.length }),
           /* @__PURE__ */ jsx(ChevronDown, { size: 14, className: "text-text-muted" })
         ]
       }
@@ -1438,7 +1438,7 @@ function MultiStatusFilter({
             "button",
             {
               type: "button",
-              className: "text-amber-400 hover:underline disabled:opacity-40",
+              className: "text-accent-text hover:underline disabled:opacity-40",
               disabled: selected.length === options.length,
               onClick: () => onChange(options.map((o) => o.value)),
               children: "All"
@@ -1473,7 +1473,7 @@ function MultiStatusFilter({
                   "aria-hidden": "true",
                   className: cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                    checked ? "border-amber-500 bg-amber-500 text-carbon-950" : "border-border bg-surface-raised"
+                    checked ? "border-accent bg-accent text-carbon-950" : "border-border bg-surface-raised"
                   ),
                   children: checked && /* @__PURE__ */ jsx(Check, { size: 12, strokeWidth: 3 })
                 }
@@ -1731,7 +1731,7 @@ function AddressAutocomplete2({
       setSearchActive(false);
     }
   };
-  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500" : variant === "vendor" ? "flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50";
+  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500" : variant === "vendor" ? "flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
   const optionsVisible = searchActive && suggestions.length > 0;
   const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
   const optionClass = variant === "public" ? "border-gray-700 bg-gray-900 text-white" : variant === "vendor" ? "border-slate-200 bg-white text-slate-900" : "border-border bg-surface-raised text-text-primary";

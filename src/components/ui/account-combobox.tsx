@@ -118,11 +118,11 @@ export function AccountCombobox({
   const inputClasses =
     variant === "inline"
       ? cn(
-          "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-amber-500/50",
+          "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-accent/50",
           selected ? "text-text-primary" : "text-text-faint",
         )
       : cn(
-          "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/50",
+          "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50",
           clearable && selected ? "pr-8" : "",
           selected ? "text-text-primary" : "text-text-muted",
         );
@@ -183,10 +183,10 @@ export function AccountCombobox({
                 className={cn(
                   "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-surface-overlay",
                   i === highlightIdx && "bg-surface-overlay",
-                  a.id === value && "text-amber-400",
+                  a.id === value && "text-accent-text",
                 )}
               >
-                <span className="shrink-0 font-[family-name:var(--font-mono)] text-amber-400">
+                <span className="shrink-0 font-[family-name:var(--font-mono)] text-accent-text">
                   {a.accountNumber}
                 </span>
                 <span className="truncate text-text-primary">{a.name}</span>

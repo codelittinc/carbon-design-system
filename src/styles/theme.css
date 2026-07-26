@@ -79,6 +79,21 @@
   --color-error-text: #f87171;
   --color-info-text: #60a5fa;
 
+  /*
+   * ── Soft status fills & borders ──
+   * Subtle tinted backgrounds (and matching borders) for badges, toasts, and
+   * selected rows. Paired with the *-text tokens above they hold WCAG AA in both
+   * themes. Components use these (bg-success-soft, border-error-border, …)
+   * instead of raw green-500/15-style translucent palette utilities, which do
+   * not adapt when the theme flips. Dark values are the defaults; `.light`
+   * overrides them below.
+   */
+  --color-success-soft: #10241a;
+  --color-error-soft: #2a1416;
+  --color-info-soft: #101f30;
+  --color-success-border: #1f5133;
+  --color-error-border: #5b2323;
+
   /* ── Typography ── */
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "DM Sans", system-ui, sans-serif;
@@ -145,13 +160,21 @@
   /* Accent — step down to amber-600/700 for contrast on light surfaces */
   --color-accent: var(--color-amber-600);
   --color-accent-hover: var(--color-amber-500);
-  --color-accent-muted: var(--color-amber-300);
+  /* Pale amber (amber-100) fill so amber-800 accent text clears AA on top */
+  --color-accent-muted: #fef3c7;
 
   /* Adaptive foregrounds — darker so they read on light tints */
-  --color-accent-text: var(--color-amber-700);
+  --color-accent-text: #92400e; /* amber-800 */
   --color-success-text: #15803d;
   --color-error-text: #b91c1c;
   --color-info-text: #1d4ed8;
+
+  /* Soft fills — pale tints; paired *-text tokens stay AA on top */
+  --color-success-soft: #dcfce7;
+  --color-error-soft: #fee2e2;
+  --color-info-soft: #dbeafe;
+  --color-success-border: #86efac;
+  --color-error-border: #fecaca;
 }
 
 .dark {
@@ -175,6 +198,12 @@
   --color-success-text: #4ade80;
   --color-error-text: #f87171;
   --color-info-text: #60a5fa;
+
+  --color-success-soft: #10241a;
+  --color-error-soft: #2a1416;
+  --color-info-soft: #101f30;
+  --color-success-border: #1f5133;
+  --color-error-border: #5b2323;
 }
 
 /* ── Base reset ── */

@@ -90,7 +90,7 @@ export function DataTable<TData, TValue>({
                   className={cn(
                     "border-b border-border-subtle transition-colors last:border-0",
                     onRowClick && "cursor-pointer hover:bg-surface-overlay",
-                    row.getIsSelected() && "bg-amber-500/5",
+                    row.getIsSelected() && "bg-accent-muted",
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >

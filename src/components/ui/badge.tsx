@@ -7,11 +7,11 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-surface-overlay text-text-secondary",
-        accent: "bg-amber-500/15 text-accent-text",
-        success: "bg-green-500/15 text-success-text",
-        warning: "bg-amber-500/15 text-accent-text",
-        error: "bg-red-500/15 text-error-text",
-        info: "bg-blue-500/15 text-info-text",
+        accent: "bg-accent-muted text-accent-text",
+        success: "bg-success-soft text-success-text",
+        warning: "bg-accent-muted text-accent-text",
+        error: "bg-error-soft text-error-text",
+        info: "bg-info-soft text-info-text",
       },
     },
     defaultVariants: {

@@ -93,7 +93,7 @@ export function SearchSelect({
           setOpen(!open);
           if (!open) setTimeout(() => inputRef.current?.focus(), 0);
         }}
-        className="flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+        className="flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50"
       >
         <span className={selectedOption ? "text-text-primary" : "text-text-muted"}>
           {selectedOption?.label ?? placeholder}
@@ -140,7 +140,7 @@ export function SearchSelect({
                   onClick={() => handleSelect(option.value)}
                   className={cn(
                     "flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors hover:bg-surface-overlay",
-                    option.value === value && "bg-amber-500/10 text-accent-text",
+                    option.value === value && "bg-accent-muted text-accent-text",
                   )}
                 >
                   {renderOption ? (

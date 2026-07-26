@@ -49,6 +49,29 @@ Only the semantic tokens (surfaces, text, borders, accent, and the adaptive
 reference semantic tokens, so they adapt with no code changes. See the Theming block in
 [`src/styles/theme.css`](src/styles/theme.css).
 
+### Semantic color tokens components depend on
+
+Components never emit fixed palette utilities (`text-amber-400`, `bg-green-500/15`, …) — those
+do not adapt when the theme flips and fail WCAG AA on light surfaces. Instead they use the
+semantic tokens below. **If you supply your own theme instead of importing
+`@codelittinc/carbon-design-system/styles`, you must define every `--color-*` variable here**
+(with light/dark values), or the compiled components render with no color:
+
+| Token (utility) | CSS variable | Role |
+|-----------------|--------------|------|
+| `text-accent-text` | `--color-accent-text` | Accent text/number, readable on the surface |
+| `bg-accent` · `border-accent` · `ring-accent` | `--color-accent` | Solid accent fills, active borders, focus rings |
+| `bg-accent-hover` | `--color-accent-hover` | Accent hover state |
+| `bg-accent-muted` | `--color-accent-muted` | Soft accent fill (badge, selected row, count pill) |
+| `text-success-text` · `text-error-text` · `text-info-text` | `--color-{success,error,info}-text` | Adaptive status text |
+| `bg-success-soft` · `bg-error-soft` · `bg-info-soft` | `--color-{success,error,info}-soft` | Soft status fills (badges, toasts) |
+| `border-success-border` · `border-error-border` | `--color-{success,error}-border` | Status borders (toasts) |
+
+Each token pair (soft fill + text) is tuned to clear WCAG AA (≥4.5:1) in **both** themes. The
+raw `carbon-*` foundation scale and the amber accent ramp stay fixed by design; the
+theme-independent `public`/`vendor` variants of the address inputs intentionally pin their own
+color scheme and do not read these tokens.
+
 ## Internationalization (English & Spanish)
 
 Story example copy is bilingual — **English** and **Spanish** are the only supported languages.
@@ -67,7 +90,7 @@ utilities used throughout the components — there are no hard-coded hex values 
 
 | Token group | Examples |
 |-------------|----------|
-| **Colors** | `carbon-50…950`, `amber-300…900`, `success`/`error`/`warning`/`info`, semantic `surface`/`text-*`/`border` |
+| **Colors** | `carbon-50…950`, `amber-300…900`, `success`/`error`/`warning`/`info`, semantic `surface`/`text-*`/`border`, adaptive `accent-*`/`*-text`/`*-soft`/`*-border` (see [Theming](#theming-dark--light)) |
 | **Typography** | `font-display` (Instrument Serif), `font-body` (DM Sans), `font-mono` (JetBrains Mono), `.tabular-nums` |
 | **Spacing** | tightened scale `px → 20` (1px → 80px) |
 | **Radius** | `sm` 4px · `md` 6px · `lg` 8px · `xl` 12px |
@@ -93,13 +116,6 @@ pnpm add @codelittinc/carbon-design-system
 ```ts
 import "@codelittinc/carbon-design-system/styles";
 import { Button, Badge, DataTable, useToast } from "@codelittinc/carbon-design-system";
-```
-
-A single component can be imported from its subpath to avoid pulling the whole
-barrel:
-
-```ts
-import { Button } from "@codelittinc/carbon-design-system/button";
 ```
 
 > **Tailwind consumers:** the components ship pre-built with literal utility
