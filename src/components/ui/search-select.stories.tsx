@@ -13,6 +13,7 @@ i18n.addResourceBundle(
     none: "none",
     unit: "Unit",
     loft: "Loft",
+    poLabel: "Purchase order",
   },
   true,
   true,
@@ -26,6 +27,7 @@ i18n.addResourceBundle(
     none: "ninguno",
     unit: "Unidad",
     loft: "Loft",
+    poLabel: "Orden de compra",
   },
   true,
   true,
@@ -124,6 +126,12 @@ export const Loading: StoryObj<typeof SearchSelect> = {
  * defaults with `cn`), so the control fits a differently themed surface — here a
  * light slate/emerald public page — without forking the component. Keyboard
  * navigation (ArrowUp/Down, Enter, Escape) works the same on any surface.
+ *
+ * It also shows the labeling and invalidation props: `id` binds an external
+ * `<label htmlFor>` to the trigger and `required` marks it `aria-required`;
+ * `onQueryChange` fires immediately (before the debounced `onSearch`) so a prior
+ * selection is cleared the instant the user edits the query — no stale value can
+ * survive the debounce window.
  */
 export const LightSurfaceOverride: StoryObj<typeof SearchSelect> = {
   render: () => <LightThemedSearchSelect />,
@@ -157,10 +165,17 @@ function LightThemedSearchSelect() {
 
   return (
     <div className="flex w-72 flex-col gap-2 rounded-lg bg-slate-50 p-6">
+      <label htmlFor="story-po" className="text-sm font-medium text-slate-700">
+        {t("poLabel")} *
+      </label>
       <SearchSelect
+        id="story-po"
+        required
         value={value}
         onChange={setValue}
         onSearch={handleSearch}
+        // Editing the query drops the prior selection at once, not after the debounce.
+        onQueryChange={() => setValue(null)}
         options={options}
         placeholder={t("searchPlaceholder")}
         triggerClassName="border-slate-300 bg-white text-slate-900 hover:border-slate-400 focus:ring-emerald-500/40"

@@ -18,11 +18,14 @@ function Harness(props: {
   options?: Option[];
   onChange?: (value: string | null) => void;
   onSearch?: (q: string) => void;
+  onQueryChange?: (q: string) => void;
   loading?: boolean;
   clearable?: boolean;
   autoFocus?: boolean;
   initialValue?: string | null;
   renderOption?: (o: Option) => React.ReactNode;
+  id?: string;
+  required?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
   optionClassName?: string;
@@ -36,11 +39,14 @@ function Harness(props: {
         props.onChange?.(v);
       }}
       onSearch={props.onSearch ?? (() => {})}
+      onQueryChange={props.onQueryChange}
       options={props.options ?? OPTIONS}
       loading={props.loading}
       clearable={props.clearable}
       autoFocus={props.autoFocus}
       renderOption={props.renderOption}
+      id={props.id}
+      required={props.required}
       triggerClassName={props.triggerClassName}
       contentClassName={props.contentClassName}
       optionClassName={props.optionClassName}
@@ -85,6 +91,27 @@ describe("SearchSelect", () => {
       vi.advanceTimersByTime(1);
     });
     expect(onSearch).toHaveBeenCalledTimes(1);
+    expect(onSearch).toHaveBeenCalledWith("app");
+  });
+
+  it("fires onQueryChange immediately, before the onSearch debounce", () => {
+    const onQueryChange = vi.fn();
+    const onSearch = vi.fn();
+    render(<Harness onQueryChange={onQueryChange} onSearch={onSearch} />);
+    fireEvent.click(getTrigger());
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "app" },
+    });
+    // Immediate: onQueryChange fired on the keystroke, while onSearch is still
+    // waiting out its 300ms debounce. This is what lets a consumer invalidate a
+    // stale selection before it can be submitted during the debounce window.
+    expect(onQueryChange).toHaveBeenCalledTimes(1);
+    expect(onQueryChange).toHaveBeenCalledWith("app");
+    expect(onSearch).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(onQueryChange).toHaveBeenCalledTimes(1);
     expect(onSearch).toHaveBeenCalledWith("app");
   });
 
@@ -303,6 +330,32 @@ describe("SearchSelect", () => {
       const combobox = screen.getByRole("combobox");
       expect(combobox).toBe(screen.getByPlaceholderText("Search..."));
       expect(combobox).toHaveAttribute("aria-controls");
+    });
+  });
+
+  describe("labeling", () => {
+    it("puts `id` on the trigger so an external <label htmlFor> names it", () => {
+      render(
+        <>
+          <label htmlFor="po">Purchase order</label>
+          <Harness id="po" />
+        </>,
+      );
+      // The trigger is a labelable button, so htmlFor→id gives it an accessible
+      // name and clicking the label focuses it.
+      const trigger = getTrigger();
+      expect(trigger).toHaveAttribute("id", "po");
+      expect(trigger).toHaveAccessibleName("Purchase order");
+    });
+
+    it("marks the trigger aria-required when required", () => {
+      render(<Harness required />);
+      expect(getTrigger()).toHaveAttribute("aria-required", "true");
+    });
+
+    it("omits aria-required by default", () => {
+      render(<Harness />);
+      expect(getTrigger()).not.toHaveAttribute("aria-required");
     });
   });
 
