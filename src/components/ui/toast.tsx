@@ -44,9 +44,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={cn(
               "flex w-80 items-start gap-3 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right",
               t.variant === "error"
-                ? "border-red-500/30 bg-red-500/10"
+                ? "border-error-border bg-error-soft"
                 : t.variant === "success"
-                  ? "border-green-500/30 bg-green-500/10"
+                  ? "border-success-border bg-success-soft"
                   : "border-border bg-surface-raised",
             )}
           >

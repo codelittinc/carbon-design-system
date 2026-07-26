@@ -9,7 +9,7 @@ describe("Button", () => {
     render(<Button>Save</Button>);
     const button = screen.getByRole("button", { name: "Save" });
     // default variant
-    expect(button).toHaveClass("bg-amber-500");
+    expect(button).toHaveClass("bg-accent");
     // default size
     expect(button).toHaveClass("h-8");
   });
@@ -41,7 +41,7 @@ describe("Button", () => {
     render(<Button className="custom-class">Styled</Button>);
     const button = screen.getByRole("button", { name: "Styled" });
     expect(button).toHaveClass("custom-class");
-    expect(button).toHaveClass("bg-amber-500");
+    expect(button).toHaveClass("bg-accent");
   });
 
   it("forwards the ref to the underlying button element", () => {

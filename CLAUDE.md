@@ -40,15 +40,14 @@ build is not something we rely on to be correct. So a commit whose `src/` and
 rebuild and commit `dist/` in the same commit:**
 
 ```
-pnpm run build:lib   # regenerates dist/index.js, dist/button.js, + .d.ts
+pnpm run build:lib   # regenerates dist/index.js + dist/index.d.ts
 git add dist          # commit the rebuilt artifacts alongside the src change
 ```
 
 Do not hand-edit files in `dist/` — always regenerate them. A change to `src/`
 without a matching `dist/` update in the same commit is a bug, even if
 `package.json`/`CHANGELOG.md` were bumped correctly. The full library is bundled
-into `dist/index.js` (all components import from the package root); `dist/button.js`
-is just the extra `./button` subpath.
+into `dist/index.js` — all components import from the package root.
 
 ## Publishing — automatic on `main`
 
@@ -67,8 +66,8 @@ Do **not** publish or cut releases by hand. Let `main` do it.
 
 ## Build / package facts
 
-- `pnpm run build:lib` (tsup) emits `dist/` ESM + `.d.ts`. Entry points: the
-  barrel (`.`) and the Button subpath (`./button`).
+- `pnpm run build:lib` (tsup) emits `dist/` ESM + `.d.ts`. Single entry point:
+  the barrel (`.`). Every component is imported from the package root.
 - Deps and peerDeps are externalized; the `@/` alias resolves at build time.
 - Every emitted JS file must keep its `"use client"` directive — esbuild strips
   it when bundling, so `tsup.config.ts`'s `onSuccess` hook re-adds it. Don't

@@ -12,13 +12,13 @@ describe("Badge", () => {
 
   it("maps each variant to its class fragment", () => {
     const { rerender } = render(<Badge variant="success">S</Badge>);
-    expect(screen.getByText("S")).toHaveClass("bg-green-500/15");
+    expect(screen.getByText("S")).toHaveClass("bg-success-soft");
 
     rerender(<Badge variant="error">E</Badge>);
-    expect(screen.getByText("E")).toHaveClass("bg-red-500/15");
+    expect(screen.getByText("E")).toHaveClass("bg-error-soft");
 
     rerender(<Badge variant="info">I</Badge>);
-    expect(screen.getByText("I")).toHaveClass("bg-blue-500/15");
+    expect(screen.getByText("I")).toHaveClass("bg-info-soft");
 
     rerender(<Badge variant="accent">A</Badge>);
     expect(screen.getByText("A")).toHaveClass("text-accent-text");
@@ -39,7 +39,7 @@ describe("Badge", () => {
   it("exposes badgeVariants returning a string containing the variant class", () => {
     const result = badgeVariants({ variant: "success" });
     expect(typeof result).toBe("string");
-    expect(result).toContain("bg-green-500/15");
+    expect(result).toContain("bg-success-soft");
     expect(badgeVariants()).toContain("bg-surface-overlay");
   });
 });

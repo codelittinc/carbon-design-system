@@ -49,7 +49,7 @@ describe("ToastProvider / useToast", () => {
 
     fireEvent.click(screen.getByText("fire"));
     const toast = screen.getByText("Nope").closest("div")?.parentElement;
-    expect(toast?.className).toContain("border-red-500/30");
+    expect(toast?.className).toContain("border-error-border");
   });
 
   it("applies the success variant styling fragment", () => {
@@ -61,7 +61,7 @@ describe("ToastProvider / useToast", () => {
 
     fireEvent.click(screen.getByText("fire"));
     const toast = screen.getByText("Yay").closest("div")?.parentElement;
-    expect(toast?.className).toContain("border-green-500/30");
+    expect(toast?.className).toContain("border-success-border");
   });
 
   it("removes the toast when the close button is clicked", () => {

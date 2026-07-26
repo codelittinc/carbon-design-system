@@ -8,6 +8,63 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.0.0] - 2026-07-26
+
+### Removed (breaking)
+
+- The `@codelittinc/carbon-design-system/button` subpath export. Button was the
+  only component with a dedicated entry point; it duplicated the barrel's code
+  and was never generalized to other components. **Import `Button` from the
+  package root instead:**
+
+  ```diff
+  - import { Button } from "@codelittinc/carbon-design-system/button";
+  + import { Button } from "@codelittinc/carbon-design-system";
+  ```
+
+  `dist/button.js` / `dist/button.d.ts` are no longer emitted.
+
+---
+
+Also fixes [#15](https://github.com/codelittinc/carbon-design-system/issues/15):
+compiled components no longer ship fixed Tailwind palette utilities
+(`text-amber-400`, `bg-green-500/15`, `focus:ring-amber-500/50`, …), which did
+not follow a consumer's theme and failed WCAG AA on light surfaces. Components
+now use adaptive semantic tokens that clear AA in **both** light and dark themes.
+
+### Added
+
+- Semantic color tokens in `src/styles/theme.css`, tuned per theme:
+  `--color-success-soft`, `--color-error-soft`, `--color-info-soft`,
+  `--color-success-border`, `--color-error-border`. Consumers who supply their
+  own theme (instead of importing `/styles`) must define these — see the
+  [Semantic color tokens](README.md#semantic-color-tokens-components-depend-on)
+  table in the README.
+- A regression test (`theme-tokens.test.tsx`) that fails if any theme-critical
+  component reintroduces a fixed palette utility, plus role/label checks for
+  `AccountCombobox` and `MultiStatusFilter`.
+
+### Changed
+
+- **AccountCombobox** selected value & account numbers: `text-amber-400` →
+  `text-accent-text`; focus rings → `ring-accent/50`.
+- **MultiStatusFilter** hover border, count pill, "All" control, and checked box
+  now use `accent`/`accent-muted`/`accent-text` instead of fixed `amber-*`.
+- **Badge** `accent`/`success`/`warning`/`error`/`info` fills → `bg-accent-muted`
+  / `bg-{success,error,info}-soft`.
+- **DataTable** selected-row background: `bg-amber-500/5` → `bg-accent-muted`.
+- **Toast** success/error borders & fills → `border-{success,error}-border` /
+  `bg-{success,error}-soft`.
+- Accent chrome across **Button** (primary fill/hover), **Tabs**, **Progress**,
+  **Switch**, **Checkbox**, **SearchSelect**, and all form/overlay focus rings
+  now resolve through the adaptive `accent` tokens.
+- Light-theme `--color-accent-muted` (amber-100) and `--color-accent-text`
+  (amber-800) retuned so the accent/warning badge clears AA (was ~3.5:1).
+
+The theme-independent `public`/`vendor` address-input variants (fixed embedded
+color schemes), the decorative theme-toggle icons, and the white-on-red danger
+button are unchanged by design — each already meets AA on its own surface.
+
 ## [0.2.1] - 2026-07-25
 
 Test infrastructure only — no change to the published component surface (`dist/`

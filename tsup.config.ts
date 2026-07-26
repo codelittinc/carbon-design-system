@@ -5,9 +5,8 @@ import { join } from "node:path";
 /**
  * Library build for @codelittinc/carbon-design-system.
  *
- * Emits ESM + type declarations to dist/. Two entry points:
- *   - index  → the full barrel (@codelittinc/carbon-design-system)
- *   - button → the Button subpath (@codelittinc/carbon-design-system/button)
+ * Emits ESM + type declarations to dist/. A single entry point:
+ *   - index → the full barrel (@codelittinc/carbon-design-system)
  *
  * tsup automatically treats everything in `dependencies` / `peerDependencies`
  * as external, so React and the UI libs are not bundled — the consumer supplies
@@ -19,7 +18,6 @@ const DIRECTIVE = '"use client";';
 export default defineConfig({
   entry: {
     index: "src/index.ts",
-    button: "src/components/ui/button.tsx",
   },
   format: ["esm"],
   dts: true,

@@ -59,14 +59,14 @@ export function MultiStatusFilter({
           type="button"
           aria-label={`${label} filter`}
           className={cn(
-            "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-amber-500/50",
+            "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-accent/50",
             className,
           )}
         >
           <span className="text-text-muted">{label}:</span>
           <span className="max-w-[12rem] truncate">{summary}</span>
           {selected.length > 0 && selected.length < options.length && (
-            <span className="rounded-full bg-amber-500/20 px-1.5 text-xs tabular-nums text-amber-400">
+            <span className="rounded-full bg-accent-muted px-1.5 text-xs tabular-nums text-accent-text">
               {selected.length}
             </span>
           )}
@@ -79,7 +79,7 @@ export function MultiStatusFilter({
           <div className="flex gap-2 text-xs">
             <button
               type="button"
-              className="text-amber-400 hover:underline disabled:opacity-40"
+              className="text-accent-text hover:underline disabled:opacity-40"
               disabled={selected.length === options.length}
               onClick={() => onChange(options.map((o) => o.value))}
             >
@@ -112,7 +112,7 @@ export function MultiStatusFilter({
                   className={cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
                     checked
-                      ? "border-amber-500 bg-amber-500 text-carbon-950"
+                      ? "border-accent bg-accent text-carbon-950"
                       : "border-border bg-surface-raised",
                   )}
                 >

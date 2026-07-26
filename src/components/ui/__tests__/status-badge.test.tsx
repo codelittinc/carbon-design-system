@@ -5,13 +5,13 @@ import { StatusBadge } from "../status-badge";
 describe("StatusBadge", () => {
   it("maps a known success status to the success variant", () => {
     render(<StatusBadge status="OPEN" />);
-    expect(screen.getByText("OPEN")).toHaveClass("bg-green-500/15");
+    expect(screen.getByText("OPEN")).toHaveClass("bg-success-soft");
   });
 
   it("maps VACANT_APPLICANT_PENDING to the accent variant", () => {
     render(<StatusBadge status="VACANT_APPLICANT_PENDING" />);
     const badge = screen.getByText("VACANT APPLICANT PENDING");
-    expect(badge).toHaveClass("bg-amber-500/15");
+    expect(badge).toHaveClass("bg-accent-muted");
     expect(badge).toHaveClass("text-accent-text");
   });
 

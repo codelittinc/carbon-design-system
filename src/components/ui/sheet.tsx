@@ -46,7 +46,7 @@ const SheetContent = forwardRef<React.ComponentRef<typeof DialogPrimitive.Conten
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50">
           <X size={16} />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
