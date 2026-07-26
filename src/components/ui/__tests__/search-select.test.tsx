@@ -25,6 +25,7 @@ function Harness(props: {
   initialValue?: string | null;
   renderOption?: (o: Option) => React.ReactNode;
   id?: string;
+  ariaLabel?: string;
   required?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
@@ -46,6 +47,7 @@ function Harness(props: {
       autoFocus={props.autoFocus}
       renderOption={props.renderOption}
       id={props.id}
+      ariaLabel={props.ariaLabel}
       required={props.required}
       triggerClassName={props.triggerClassName}
       contentClassName={props.contentClassName}
@@ -348,14 +350,31 @@ describe("SearchSelect", () => {
       expect(trigger).toHaveAccessibleName("Purchase order");
     });
 
-    it("marks the trigger aria-required when required", () => {
-      render(<Harness required />);
-      expect(getTrigger()).toHaveAttribute("aria-required", "true");
+    it("names both the trigger and the opened combobox input via ariaLabel", () => {
+      render(<Harness ariaLabel="Purchase order" />);
+      // Closed: the trigger carries the name.
+      const trigger = getTrigger();
+      expect(trigger).toHaveAccessibleName("Purchase order");
+
+      // Opened: focus moves to the combobox input, which must carry the same
+      // name — otherwise assistive tech announces the placeholder ("Search…").
+      fireEvent.click(trigger);
+      expect(screen.getByRole("combobox")).toHaveAccessibleName("Purchase order");
     });
 
-    it("omits aria-required by default", () => {
-      render(<Harness />);
+    it("marks the combobox input aria-required when required (not the button)", () => {
+      render(<Harness required />);
+      // aria-required is not a supported state on the button role, so the
+      // trigger must not carry it.
       expect(getTrigger()).not.toHaveAttribute("aria-required");
+      // It belongs on the combobox input that actually receives focus.
+      fireEvent.click(getTrigger());
+      expect(screen.getByRole("combobox")).toHaveAttribute("aria-required", "true");
+    });
+
+    it("omits aria-required on the combobox input by default", () => {
+      render(<Harness autoFocus />);
+      expect(screen.getByRole("combobox")).not.toHaveAttribute("aria-required");
     });
   });
 
