@@ -925,6 +925,7 @@ function SearchSelect({
   id,
   ariaLabel,
   required,
+  requiredLabel = "Required",
   triggerClassName,
   contentClassName,
   optionClassName,
@@ -942,6 +943,7 @@ function SearchSelect({
   const debounceRef = useRef(void 0);
   const listboxId = useId();
   const optionId = (i) => `${listboxId}-option-${i}`;
+  const requiredHintId = `${listboxId}-required`;
   const selectedOption = options.find((o) => o.value === value);
   useEffect(() => {
     function handleClickOutside(e) {
@@ -1057,6 +1059,7 @@ function SearchSelect({
         "aria-haspopup": "listbox",
         "aria-expanded": open,
         "aria-label": ariaLabel,
+        "aria-describedby": required ? requiredHintId : void 0,
         "aria-controls": open ? listboxId : void 0,
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),
@@ -1082,6 +1085,7 @@ function SearchSelect({
         ]
       }
     ),
+    required && /* @__PURE__ */ jsx("span", { id: requiredHintId, className: "sr-only", children: requiredLabel }),
     open && /* @__PURE__ */ jsxs(
       "div",
       {

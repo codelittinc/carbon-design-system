@@ -46,11 +46,23 @@ interface SearchSelectProps {
    */
   ariaLabel?: string;
   /**
-   * Marks the field `aria-required`, applied to the `combobox` input (the
-   * element with the combobox role that receives focus). `aria-required` is not
-   * a supported state on the trigger's `button` role, so it lives on the input.
+   * Marks the field as required. Because the field has two focusable states, the
+   * required state is conveyed in both:
+   * - the `combobox` input (focused while open) gets `aria-required` — the
+   *   supported state for the combobox role;
+   * - the trigger `<button>` (focused while closed, the field's resting state)
+   *   gets `aria-describedby` pointing to a visually-hidden "Required" hint,
+   *   since `aria-required` is not a supported state on the `button` role.
+   * Without the trigger hint, assistive tech couldn't discover the requirement
+   * until the user opened the dropdown.
    */
   required?: boolean;
+  /**
+   * Screen-reader text describing the required state on the closed trigger
+   * (referenced via `aria-describedby`). Override to localize. Only rendered
+   * when `required` is set.
+   */
+  requiredLabel?: string;
   /**
    * Override styling of the trigger `<button>`. Merged after the default
    * classes via `cn`, so a consumer can restyle the control for a differently
@@ -83,6 +95,7 @@ export function SearchSelect({
   id,
   ariaLabel,
   required,
+  requiredLabel = "Required",
   triggerClassName,
   contentClassName,
   optionClassName,
@@ -104,6 +117,9 @@ export function SearchSelect({
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const listboxId = useId();
   const optionId = (i: number) => `${listboxId}-option-${i}`;
+  // Describes the closed trigger as required (aria-required is invalid on the
+  // button role, so the state is exposed as a description instead).
+  const requiredHintId = `${listboxId}-required`;
 
   const selectedOption = options.find((o) => o.value === value);
 
@@ -258,6 +274,7 @@ export function SearchSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        aria-describedby={required ? requiredHintId : undefined}
         aria-controls={open ? listboxId : undefined}
         onKeyDown={handleKeyDown}
         onClick={() => (open ? closeList() : openList(-1))}
@@ -283,6 +300,12 @@ export function SearchSelect({
           <ChevronDown size={14} className="text-text-muted" />
         </div>
       </button>
+
+      {required && (
+        <span id={requiredHintId} className="sr-only">
+          {requiredLabel}
+        </span>
+      )}
 
       {open && (
         <div

@@ -130,7 +130,8 @@ export const Loading: StoryObj<typeof SearchSelect> = {
  * It also shows the labeling and invalidation props: `id` binds an external
  * `<label htmlFor>` to the trigger, `ariaLabel` names both the trigger and the
  * opened combobox input (so it isn't announced as "Search…"), and `required`
- * marks the combobox input `aria-required`; `onQueryChange` fires immediately
+ * both marks the combobox input `aria-required` and describes the closed trigger
+ * as "Required" (so it's discoverable before opening); `onQueryChange` fires immediately
  * (before the debounced `onSearch`) so a prior selection is cleared the instant
  * the user edits the query — no stale value can survive the debounce window.
  */

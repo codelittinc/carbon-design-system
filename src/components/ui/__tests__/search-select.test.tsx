@@ -27,6 +27,7 @@ function Harness(props: {
   id?: string;
   ariaLabel?: string;
   required?: boolean;
+  requiredLabel?: string;
   triggerClassName?: string;
   contentClassName?: string;
   optionClassName?: string;
@@ -49,6 +50,7 @@ function Harness(props: {
       id={props.id}
       ariaLabel={props.ariaLabel}
       required={props.required}
+      requiredLabel={props.requiredLabel}
       triggerClassName={props.triggerClassName}
       contentClassName={props.contentClassName}
       optionClassName={props.optionClassName}
@@ -372,8 +374,24 @@ describe("SearchSelect", () => {
       expect(screen.getByRole("combobox")).toHaveAttribute("aria-required", "true");
     });
 
-    it("omits aria-required on the combobox input by default", () => {
+    it("describes the closed trigger as required (aria-describedby) so it's discoverable before opening", () => {
+      render(<Harness required ariaLabel="Purchase order" />);
+      // The resting state is the closed trigger; since aria-required is invalid
+      // on the button role, the requirement must surface as a description.
+      const trigger = getTrigger();
+      expect(trigger).toHaveAccessibleName("Purchase order");
+      expect(trigger).toHaveAccessibleDescription("Required");
+    });
+
+    it("uses a custom requiredLabel for the closed trigger's description", () => {
+      render(<Harness required requiredLabel="Obligatorio" />);
+      expect(getTrigger()).toHaveAccessibleDescription("Obligatorio");
+    });
+
+    it("omits the required description and aria-required by default", () => {
       render(<Harness autoFocus />);
+      expect(getTrigger()).toHaveAccessibleDescription("");
+      expect(getTrigger()).not.toHaveAttribute("aria-describedby");
       expect(screen.getByRole("combobox")).not.toHaveAttribute("aria-required");
     });
   });
