@@ -217,6 +217,16 @@ interface SearchSelectProps {
     loading?: boolean;
     placeholder?: string;
     className?: string;
+    /**
+     * Override styling of the trigger `<button>`. Merged after the default
+     * classes via `cn`, so a consumer can restyle the control for a differently
+     * themed surface (e.g. a light-themed public page).
+     */
+    triggerClassName?: string;
+    /** Override styling of the dropdown panel. Merged after the defaults via `cn`. */
+    contentClassName?: string;
+    /** Override styling of each option `<button>`. Merged after the defaults via `cn`. */
+    optionClassName?: string;
     clearable?: boolean;
     renderOption?: (option: SearchSelectOption) => React.ReactNode;
     /**
@@ -226,7 +236,7 @@ interface SearchSelectProps {
      */
     autoFocus?: boolean;
 }
-declare function SearchSelect({ value, onChange, onSearch, options, loading, placeholder, className, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, options, loading, placeholder, className, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */

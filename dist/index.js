@@ -1,7 +1,7 @@
 "use client";
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useContext, useMemo, useId } from 'react';
+import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useContext, useId, useMemo } from 'react';
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -921,15 +921,23 @@ function SearchSelect({
   loading = false,
   placeholder = "Search...",
   className,
+  triggerClassName,
+  contentClassName,
+  optionClassName,
   clearable = true,
   renderOption,
   autoFocus = false
 }) {
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef(null);
+  const triggerRef = useRef(null);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
   const debounceRef = useRef(void 0);
+  const listboxId = useId();
+  const optionId = (i) => `${listboxId}-option-${i}`;
   const selectedOption = options.find((o) => o.value === value);
   useEffect(() => {
     function handleClickOutside(e) {
@@ -937,6 +945,25 @@ function SearchSelect({
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [options]);
+  useEffect(() => {
+    if (activeIndex < 0 || !listRef.current) return;
+    const el = listRef.current.querySelector(
+      `#${CSS.escape(optionId(activeIndex))}`
+    );
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+  const openList = useCallback((activeTo) => {
+    setOpen(true);
+    setActiveIndex(activeTo);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+  const closeList = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
   }, []);
   const handleQueryChange = useCallback(
     (q) => {
@@ -949,10 +976,10 @@ function SearchSelect({
   const handleSelect = useCallback(
     (val) => {
       onChange(val);
-      setOpen(false);
       setQuery("");
+      closeList();
     },
-    [onChange]
+    [onChange, closeList]
   );
   const handleClear = useCallback(
     (e) => {
@@ -962,16 +989,74 @@ function SearchSelect({
     },
     [onChange]
   );
-  return /* @__PURE__ */ jsxs("div", { ref, className: cn("relative", className), children: [
+  const handleBlur = useCallback((e) => {
+    const next = e.relatedTarget;
+    if (next) {
+      if (!ref.current?.contains(next)) setOpen(false);
+      return;
+    }
+    setTimeout(() => {
+      if (ref.current && !ref.current.contains(document.activeElement)) {
+        setOpen(false);
+      }
+    }, 0);
+  }, []);
+  const handleKeyDown = useCallback(
+    (e) => {
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault();
+          if (!open) {
+            openList(options.length ? 0 : -1);
+            return;
+          }
+          if (options.length === 0) return;
+          setActiveIndex((i) => (i + 1) % options.length);
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault();
+          if (!open) {
+            openList(options.length ? options.length - 1 : -1);
+            return;
+          }
+          if (options.length === 0) return;
+          setActiveIndex((i) => i <= 0 ? options.length - 1 : i - 1);
+          break;
+        }
+        case "Enter": {
+          if (open && activeIndex >= 0 && options[activeIndex]) {
+            e.preventDefault();
+            handleSelect(options[activeIndex].value);
+          }
+          break;
+        }
+        case "Escape": {
+          if (open) {
+            e.preventDefault();
+            closeList();
+          }
+          break;
+        }
+      }
+    },
+    [open, options, activeIndex, openList, closeList, handleSelect]
+  );
+  return /* @__PURE__ */ jsxs("div", { ref, onBlur: handleBlur, className: cn("relative", className), children: [
     /* @__PURE__ */ jsxs(
       "button",
       {
+        ref: triggerRef,
         type: "button",
-        onClick: () => {
-          setOpen(!open);
-          if (!open) setTimeout(() => inputRef.current?.focus(), 0);
-        },
-        className: "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+        "aria-haspopup": "listbox",
+        "aria-expanded": open,
+        "aria-controls": open ? listboxId : void 0,
+        onKeyDown: handleKeyDown,
+        onClick: () => open ? closeList() : openList(-1),
+        className: cn(
+          "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+          triggerClassName
+        ),
         children: [
           /* @__PURE__ */ jsx("span", { className: selectedOption ? "text-text-primary" : "text-text-muted", children: selectedOption?.label ?? placeholder }),
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
@@ -990,39 +1075,61 @@ function SearchSelect({
         ]
       }
     ),
-    open && /* @__PURE__ */ jsxs("div", { className: "absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-border bg-surface-raised shadow-lg", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 border-b border-border px-3 py-2", children: [
-        /* @__PURE__ */ jsx(Search, { size: 14, className: "text-text-muted" }),
-        /* @__PURE__ */ jsx(
-          "input",
-          {
-            ref: inputRef,
-            autoFocus,
-            type: "text",
-            value: query,
-            onChange: (e) => handleQueryChange(e.target.value),
-            placeholder,
-            className: "flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsx("div", { className: "max-h-60 overflow-y-auto py-1", children: loading ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "Searching..." }) : options.length === 0 ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "No results" }) : options.map((option) => /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          onClick: () => handleSelect(option.value),
-          className: cn(
-            "flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors hover:bg-surface-overlay",
-            option.value === value && "bg-accent-muted text-accent-text"
-          ),
-          children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("div", { className: "text-text-primary", children: option.label }),
-            option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
-          ] })
-        },
-        option.value
-      )) })
-    ] })
+    open && /* @__PURE__ */ jsxs(
+      "div",
+      {
+        className: cn(
+          "absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-border bg-surface-raised shadow-lg",
+          contentClassName
+        ),
+        children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 border-b border-border px-3 py-2", children: [
+            /* @__PURE__ */ jsx(Search, { size: 14, className: "text-text-muted" }),
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                ref: inputRef,
+                autoFocus,
+                type: "text",
+                role: "combobox",
+                "aria-expanded": open,
+                "aria-controls": listboxId,
+                "aria-autocomplete": "list",
+                "aria-activedescendant": activeIndex >= 0 ? optionId(activeIndex) : void 0,
+                value: query,
+                onChange: (e) => handleQueryChange(e.target.value),
+                onKeyDown: handleKeyDown,
+                placeholder,
+                className: "flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx("div", { ref: listRef, role: "listbox", id: listboxId, className: "max-h-60 overflow-y-auto py-1", children: loading ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "Searching..." }) : options.length === 0 ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "No results" }) : options.map((option, i) => /* @__PURE__ */ jsx(
+            "button",
+            {
+              id: optionId(i),
+              role: "option",
+              "aria-selected": option.value === value,
+              type: "button",
+              tabIndex: -1,
+              onClick: () => handleSelect(option.value),
+              onMouseEnter: () => setActiveIndex(i),
+              className: cn(
+                "flex w-full items-center px-3 py-1.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-overlay",
+                i === activeIndex && "bg-surface-overlay",
+                option.value === value && "bg-accent-muted text-accent-text",
+                optionClassName
+              ),
+              children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("div", { children: option.label }),
+                option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
+              ] })
+            },
+            option.value
+          )) })
+        ]
+      }
+    )
   ] });
 }
 function Money({ value, colorNegative, className, ...props }) {
