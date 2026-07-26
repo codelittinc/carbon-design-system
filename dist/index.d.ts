@@ -245,11 +245,23 @@ interface SearchSelectProps {
      */
     ariaLabel?: string;
     /**
-     * Marks the field `aria-required`, applied to the `combobox` input (the
-     * element with the combobox role that receives focus). `aria-required` is not
-     * a supported state on the trigger's `button` role, so it lives on the input.
+     * Marks the field as required. Because the field has two focusable states, the
+     * required state is conveyed in both:
+     * - the `combobox` input (focused while open) gets `aria-required` — the
+     *   supported state for the combobox role;
+     * - the trigger `<button>` (focused while closed, the field's resting state)
+     *   gets `aria-describedby` pointing to a visually-hidden "Required" hint,
+     *   since `aria-required` is not a supported state on the `button` role.
+     * Without the trigger hint, assistive tech couldn't discover the requirement
+     * until the user opened the dropdown.
      */
     required?: boolean;
+    /**
+     * Screen-reader text describing the required state on the closed trigger
+     * (referenced via `aria-describedby`). Override to localize. Only rendered
+     * when `required` is set.
+     */
+    requiredLabel?: string;
     /**
      * Override styling of the trigger `<button>`. Merged after the default
      * classes via `cn`, so a consumer can restyle the control for a differently
@@ -269,7 +281,7 @@ interface SearchSelectProps {
      */
     autoFocus?: boolean;
 }
-declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, ariaLabel, required, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, ariaLabel, required, requiredLabel, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */

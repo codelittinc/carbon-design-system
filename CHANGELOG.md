@@ -11,9 +11,10 @@ uses it as the GitHub Release notes.
 ## [1.3.0] - 2026-07-26
 
 Follow-up to [#19](https://github.com/codelittinc/carbon-design-system/pull/19):
-fixes two `SearchSelect` accessibility gaps in the labeling props shipped in
-1.2.0. Both concern the `combobox` search input, which receives focus once the
-dropdown opens.
+closes the `SearchSelect` accessibility gaps in the labeling props shipped in
+1.2.0. The field has two focusable states — the trigger `<button>` (focused
+while closed, the resting state) and the `combobox` search input (focused once
+the dropdown opens) — and the 1.2.0 props only reached the trigger.
 
 ### Added
 
@@ -24,20 +25,25 @@ dropdown opens.
   announced its placeholder ("Search…") instead of the field name (e.g.
   "Purchase order"). `ariaLabel` names both elements so the field is announced
   consistently whether it's open or closed.
+- **`requiredLabel`** on `SearchSelect` — screen-reader text for the closed
+  trigger's required-state description (default `"Required"`; override to
+  localize). Only rendered when `required` is set.
 
 ### Fixed
 
-- **`required` now applies `aria-required` to the `combobox` input**, not the
-  trigger `<button>`. `aria-required` is not a supported state on the `button`
-  role, so assistive tech ignored it and never announced the field as required.
-  It now lives on the element that carries the `combobox` role and receives
-  focus, where the state is valid.
+- **`required` is now conveyed in both focus states.** `aria-required` is not a
+  supported state on the trigger's `button` role, so in 1.2.0 assistive tech
+  ignored it and the field was never announced as required. It now applies
+  `aria-required` to the `combobox` input (focused while open, where the state
+  is valid) **and** describes the closed trigger via `aria-describedby` pointing
+  to a visually-hidden `requiredLabel` hint — so the requirement is discoverable
+  in the field's resting closed state, before the user opens the dropdown.
 
 ### Notes
 
-- `ariaLabel` is optional and additive; the `aria-required` move is a bug fix
-  with no API change → **minor** bump `1.2.0 → 1.3.0`. Default rendering and
-  existing consumers are unchanged.
+- `ariaLabel` and `requiredLabel` are optional and additive; the required-state
+  changes are a11y bug fixes with no breaking API change → **minor** bump
+  `1.2.0 → 1.3.0`. Default rendering and existing consumers are unchanged.
 
 ## [1.2.0] - 2026-07-26
 
