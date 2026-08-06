@@ -366,6 +366,356 @@ interface StatCardProps {
  */
 declare function StatCard({ label, value, sub, trend, loading, className }: StatCardProps): react.JSX.Element;
 
+/**
+ * Shared foundations for the CarbonOS chart components (BarChart, LineChart,
+ * DonutChart). Everything here is presentation-level: the card shell, the
+ * series palette contract, the tooltip and legend, and the screen-reader table
+ * that every chart renders alongside its plot.
+ *
+ * ── The series palette ──
+ * Charts take their colors from the eight `--color-chart-*` tokens in
+ * theme.css, assigned in fixed slot order and never cycled. That order is the
+ * colorblind-safety mechanism (adjacent slots are validated for separation
+ * under protanopia and deuteranopia), so a ninth series does NOT wrap back to
+ * slot 1 — it folds into "Other", or the data gets split across two charts.
+ * `seriesColor()` clamps rather than wraps to keep that guarantee.
+ *
+ * ── Status colors are not series colors ──
+ * The success / error / warning tokens keep their reserved meaning. Don't pass
+ * them as a series `color` to mean "the fourth line".
+ */
+/** Number of distinct categorical series the palette can encode. */
+declare const CHART_SERIES_LIMIT = 8;
+/**
+ * Color for categorical slot `index` (0-based), as a CSS variable reference so
+ * it re-resolves when the theme flips between light and dark.
+ *
+ * Clamps at the last slot instead of cycling: a repeated hue reads as a
+ * repeated entity. If you have more series than slots, fold the tail into an
+ * "Other" series rather than relying on this.
+ */
+declare function seriesColor(index: number): string;
+/** One plotted measure. `color` overrides the palette slot for this series. */
+interface ChartSeries {
+    /** Key to read off each datum. */
+    key: string;
+    /** Human-readable name — shown in the legend, tooltip, and table view. */
+    label: string;
+    /** Overrides the assigned palette slot. Use a `--color-chart-*` token. */
+    color?: string;
+}
+/** A row of chart data: the category plus one numeric field per series key. */
+type ChartDatum = Record<string, string | number | null | undefined>;
+/** Resolves each series to its final color, honoring explicit overrides. */
+declare function resolveSeriesColors(series: ChartSeries[]): string[];
+/**
+ * Caps a series list at the palette limit. Returns the kept series; anything
+ * beyond the limit is dropped rather than silently recolored, and flagged in
+ * development so the truncation is not invisible.
+ */
+declare function capSeries(series: ChartSeries[], context: string): ChartSeries[];
+/** Default number formatting: grouped thousands, no forced decimals. */
+declare const formatChartValue: (value: number) => string;
+type ChartValueFormatter = (value: number) => string;
+interface ChartCardProps {
+    /** Section heading. Names the measure so a single-series chart needs no legend. */
+    title?: react.ReactNode;
+    /** Supporting line under the title — a period, a caveat, a unit. */
+    subtitle?: react.ReactNode;
+    /** Right-aligned controls: a metric Select, a date range, a Tabs switcher. */
+    action?: react.ReactNode;
+    /** Rendered under the chart — a source note or a threshold key. */
+    footer?: react.ReactNode;
+    className?: string;
+    children: react.ReactNode;
+}
+/**
+ * Titled card that a chart sits inside. Pure chrome — the chart itself owns its
+ * loading and empty states, so this composes with any of them:
+ *
+ * ```tsx
+ * <ChartCard title="Leads by property" action={<PeriodSelect />}>
+ *   <BarChart data={rows} categoryKey="property" series={[{ key: "leads", label: "Leads" }]} />
+ * </ChartCard>
+ * ```
+ */
+declare function ChartCard({ title, subtitle, action, footer, className, children, }: ChartCardProps): react.JSX.Element;
+interface ChartLegendItem {
+    label: string;
+    color: string;
+    /** Renders the swatch dimmed — for a series toggled off. */
+    inactive?: boolean;
+}
+interface ChartLegendProps {
+    items: ChartLegendItem[];
+    /** Makes each entry a button. Use to toggle series visibility. */
+    onItemClick?: (index: number) => void;
+    className?: string;
+}
+/**
+ * Swatch-and-label key. Identity is never carried by color alone — the label
+ * beside the swatch is what a colorblind reader goes by. Text stays in the ink
+ * tokens; only the swatch takes the series color.
+ */
+declare function ChartLegend({ items, onItemClick, className }: ChartLegendProps): react.JSX.Element;
+interface TooltipPayloadItem {
+    name?: string | number;
+    value?: number | string;
+    color?: string;
+    dataKey?: string | number;
+    payload?: Record<string, unknown>;
+}
+interface ChartTooltipContentProps {
+    active?: boolean;
+    payload?: TooltipPayloadItem[];
+    label?: string | number;
+    valueFormatter?: ChartValueFormatter;
+    /** Rewrites the tooltip heading — e.g. a short week key into a full date. */
+    labelFormatter?: (label: string | number) => string;
+}
+/**
+ * Tooltip body. Values are monospaced so they stay column-aligned across rows,
+ * matching the tabular-nums treatment used in tables.
+ */
+declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, }: ChartTooltipContentProps): react.JSX.Element | null;
+interface ChartDataTableProps {
+    caption: string;
+    categoryLabel: string;
+    categories: (string | number)[];
+    series: ChartSeries[];
+    data: ChartDatum[];
+    valueFormatter?: ChartValueFormatter;
+}
+/**
+ * The same numbers as a real table, visually hidden.
+ *
+ * This is the chart's accessible fallback: an SVG plot is unreadable to a
+ * screen reader, and it doubles as the "relief channel" that makes lower-
+ * contrast palette slots legitimate in light mode — the values are always
+ * available in text somewhere.
+ */
+declare function ChartDataTable({ caption, categoryLabel, categories, series, data, valueFormatter, }: ChartDataTableProps): react.JSX.Element;
+interface ChartStateProps {
+    loading?: boolean;
+    /** Heading for the empty state shown when `data` has no rows. */
+    emptyTitle?: string;
+    emptyDescription?: string;
+}
+/** Skeleton stand-in sized to the chart's own height, to avoid layout shift. */
+declare function ChartSkeleton({ height }: {
+    height: number;
+}): react.JSX.Element;
+declare function ChartEmpty({ height, title, description, }: {
+    height: number;
+    title?: string;
+    description?: string;
+}): react.JSX.Element;
+/** Tick style for a numeric axis. */
+declare const CHART_TICK_VALUE: {
+    readonly fill: "var(--color-text-secondary)";
+    readonly fontSize: 11;
+    readonly fontFamily: "var(--font-mono)";
+};
+/** Tick style for a category axis. */
+declare const CHART_TICK_CATEGORY: {
+    readonly fill: "var(--color-text-secondary)";
+    readonly fontSize: 11;
+    readonly fontFamily: "var(--font-body)";
+};
+/** Gridlines and axis rules — recessive, behind the data. */
+declare const CHART_GRID_COLOR = "var(--color-chart-grid)";
+/** Direct value labels wear an ink token, never the series color. */
+declare const CHART_LABEL_STYLE: {
+    readonly fill: "var(--color-text-secondary)";
+    readonly fontSize: 10;
+    readonly fontFamily: "var(--font-mono)";
+    readonly fontWeight: 500;
+};
+
+interface BarChartProps extends ChartStateProps {
+    data: ChartDatum[];
+    /** Field holding each row's category name (the label axis). */
+    categoryKey: string;
+    /** One entry per measure. Colors come from the palette in slot order. */
+    series: ChartSeries[];
+    /**
+     * Which way the bars run. `"vertical"` (default) stands them up from a
+     * bottom baseline; `"horizontal"` lays them out from the left, which is the
+     * right choice when category names are long — they get a real label column
+     * instead of being rotated.
+     */
+    orientation?: "vertical" | "horizontal";
+    /** Stacks multiple series into one bar per category instead of grouping them. */
+    stacked?: boolean;
+    /**
+     * `"series"` (default) gives every bar of a measure the same hue — bar length
+     * already encodes the value, so color is free to encode *which measure*.
+     *
+     * `"category"` gives each bar its own palette slot. Only reach for it when
+     * the bar colors are load-bearing elsewhere on the page (a donut of the same
+     * categories beside it, say). On its own it re-encodes what length already
+     * shows and burns the identity channel. Single-series charts only.
+     */
+    colorBy?: "series" | "category";
+    /**
+     * Prints each bar's value at its end. Defaults on for a single series — it
+     * is the relief channel that keeps lower-contrast palette slots readable —
+     * and off for multiple, where a number per bar becomes noise.
+     */
+    valueLabels?: boolean;
+    /** Legend visibility. Defaults on for 2+ series; a single series is named by the title. */
+    legend?: boolean;
+    /** Lets a legend click show/hide that series. */
+    toggleableSeries?: boolean;
+    /** Plot height in px, excluding legend. */
+    height?: number;
+    /** Upper bound on bar thickness in px, so few categories don't become slabs. */
+    maxBarSize?: number;
+    /** Formats tooltip values and data labels. */
+    valueFormatter?: ChartValueFormatter;
+    /** Formats value-axis ticks. Defaults to `valueFormatter`. */
+    tickFormatter?: ChartValueFormatter;
+    /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
+    labelFormatter?: (label: string | number) => string;
+    /** Name for the category dimension, used in the accessible table. */
+    categoryLabel?: string;
+    /** Caption for the accessible table. Falls back to a generic description. */
+    tableCaption?: string;
+    /** Fired when a bar is clicked — for drill-down. */
+    onBarClick?: (datum: ChartDatum, index: number, seriesKey: string) => void;
+    className?: string;
+}
+/**
+ * Categorical bar chart: magnitude compared across categories, or a measure
+ * tracked across time buckets.
+ *
+ * ```tsx
+ * <BarChart
+ *   data={rows}
+ *   categoryKey="property"
+ *   series={[{ key: "leads", label: "Leads" }]}
+ *   onBarClick={(row) => drillInto(row.property)}
+ * />
+ * ```
+ *
+ * Renders a visually hidden data table alongside the plot, so the values are
+ * reachable by screen reader and in forced-colors mode.
+ */
+declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
+
+interface LineChartProps extends ChartStateProps {
+    data: ChartDatum[];
+    /** Field holding each row's position on the x axis — usually a time bucket. */
+    categoryKey: string;
+    /** One entry per plotted measure, colored from the palette in slot order. */
+    series: ChartSeries[];
+    /** Fills under each line at low opacity. Best with one series, or stacked. */
+    area?: boolean;
+    /** Stacks the areas into a part-to-whole total. Requires `area`. */
+    stacked?: boolean;
+    /**
+     * `"linear"` (default) joins points honestly. `"monotone"` smooths the line,
+     * which invents plausible-looking values between your real ones — reserve it
+     * for genuinely continuous data.
+     */
+    curve?: "linear" | "monotone";
+    /** Point markers. Defaults on for short series, off once they would crowd. */
+    dots?: boolean;
+    /** Legend visibility. Defaults on for 2+ series; a single series is named by the title. */
+    legend?: boolean;
+    /** Lets a legend click show/hide that series — for a many-line tracker. */
+    toggleableSeries?: boolean;
+    /** Draws a horizontal rule, e.g. a target or a portfolio average. */
+    referenceValue?: number;
+    /** Label for the reference rule. */
+    referenceLabel?: string;
+    height?: number;
+    /** Formats tooltip values. */
+    valueFormatter?: ChartValueFormatter;
+    /** Formats y-axis ticks. Defaults to `valueFormatter`. */
+    tickFormatter?: ChartValueFormatter;
+    /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
+    labelFormatter?: (label: string | number) => string;
+    /** Name for the x dimension, used in the accessible table. */
+    categoryLabel?: string;
+    tableCaption?: string;
+    className?: string;
+}
+/**
+ * Multi-series line (or area) chart: a measure tracked over time.
+ *
+ * ```tsx
+ * <LineChart
+ *   data={weeks}
+ *   categoryKey="week"
+ *   categoryLabel="Week"
+ *   series={[
+ *     { key: "leads", label: "Leads" },
+ *     { key: "toursBooked", label: "Tours booked" },
+ *   ]}
+ * />
+ * ```
+ *
+ * There is deliberately no second y-axis. Two measures on different scales
+ * make the crossing point of the two lines meaningless — plot them as two
+ * charts, or index both to a common base.
+ */
+declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
+
+interface DonutChartDatum {
+    label: string;
+    value: number;
+    /**
+     * Pins this entity's color. Worth setting when the same categories appear in
+     * more than one chart, or when a filter can change how many slices there are
+     * — otherwise slot assignment follows render order and the survivors repaint.
+     */
+    color?: string;
+}
+interface DonutChartProps extends ChartStateProps {
+    data: DonutChartDatum[];
+    /**
+     * Wedges to draw before folding the rest into a single neutral "Other".
+     * Defaults to 6, which is where part-to-whole stops being readable at a
+     * glance; past that a bar chart or a table serves the reader better.
+     */
+    maxSlices?: number;
+    otherLabel?: string;
+    /** Sorts descending by value. Off by default so a filter can't repaint entities. */
+    sort?: boolean;
+    /** `"donut"` (default) leaves a hole for the total; `"pie"` fills the circle. */
+    variant?: "donut" | "pie";
+    /** Big number in the hole. Defaults to the summed total. Donut variant only. */
+    centerValue?: react.ReactNode;
+    /** Caption under the center value. */
+    centerLabel?: string;
+    legendPosition?: "right" | "bottom";
+    /** Shows each slice's share of the total in the legend. */
+    showPercentages?: boolean;
+    height?: number;
+    valueFormatter?: ChartValueFormatter;
+    /** Name for the category dimension, used in the accessible table. */
+    categoryLabel?: string;
+    tableCaption?: string;
+    onSliceClick?: (datum: DonutChartDatum, index: number) => void;
+    className?: string;
+}
+/**
+ * Part-to-whole breakdown — a channel mix, a spend split.
+ *
+ * ```tsx
+ * <DonutChart
+ *   data={[{ label: "Google", value: 412 }, { label: "Zillow", value: 288 }]}
+ *   centerLabel="Total leads"
+ * />
+ * ```
+ *
+ * Use it for "roughly what share" at a glance. For comparing values that sit
+ * close together, a bar chart is the honest form — the eye can compare bar
+ * lengths far better than wedge angles.
+ */
+declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
+
 interface MonthYearRange {
     startMonth: number;
     startYear: number;
@@ -530,4 +880,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, Button, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Money, MoneyInput, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, cn, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, useTheme, useToast };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };

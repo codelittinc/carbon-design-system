@@ -1,8 +1,9 @@
 "use client";
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import * as React from 'react';
 import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useContext, useId, useMemo } from 'react';
-import { jsx, jsxs } from 'react/jsx-runtime';
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
@@ -20,6 +21,7 @@ import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import { useReactTable, getPaginationRowModel, getFilteredRowModel, getSortedRowModel, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { Command } from 'cmdk';
+import { ResponsiveContainer, BarChart as BarChart$1, CartesianGrid, XAxis, YAxis, Tooltip as Tooltip$1, Bar, Cell, LabelList, AreaChart, ReferenceLine, Area, PieChart, Pie } from 'recharts';
 
 // src/lib/cn.ts
 function cn(...inputs) {
@@ -1252,6 +1254,610 @@ function StatCard({ label, value, sub, trend, loading, className }) {
     )
   ] });
 }
+var CHART_SERIES_LIMIT = 8;
+function seriesColor(index) {
+  const slot = Math.min(Math.max(index, 0), CHART_SERIES_LIMIT - 1) + 1;
+  return `var(--color-chart-${slot})`;
+}
+function resolveSeriesColors(series) {
+  return series.map((s, i) => s.color ?? seriesColor(i));
+}
+function capSeries(series, context) {
+  if (series.length <= CHART_SERIES_LIMIT) return series;
+  console.warn(
+    `[CarbonOS ${context}] ${series.length} series given but the categorical palette has ${CHART_SERIES_LIMIT} slots. Showing the first ${CHART_SERIES_LIMIT} and dropping the rest \u2014 fold the tail into an "Other" series, or split the chart.`
+  );
+  return series.slice(0, CHART_SERIES_LIMIT);
+}
+var formatChartValue = (value) => new Intl.NumberFormat(void 0, { maximumFractionDigits: 2 }).format(value);
+function ChartCard({
+  title,
+  subtitle,
+  action,
+  footer,
+  className,
+  children
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: cn("rounded-lg border border-border-subtle bg-surface p-4", className), children: [
+    (title || subtitle || action) && /* @__PURE__ */ jsxs("div", { className: "mb-4 flex items-start justify-between gap-4", children: [
+      /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
+        title && /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-text-primary", children: title }),
+        subtitle && /* @__PURE__ */ jsx("p", { className: "mt-0.5 text-xs text-text-secondary", children: subtitle })
+      ] }),
+      action && /* @__PURE__ */ jsx("div", { className: "shrink-0", children: action })
+    ] }),
+    children,
+    footer && /* @__PURE__ */ jsx("div", { className: "mt-3 text-xs text-text-secondary", children: footer })
+  ] });
+}
+function ChartLegend({ items, onItemClick, className }) {
+  return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className), children: items.map((item, i) => {
+    const content = /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx(
+        "span",
+        {
+          "aria-hidden": true,
+          className: "size-2 shrink-0 rounded-full",
+          style: { backgroundColor: item.color, opacity: item.inactive ? 0.35 : 1 }
+        }
+      ),
+      /* @__PURE__ */ jsx("span", { className: cn("truncate", item.inactive ? "text-text-faint" : "text-text-secondary"), children: item.label })
+    ] });
+    return /* @__PURE__ */ jsx("li", { className: "min-w-0 text-xs", children: onItemClick ? /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        onClick: () => onItemClick(i),
+        "aria-pressed": !item.inactive,
+        className: "-mx-1.5 -my-1 flex min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-1 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+        children: content
+      }
+    ) : /* @__PURE__ */ jsx("span", { className: "flex min-w-0 items-center gap-1.5", children: content }) }, `${item.label}-${i}`);
+  }) });
+}
+function ChartTooltipContent({
+  active,
+  payload,
+  label,
+  valueFormatter = formatChartValue,
+  labelFormatter
+}) {
+  if (!active || !payload?.length) return null;
+  return /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg", children: [
+    label != null && label !== "" && /* @__PURE__ */ jsx("p", { className: "mb-1.5 text-xs font-medium text-text-primary", children: labelFormatter ? labelFormatter(label) : label }),
+    /* @__PURE__ */ jsx("ul", { className: "space-y-1", children: payload.map((item, i) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-xs", children: [
+      /* @__PURE__ */ jsx(
+        "span",
+        {
+          "aria-hidden": true,
+          className: "size-2 shrink-0 rounded-full",
+          style: { backgroundColor: item.color }
+        }
+      ),
+      /* @__PURE__ */ jsx("span", { className: "mr-2 text-text-secondary", children: item.name }),
+      /* @__PURE__ */ jsx("span", { className: "ml-auto font-[family-name:var(--font-mono)] text-text-primary", children: typeof item.value === "number" ? valueFormatter(item.value) : item.value ?? "\u2014" })
+    ] }, i)) })
+  ] });
+}
+function ChartDataTable({
+  caption,
+  categoryLabel,
+  categories,
+  series,
+  data,
+  valueFormatter = formatChartValue
+}) {
+  return /* @__PURE__ */ jsxs("table", { className: "sr-only", children: [
+    /* @__PURE__ */ jsx("caption", { children: caption }),
+    /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+      /* @__PURE__ */ jsx("th", { scope: "col", children: categoryLabel }),
+      series.map((s) => /* @__PURE__ */ jsx("th", { scope: "col", children: s.label }, s.key))
+    ] }) }),
+    /* @__PURE__ */ jsx("tbody", { children: data.map((row, i) => /* @__PURE__ */ jsxs("tr", { children: [
+      /* @__PURE__ */ jsx("th", { scope: "row", children: String(categories[i] ?? "") }),
+      series.map((s) => {
+        const value = row[s.key];
+        return /* @__PURE__ */ jsx("td", { children: typeof value === "number" ? valueFormatter(value) : value ?? "\u2014" }, s.key);
+      })
+    ] }, i)) })
+  ] });
+}
+function ChartSkeleton({ height }) {
+  return /* @__PURE__ */ jsx(Skeleton, { className: "w-full rounded-md", style: { height } });
+}
+function ChartEmpty({
+  height,
+  title = "No data",
+  description
+}) {
+  return /* @__PURE__ */ jsx("div", { className: "flex items-center justify-center", style: { minHeight: height }, children: /* @__PURE__ */ jsx(EmptyState, { className: "py-0", title, description }) });
+}
+var CHART_TICK_VALUE = {
+  fill: "var(--color-text-secondary)",
+  fontSize: 11,
+  fontFamily: "var(--font-mono)"
+};
+var CHART_TICK_CATEGORY = {
+  fill: "var(--color-text-secondary)",
+  fontSize: 11,
+  fontFamily: "var(--font-body)"
+};
+var CHART_GRID_COLOR = "var(--color-chart-grid)";
+var CHART_LABEL_STYLE = {
+  fill: "var(--color-text-secondary)",
+  fontSize: 10,
+  fontFamily: "var(--font-mono)",
+  fontWeight: 500
+};
+function BarChart({
+  data,
+  categoryKey,
+  series,
+  orientation = "vertical",
+  stacked = false,
+  colorBy = "series",
+  valueLabels,
+  legend,
+  toggleableSeries = false,
+  height = 260,
+  maxBarSize = 40,
+  valueFormatter = formatChartValue,
+  tickFormatter,
+  labelFormatter,
+  categoryLabel = "Category",
+  tableCaption,
+  onBarClick,
+  loading,
+  emptyTitle,
+  emptyDescription,
+  className
+}) {
+  const allSeries = capSeries(series, "BarChart");
+  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
+  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
+  const visibleSeries = React.useMemo(
+    () => allSeries.filter((s) => !hidden.has(s.key)),
+    [allSeries, hidden]
+  );
+  const allColors = resolveSeriesColors(allSeries);
+  const isHorizontal = orientation === "horizontal";
+  const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
+  const showLegend = legend ?? allSeries.length > 1;
+  const axisTickFormatter = tickFormatter ?? valueFormatter;
+  if (loading) return /* @__PURE__ */ jsx(ChartSkeleton, { height });
+  if (!data.length || !allSeries.length) {
+    return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
+  }
+  const toggle = (index) => {
+    const key = allSeries[index]?.key;
+    if (!key) return;
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else if (prev.size < allSeries.length - 1) next.add(key);
+      return next;
+    });
+  };
+  const capFor = (isLastInStack) => {
+    if (stacked && !isLastInStack) return [0, 0, 0, 0];
+    return isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0];
+  };
+  const valueAxis = /* @__PURE__ */ jsx(
+    XAxis,
+    {
+      type: "number",
+      tick: CHART_TICK_VALUE,
+      tickFormatter: axisTickFormatter,
+      axisLine: false,
+      tickLine: false
+    }
+  );
+  const categoryAxis = /* @__PURE__ */ jsx(
+    YAxis,
+    {
+      type: "category",
+      dataKey: categoryKey,
+      tick: CHART_TICK_CATEGORY,
+      axisLine: false,
+      tickLine: false,
+      width: 110
+    }
+  );
+  return /* @__PURE__ */ jsxs("div", { className: cn("w-full", className), children: [
+    /* @__PURE__ */ jsx("div", { style: { height }, children: /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(
+      BarChart$1,
+      {
+        accessibilityLayer: true,
+        data: plotData,
+        layout: isHorizontal ? "vertical" : "horizontal",
+        barGap: 2,
+        barCategoryGap: "28%",
+        margin: { top: showLabels ? 18 : 8, right: 8, bottom: 0, left: 0 },
+        children: [
+          /* @__PURE__ */ jsx(
+            CartesianGrid,
+            {
+              stroke: CHART_GRID_COLOR,
+              horizontal: !isHorizontal,
+              vertical: isHorizontal
+            }
+          ),
+          isHorizontal ? /* @__PURE__ */ jsxs(Fragment, { children: [
+            valueAxis,
+            categoryAxis
+          ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx(
+              XAxis,
+              {
+                dataKey: categoryKey,
+                tick: CHART_TICK_CATEGORY,
+                axisLine: false,
+                tickLine: false,
+                interval: "preserveStartEnd"
+              }
+            ),
+            /* @__PURE__ */ jsx(
+              YAxis,
+              {
+                tick: CHART_TICK_VALUE,
+                tickFormatter: axisTickFormatter,
+                axisLine: false,
+                tickLine: false,
+                width: 48
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx(
+            Tooltip$1,
+            {
+              cursor: { fill: "var(--color-surface-overlay)", fillOpacity: 0.45 },
+              content: /* @__PURE__ */ jsx(
+                ChartTooltipContent,
+                {
+                  valueFormatter,
+                  labelFormatter
+                }
+              )
+            }
+          ),
+          visibleSeries.map((s) => {
+            const seriesIndex = allSeries.indexOf(s);
+            const isLastInStack = s === visibleSeries[visibleSeries.length - 1];
+            const perCategory = colorBy === "category" && allSeries.length === 1;
+            return /* @__PURE__ */ jsxs(
+              Bar,
+              {
+                dataKey: s.key,
+                name: s.label,
+                fill: allColors[seriesIndex],
+                radius: capFor(isLastInStack),
+                maxBarSize,
+                stackId: stacked ? "stack" : void 0,
+                stroke: stacked ? "var(--color-surface)" : void 0,
+                strokeWidth: stacked ? 2 : 0,
+                isAnimationActive: false,
+                cursor: onBarClick ? "pointer" : void 0,
+                onClick: onBarClick ? (_entry, index) => onBarClick(data[index], index, s.key) : void 0,
+                children: [
+                  perCategory && data.map((_row, i) => /* @__PURE__ */ jsx(Cell, { fill: `var(--color-chart-${Math.min(i, 7) + 1})` }, i)),
+                  showLabels && /* @__PURE__ */ jsx(
+                    LabelList,
+                    {
+                      dataKey: s.key,
+                      position: isHorizontal ? "right" : "top",
+                      formatter: (value) => typeof value === "number" && value !== 0 ? valueFormatter(value) : "",
+                      ...CHART_LABEL_STYLE
+                    }
+                  )
+                ]
+              },
+              s.key
+            );
+          })
+        ]
+      }
+    ) }) }),
+    showLegend && /* @__PURE__ */ jsx(
+      ChartLegend,
+      {
+        className: "mt-3",
+        items: allSeries.map((s, i) => ({
+          label: s.label,
+          color: allColors[i],
+          inactive: hidden.has(s.key)
+        })),
+        onItemClick: toggleableSeries ? toggle : void 0
+      }
+    ),
+    /* @__PURE__ */ jsx(
+      ChartDataTable,
+      {
+        caption: tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`,
+        categoryLabel,
+        categories: data.map((row) => String(row[categoryKey] ?? "")),
+        series: allSeries,
+        data,
+        valueFormatter
+      }
+    )
+  ] });
+}
+function LineChart({
+  data,
+  categoryKey,
+  series,
+  area = false,
+  stacked = false,
+  curve = "linear",
+  dots,
+  legend,
+  toggleableSeries = false,
+  referenceValue,
+  referenceLabel,
+  height = 260,
+  valueFormatter = formatChartValue,
+  tickFormatter,
+  labelFormatter,
+  categoryLabel = "Period",
+  tableCaption,
+  loading,
+  emptyTitle,
+  emptyDescription,
+  className
+}) {
+  const allSeries = capSeries(series, "LineChart");
+  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
+  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
+  const visibleSeries = React.useMemo(
+    () => allSeries.filter((s) => !hidden.has(s.key)),
+    [allSeries, hidden]
+  );
+  const allColors = resolveSeriesColors(allSeries);
+  const showLegend = legend ?? allSeries.length > 1;
+  const showDots = dots ?? data.length <= 12;
+  const axisTickFormatter = tickFormatter ?? valueFormatter;
+  if (loading) return /* @__PURE__ */ jsx(ChartSkeleton, { height });
+  if (!data.length || !allSeries.length) {
+    return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
+  }
+  const toggle = (index) => {
+    const key = allSeries[index]?.key;
+    if (!key) return;
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else if (prev.size < allSeries.length - 1) next.add(key);
+      return next;
+    });
+  };
+  return /* @__PURE__ */ jsxs("div", { className: cn("w-full", className), children: [
+    /* @__PURE__ */ jsx("div", { style: { height }, children: /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(
+      AreaChart,
+      {
+        accessibilityLayer: true,
+        data: plotData,
+        margin: { top: 8, right: 8, bottom: 0, left: 0 },
+        children: [
+          /* @__PURE__ */ jsx(CartesianGrid, { stroke: CHART_GRID_COLOR, vertical: false }),
+          /* @__PURE__ */ jsx(
+            XAxis,
+            {
+              dataKey: categoryKey,
+              tick: CHART_TICK_CATEGORY,
+              axisLine: false,
+              tickLine: false,
+              interval: "preserveStartEnd"
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            YAxis,
+            {
+              tick: CHART_TICK_VALUE,
+              tickFormatter: axisTickFormatter,
+              axisLine: false,
+              tickLine: false,
+              width: 48
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            Tooltip$1,
+            {
+              cursor: { stroke: "var(--color-text-faint)", strokeWidth: 1 },
+              content: /* @__PURE__ */ jsx(
+                ChartTooltipContent,
+                {
+                  valueFormatter,
+                  labelFormatter
+                }
+              )
+            }
+          ),
+          referenceValue != null && /* @__PURE__ */ jsx(
+            ReferenceLine,
+            {
+              y: referenceValue,
+              stroke: "var(--color-text-faint)",
+              strokeWidth: 1,
+              label: referenceLabel ? {
+                value: referenceLabel,
+                position: "insideTopRight",
+                fill: "var(--color-text-muted)",
+                fontSize: 10
+              } : void 0
+            }
+          ),
+          visibleSeries.map((s) => {
+            const color = allColors[allSeries.indexOf(s)];
+            return /* @__PURE__ */ jsx(
+              Area,
+              {
+                type: curve,
+                dataKey: s.key,
+                name: s.label,
+                stroke: color,
+                strokeWidth: 2,
+                fill: color,
+                fillOpacity: area ? 0.16 : 0,
+                stackId: area && stacked ? "stack" : void 0,
+                dot: showDots ? { r: 3.5, fill: "var(--color-surface)", stroke: color, strokeWidth: 2 } : false,
+                activeDot: { r: 4.5, fill: color, stroke: "var(--color-surface)", strokeWidth: 2 },
+                isAnimationActive: false,
+                connectNulls: true
+              },
+              s.key
+            );
+          })
+        ]
+      }
+    ) }) }),
+    showLegend && /* @__PURE__ */ jsx(
+      ChartLegend,
+      {
+        className: "mt-3",
+        items: allSeries.map((s, i) => ({
+          label: s.label,
+          color: allColors[i],
+          inactive: hidden.has(s.key)
+        })),
+        onItemClick: toggleableSeries ? toggle : void 0
+      }
+    ),
+    /* @__PURE__ */ jsx(
+      ChartDataTable,
+      {
+        caption: tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`,
+        categoryLabel,
+        categories: data.map((row) => String(row[categoryKey] ?? "")),
+        series: allSeries,
+        data,
+        valueFormatter
+      }
+    )
+  ] });
+}
+function DonutChart({
+  data,
+  maxSlices = 6,
+  otherLabel = "Other",
+  sort = false,
+  variant = "donut",
+  centerValue,
+  centerLabel,
+  legendPosition = "right",
+  showPercentages = true,
+  height = 260,
+  valueFormatter = formatChartValue,
+  categoryLabel = "Category",
+  tableCaption,
+  onSliceClick,
+  loading,
+  emptyTitle,
+  emptyDescription,
+  className
+}) {
+  const slices = React.useMemo(() => {
+    const rows = sort ? [...data].sort((a, b) => b.value - a.value) : data;
+    let kept = rows;
+    if (rows.length > maxSlices) {
+      const cutoff = [...rows].sort((a, b) => b.value - a.value).slice(0, maxSlices - 1);
+      const survivors = rows.filter((row) => cutoff.includes(row));
+      const foldedTotal = rows.filter((row) => !cutoff.includes(row)).reduce((sum, row) => sum + row.value, 0);
+      kept = [...survivors, { label: otherLabel, value: foldedTotal, color: "var(--color-text-faint)" }];
+    }
+    const total2 = kept.reduce((sum, row) => sum + row.value, 0);
+    return kept.map((row, i) => ({
+      ...row,
+      color: row.color ?? seriesColor(i),
+      percent: total2 > 0 ? row.value / total2 * 100 : 0
+    }));
+  }, [data, maxSlices, otherLabel, sort]);
+  const total = slices.reduce((sum, row) => sum + row.value, 0);
+  if (loading) return /* @__PURE__ */ jsx(ChartSkeleton, { height });
+  if (!data.length || total === 0) {
+    return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
+  }
+  const isRight = legendPosition === "right";
+  return (
+    /*
+     * The plot is square and sized off `height`, and the whole plot+legend unit
+     * centers. Letting the plot flex instead would strand a small circle in the
+     * middle of a wide card, far from the legend that names its wedges.
+     */
+    /* @__PURE__ */ jsxs(
+      "div",
+      {
+        className: cn(
+          "flex w-full justify-center",
+          isRight ? "items-center gap-6" : "flex-col items-center gap-4",
+          className
+        ),
+        children: [
+          /* @__PURE__ */ jsxs(
+            "div",
+            {
+              className: "relative shrink-0",
+              style: { height, width: height, maxWidth: "100%" },
+              children: [
+                /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(PieChart, { children: [
+                  /* @__PURE__ */ jsx(Tooltip$1, { content: /* @__PURE__ */ jsx(ChartTooltipContent, { valueFormatter }) }),
+                  /* @__PURE__ */ jsx(
+                    Pie,
+                    {
+                      data: slices,
+                      dataKey: "value",
+                      nameKey: "label",
+                      innerRadius: variant === "donut" ? "62%" : 0,
+                      outerRadius: "88%",
+                      paddingAngle: 1,
+                      stroke: "var(--color-surface)",
+                      strokeWidth: 2,
+                      isAnimationActive: false,
+                      cursor: onSliceClick ? "pointer" : void 0,
+                      onClick: onSliceClick ? (_entry, index) => onSliceClick(slices[index], index) : void 0,
+                      children: slices.map((slice, i) => /* @__PURE__ */ jsx(Cell, { fill: slice.color }, `${slice.label}-${i}`))
+                    }
+                  )
+                ] }) }),
+                variant === "donut" && /* @__PURE__ */ jsxs("div", { className: "pointer-events-none absolute inset-0 flex flex-col items-center justify-center", children: [
+                  /* @__PURE__ */ jsx("span", { className: "font-[family-name:var(--font-mono)] text-xl font-semibold text-text-primary", children: centerValue ?? valueFormatter(total) }),
+                  centerLabel && /* @__PURE__ */ jsx("span", { className: "mt-0.5 max-w-[70%] text-center text-[11px] uppercase tracking-widest text-text-secondary", children: centerLabel })
+                ] })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx("ul", { className: cn("space-y-1.5", isRight ? "w-44 shrink-0" : "w-full max-w-xs"), children: slices.map((slice, i) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-xs", children: [
+            /* @__PURE__ */ jsx(
+              "span",
+              {
+                "aria-hidden": true,
+                className: "size-2 shrink-0 rounded-full",
+                style: { backgroundColor: slice.color }
+              }
+            ),
+            /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate text-text-secondary", children: slice.label }),
+            /* @__PURE__ */ jsx("span", { className: "ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary", children: showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value) })
+          ] }, `${slice.label}-${i}`)) }),
+          /* @__PURE__ */ jsxs("table", { className: "sr-only", children: [
+            /* @__PURE__ */ jsx("caption", { children: tableCaption ?? `Share of total by ${categoryLabel}` }),
+            /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+              /* @__PURE__ */ jsx("th", { scope: "col", children: categoryLabel }),
+              /* @__PURE__ */ jsx("th", { scope: "col", children: "Value" }),
+              /* @__PURE__ */ jsx("th", { scope: "col", children: "Share" })
+            ] }) }),
+            /* @__PURE__ */ jsx("tbody", { children: slices.map((slice, i) => /* @__PURE__ */ jsxs("tr", { children: [
+              /* @__PURE__ */ jsx("th", { scope: "row", children: slice.label }),
+              /* @__PURE__ */ jsx("td", { children: valueFormatter(slice.value) }),
+              /* @__PURE__ */ jsxs("td", { children: [
+                slice.percent.toFixed(1),
+                "%"
+              ] })
+            ] }, `${slice.label}-${i}`)) })
+          ] })
+        ]
+      }
+    )
+  );
+}
 var MONTH_NAMES = [
   "Jan",
   "Feb",
@@ -2087,4 +2693,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, Button, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, cn, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, useTheme, useToast };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };

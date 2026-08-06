@@ -94,6 +94,39 @@
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
 
+  /*
+   * ── Chart series (categorical) ──
+   * Eight identity hues for data visualization, assigned to series in fixed
+   * slot order (chart-1 first, then chart-2, …) and NEVER cycled — a ninth
+   * series folds into "Other" rather than reusing slot 1, because a repeated
+   * hue reads as a repeated entity.
+   *
+   * The order is the colorblind-safety mechanism, not a cosmetic choice: this
+   * sequence was validated for adjacent-pair separation under protanopia and
+   * deuteranopia, for the per-mode lightness band, and for contrast against the
+   * carbon surfaces. Reordering or re-stepping a slot invalidates that, so
+   * don't hand-tune these values.
+   *
+   * Dark values are the defaults (dark is the default theme); `.light` carries
+   * its own steps below — a light theme is a *selected* set of steps for the
+   * white surface, not an automatic inversion of these.
+   *
+   * These are deliberately separate from the status tokens above: success /
+   * error / warning keep their reserved meaning and are never spent as
+   * "series 4".
+   */
+  --color-chart-1: #3987e5; /* blue */
+  --color-chart-2: #d95926; /* orange */
+  --color-chart-3: #199e70; /* aqua */
+  --color-chart-4: #c98500; /* yellow */
+  --color-chart-5: #d55181; /* magenta */
+  --color-chart-6: #008300; /* green */
+  --color-chart-7: #9085e9; /* violet */
+  --color-chart-8: #e66767; /* red */
+
+  /* Gridlines sit below border-subtle — they must recede behind the data. */
+  --color-chart-grid: #232329;
+
   /* ── Typography ── */
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "DM Sans", system-ui, sans-serif;
@@ -175,6 +208,23 @@
   --color-info-soft: #dbeafe;
   --color-success-border: #86efac;
   --color-error-border: #fecaca;
+
+  /*
+   * Chart series — the same eight hues stepped for the white surface. Slots 3,
+   * 4 and 5 sit below 3:1 against white, so charts using them must carry a
+   * relief channel (visible value labels, or the screen-reader table view the
+   * chart components render). The chart components do this by default.
+   */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+  --color-chart-4: #eda100;
+  --color-chart-5: #e87ba4;
+  --color-chart-6: #008300;
+  --color-chart-7: #4a3aa7;
+  --color-chart-8: #e34948;
+
+  --color-chart-grid: #ececee;
 }
 
 .dark {
@@ -204,6 +254,17 @@
   --color-info-soft: #101f30;
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
+
+  --color-chart-1: #3987e5;
+  --color-chart-2: #d95926;
+  --color-chart-3: #199e70;
+  --color-chart-4: #c98500;
+  --color-chart-5: #d55181;
+  --color-chart-6: #008300;
+  --color-chart-7: #9085e9;
+  --color-chart-8: #e66767;
+
+  --color-chart-grid: #232329;
 }
 
 /* ── Base reset ── */

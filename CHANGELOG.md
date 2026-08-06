@@ -8,6 +8,54 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.4.0] - 2026-08-06
+
+Adds data visualization to the system: a validated chart palette and the three
+chart forms a dashboard actually needs.
+
+### Added
+
+- **Chart series tokens** in `theme.css` — `--color-chart-1` through
+  `--color-chart-8`, plus `--color-chart-grid`, with separately chosen steps for
+  light and dark. The eight hues are assigned to series in fixed slot order and
+  never cycled; that order is what keeps adjacent series distinguishable under
+  protanopia and deuteranopia, and it was validated against the real carbon
+  surfaces for CVD separation, lightness band, chroma, and contrast. Don't
+  reorder or hand-tune the values. Status tokens (`success`/`error`/`warning`)
+  stay reserved and are never spent as a series color.
+- **`ChartCard`** — the titled card a chart sits in: `title`, `subtitle`,
+  right-aligned `action` for controls, and `footer`.
+- **`BarChart`** — vertical or `orientation="horizontal"` (the better choice for
+  long category names), grouped or `stacked`, optional `onBarClick` for
+  drill-down, and direct value labels that default on for a single series over
+  ≤16 bars. `colorBy="category"` is available for the case where bar colors are
+  shared with another chart on the page.
+- **`LineChart`** — multi-series over time, optional `area` and stacking,
+  `curve` (`"linear"` default), a `referenceValue` rule for targets, and
+  `toggleableSeries` so a legend click shows/hides a line. Deliberately
+  single-axis: there is no second y-scale.
+- **`DonutChart`** — part-to-whole with the total in the hole, a value legend,
+  and automatic folding of the smallest categories into a neutral "Other" past
+  `maxSlices` (default 6). Keeps input order by default so a filter change can't
+  repaint entities.
+- **Shared chart primitives** exported alongside them: `seriesColor`,
+  `resolveSeriesColors`, `capSeries`, `formatChartValue`, `ChartLegend`,
+  `ChartTooltipContent`, `ChartDataTable`, and the axis/label style constants,
+  for building a chart form the three above don't cover.
+
+Every chart renders a visually hidden data table carrying the same numbers, so
+the values are reachable by screen reader — and so the three light-mode palette
+slots that sit under 3:1 against white always have a text fallback.
+
+Charts render from an internal copy of the `data` array rather than the array
+you pass. Recharts holds chart data in a Redux store, and Redux Toolkit's immer
+deep-freezes store state in development — passing your array straight through
+would freeze it, and its row objects, in place. Your data stays yours: safe to
+mutate or reuse after render.
+
+`recharts` is a new runtime dependency (externalized in the build, so consumers
+install it transitively).
+
 ## [1.3.1] - 2026-07-26
 
 ### Fixed
