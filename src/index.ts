@@ -45,6 +45,12 @@ export * from "./components/ui/form-field";
 export * from "./components/ui/definition-list";
 export * from "./components/ui/filter-bar";
 export * from "./components/ui/stat-card";
+// Data visualization. `chart` carries the shared shell, palette contract, and
+// legend/tooltip; the three chart types build on it.
+export * from "./components/ui/chart";
+export * from "./components/ui/bar-chart";
+export * from "./components/ui/line-chart";
+export * from "./components/ui/donut-chart";
 export * from "./components/ui/date-range-picker";
 export * from "./components/ui/theme";
 export * from "./components/ui/account-combobox";
