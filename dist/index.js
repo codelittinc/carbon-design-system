@@ -1259,6 +1259,7 @@ function seriesColor(index) {
   const slot = Math.min(Math.max(index, 0), CHART_SERIES_LIMIT - 1) + 1;
   return `var(--color-chart-${slot})`;
 }
+var CHART_NEUTRAL_COLOR = "var(--color-text-faint)";
 function resolveSeriesColors(series) {
   return series.map((s, i) => s.color ?? seriesColor(i));
 }
@@ -1421,9 +1422,30 @@ function BarChart({
   );
   const allColors = resolveSeriesColors(allSeries);
   const isHorizontal = orientation === "horizontal";
+  const perCategory = colorBy === "category" && allSeries.length === 1;
+  const categoryColors = React.useMemo(() => {
+    if (!perCategory) return null;
+    if (data.length > CHART_SERIES_LIMIT) {
+      console.warn(
+        `[CarbonOS BarChart] colorBy="category" with ${data.length} categories, but the palette has ${CHART_SERIES_LIMIT} identity slots. Bars past the ${CHART_SERIES_LIMIT}th render neutral. Sort and group the tail, or drop back to colorBy="series".`
+      );
+    }
+    return data.map((_row, i) => i < CHART_SERIES_LIMIT ? seriesColor(i) : CHART_NEUTRAL_COLOR);
+  }, [perCategory, data]);
   const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
   const showLegend = legend ?? allSeries.length > 1;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
+  const rightGutter = React.useMemo(() => {
+    if (!isHorizontal) return 8;
+    const widest = showLabels ? data.reduce((max, row) => {
+      const rowMax = allSeries.reduce((m, s) => {
+        const value = row[s.key];
+        return typeof value === "number" && value !== 0 ? Math.max(m, valueFormatter(value).length) : m;
+      }, 0);
+      return Math.max(max, rowMax);
+    }, 0) : 0;
+    return Math.max(40, Math.ceil(widest * 6.5) + 10);
+  }, [isHorizontal, showLabels, data, allSeries, valueFormatter]);
   if (loading) return /* @__PURE__ */ jsx(ChartSkeleton, { height });
   if (!data.length || !allSeries.length) {
     return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
@@ -1472,7 +1494,12 @@ function BarChart({
         layout: isHorizontal ? "vertical" : "horizontal",
         barGap: 2,
         barCategoryGap: "28%",
-        margin: { top: showLabels ? 18 : 8, right: 8, bottom: 0, left: 0 },
+        margin: {
+          top: !isHorizontal && showLabels ? 18 : 8,
+          right: rightGutter,
+          bottom: 0,
+          left: 0
+        },
         children: [
           /* @__PURE__ */ jsx(
             CartesianGrid,
@@ -1523,7 +1550,6 @@ function BarChart({
           visibleSeries.map((s) => {
             const seriesIndex = allSeries.indexOf(s);
             const isLastInStack = s === visibleSeries[visibleSeries.length - 1];
-            const perCategory = colorBy === "category" && allSeries.length === 1;
             return /* @__PURE__ */ jsxs(
               Bar,
               {
@@ -1539,7 +1565,7 @@ function BarChart({
                 cursor: onBarClick ? "pointer" : void 0,
                 onClick: onBarClick ? (_entry, index) => onBarClick(data[index], index, s.key) : void 0,
                 children: [
-                  perCategory && data.map((_row, i) => /* @__PURE__ */ jsx(Cell, { fill: `var(--color-chart-${Math.min(i, 7) + 1})` }, i)),
+                  categoryColors?.map((fill, i) => /* @__PURE__ */ jsx(Cell, { fill }, i)),
                   showLabels && /* @__PURE__ */ jsx(
                     LabelList,
                     {
@@ -1762,7 +1788,7 @@ function DonutChart({
       const cutoff = [...rows].sort((a, b) => b.value - a.value).slice(0, maxSlices - 1);
       const survivors = rows.filter((row) => cutoff.includes(row));
       const foldedTotal = rows.filter((row) => !cutoff.includes(row)).reduce((sum, row) => sum + row.value, 0);
-      kept = [...survivors, { label: otherLabel, value: foldedTotal, color: "var(--color-text-faint)" }];
+      kept = [...survivors, { label: otherLabel, value: foldedTotal, color: CHART_NEUTRAL_COLOR }];
     }
     const total2 = kept.reduce((sum, row) => sum + row.value, 0);
     return kept.map((row, i) => ({
@@ -2693,4 +2719,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };

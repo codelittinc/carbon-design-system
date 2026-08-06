@@ -62,6 +62,10 @@ const THEME_CRITICAL = [
   "checkbox.tsx",
   "search-select.tsx",
   "toast.tsx",
+  "chart.tsx",
+  "bar-chart.tsx",
+  "line-chart.tsx",
+  "donut-chart.tsx",
 ];
 
 describe("no fixed palette utilities in theme-critical components", () => {
