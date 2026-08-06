@@ -14,6 +14,8 @@ import { cn } from "@/lib/cn";
 import {
   CHART_GRID_COLOR,
   CHART_LABEL_STYLE,
+  CHART_NEUTRAL_COLOR,
+  CHART_SERIES_LIMIT,
   CHART_TICK_CATEGORY,
   CHART_TICK_VALUE,
   ChartDataTable,
@@ -28,6 +30,7 @@ import {
   capSeries,
   formatChartValue,
   resolveSeriesColors,
+  seriesColor,
 } from "./chart";
 
 export interface BarChartProps extends ChartStateProps {
@@ -53,6 +56,10 @@ export interface BarChartProps extends ChartStateProps {
    * the bar colors are load-bearing elsewhere on the page (a donut of the same
    * categories beside it, say). On its own it re-encodes what length already
    * shows and burns the identity channel. Single-series charts only.
+   *
+   * There are eight identity slots. Bars past the eighth render neutral rather
+   * than repeating a hue — two bars in the same color read as the same entity —
+   * and the overflow is logged. Sort and group the tail if you hit this.
    */
   colorBy?: "series" | "category";
   /**
@@ -142,6 +149,26 @@ export function BarChart({
 
   const allColors = resolveSeriesColors(allSeries);
   const isHorizontal = orientation === "horizontal";
+  const perCategory = colorBy === "category" && allSeries.length === 1;
+
+  /*
+   * Per-category fills. Past the eighth slot the palette is out of identity
+   * hues, so the tail takes the neutral rather than repeating a hue — two bars
+   * in the same color read as the same entity, which is exactly the confusion
+   * this mode exists to avoid. Memoized so the warning fires when the data
+   * changes, not on every render.
+   */
+  const categoryColors = React.useMemo(() => {
+    if (!perCategory) return null;
+    if (data.length > CHART_SERIES_LIMIT) {
+      console.warn(
+        `[CarbonOS BarChart] colorBy="category" with ${data.length} categories, but the ` +
+          `palette has ${CHART_SERIES_LIMIT} identity slots. Bars past the ${CHART_SERIES_LIMIT}th ` +
+          `render neutral. Sort and group the tail, or drop back to colorBy="series".`,
+      );
+    }
+    return data.map((_row, i) => (i < CHART_SERIES_LIMIT ? seriesColor(i) : CHART_NEUTRAL_COLOR));
+  }, [perCategory, data]);
   /*
    * Direct labels default on for a single series over a readable number of
    * bars. Past ~16 they collide and stop being read, so the axis and tooltip
@@ -150,6 +177,30 @@ export function BarChart({
   const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
   const showLegend = legend ?? allSeries.length > 1;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
+
+  /*
+   * Horizontal bars put their value labels at the bar's right end, and the
+   * value axis puts its last tick on the right edge — both need room that a
+   * vertical chart spends on `top` instead. Without it, a bar that reaches the
+   * axis maximum has its label clipped by the SVG viewport. Sized off the
+   * widest label actually rendered (10px mono ≈ 6.5px per character), with a
+   * floor that covers the overhang of the final axis tick.
+   */
+  const rightGutter = React.useMemo(() => {
+    if (!isHorizontal) return 8;
+    const widest = showLabels
+      ? data.reduce((max, row) => {
+          const rowMax = allSeries.reduce((m, s) => {
+            const value = row[s.key];
+            return typeof value === "number" && value !== 0
+              ? Math.max(m, valueFormatter(value).length)
+              : m;
+          }, 0);
+          return Math.max(max, rowMax);
+        }, 0)
+      : 0;
+    return Math.max(40, Math.ceil(widest * 6.5) + 10);
+  }, [isHorizontal, showLabels, data, allSeries, valueFormatter]);
 
   if (loading) return <ChartSkeleton height={height} />;
   if (!data.length || !allSeries.length) {
@@ -205,7 +256,12 @@ export function BarChart({
             /* 2px between grouped bars so adjacent fills never touch. */
             barGap={2}
             barCategoryGap="28%"
-            margin={{ top: showLabels ? 18 : 8, right: 8, bottom: 0, left: 0 }}
+            margin={{
+              top: !isHorizontal && showLabels ? 18 : 8,
+              right: rightGutter,
+              bottom: 0,
+              left: 0,
+            }}
           >
             <CartesianGrid
               stroke={CHART_GRID_COLOR}
@@ -247,7 +303,6 @@ export function BarChart({
             {visibleSeries.map((s) => {
               const seriesIndex = allSeries.indexOf(s);
               const isLastInStack = s === visibleSeries[visibleSeries.length - 1];
-              const perCategory = colorBy === "category" && allSeries.length === 1;
               return (
                 <Bar
                   key={s.key}
@@ -274,10 +329,7 @@ export function BarChart({
                       : undefined
                   }
                 >
-                  {perCategory &&
-                    data.map((_row, i) => (
-                      <Cell key={i} fill={`var(--color-chart-${Math.min(i, 7) + 1})`} />
-                    ))}
+                  {categoryColors?.map((fill, i) => <Cell key={i} fill={fill} />)}
                   {showLabels && (
                     <LabelList
                       dataKey={s.key}

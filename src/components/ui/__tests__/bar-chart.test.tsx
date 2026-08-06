@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { BarChart } from "../bar-chart";
 
 /**
@@ -111,6 +111,54 @@ describe("BarChart", () => {
   it("shows an empty state when there are rows but no series", () => {
     render(<BarChart data={DATA} categoryKey="property" series={[]} />);
     expect(screen.getByText("No data")).toBeInTheDocument();
+  });
+
+  describe('colorBy="category"', () => {
+    const categories = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ property: `P${i}`, leads: 100 - i }));
+
+    let warn: MockInstance<(...args: unknown[]) => void>;
+
+    beforeEach(() => {
+      warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    // Restored here rather than at the end of each test, so a failing
+    // assertion can't leave the spy installed and leak into the next test.
+    afterEach(() => warn.mockRestore());
+
+    /** Our own warnings — Recharts separately warns that jsdom gives it a 0×0 chart. */
+    const carbonWarnings = () =>
+      warn.mock.calls.map((call) => String(call[0])).filter((m) => m.startsWith("[CarbonOS"));
+
+    it("warns when there are more categories than palette slots", () => {
+      /*
+       * Past the eighth slot the palette is out of identity hues. Repeating one
+       * would make two categories read as the same entity, so the tail goes
+       * neutral — and says so, rather than quietly producing a misleading chart.
+       */
+      render(
+        <BarChart
+          data={categories(12)}
+          categoryKey="property"
+          series={SINGLE}
+          colorBy="category"
+        />,
+      );
+      expect(carbonWarnings()).toHaveLength(1);
+      expect(carbonWarnings()[0]).toMatch(/colorBy="category" with 12 categories/);
+    });
+
+    it("stays quiet when the categories fit the palette", () => {
+      render(
+        <BarChart data={categories(8)} categoryKey="property" series={SINGLE} colorBy="category" />,
+      );
+      expect(carbonWarnings()).toEqual([]);
+    });
+
+    it("does not warn about categories when coloring by series", () => {
+      render(<BarChart data={categories(12)} categoryKey="property" series={SINGLE} />);
+      expect(carbonWarnings()).toEqual([]);
+    });
   });
 
   it("formats table values with the supplied formatter", () => {

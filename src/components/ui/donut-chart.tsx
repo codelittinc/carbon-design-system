@@ -2,6 +2,7 @@ import * as React from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { cn } from "@/lib/cn";
 import {
+  CHART_NEUTRAL_COLOR,
   ChartEmpty,
   ChartSkeleton,
   ChartTooltipContent,
@@ -107,7 +108,7 @@ export function DonutChart({
       const foldedTotal = rows
         .filter((row) => !cutoff.includes(row))
         .reduce((sum, row) => sum + row.value, 0);
-      kept = [...survivors, { label: otherLabel, value: foldedTotal, color: "var(--color-text-faint)" }];
+      kept = [...survivors, { label: otherLabel, value: foldedTotal, color: CHART_NEUTRAL_COLOR }];
     }
 
     const total = kept.reduce((sum, row) => sum + row.value, 0);

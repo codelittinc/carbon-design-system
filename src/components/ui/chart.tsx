@@ -38,6 +38,14 @@ export function seriesColor(index: number): string {
   return `var(--color-chart-${slot})`;
 }
 
+/**
+ * Fill for anything the categorical palette deliberately refuses to encode —
+ * a folded "Other" wedge, or categories past the eighth slot. It reads as
+ * "no identity assigned" rather than as another entity, which is the honest
+ * signal when the palette has run out.
+ */
+export const CHART_NEUTRAL_COLOR = "var(--color-text-faint)";
+
 /** One plotted measure. `color` overrides the palette slot for this series. */
 export interface ChartSeries {
   /** Key to read off each datum. */

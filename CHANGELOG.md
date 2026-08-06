@@ -29,7 +29,8 @@ chart forms a dashboard actually needs.
   long category names), grouped or `stacked`, optional `onBarClick` for
   drill-down, and direct value labels that default on for a single series over
   ≤16 bars. `colorBy="category"` is available for the case where bar colors are
-  shared with another chart on the page.
+  shared with another chart on the page; past the eighth category its bars go
+  neutral rather than repeating a hue, and say so in the console.
 - **`LineChart`** — multi-series over time, optional `area` and stacking,
   `curve` (`"linear"` default), a `referenceValue` rule for targets, and
   `toggleableSeries` so a legend click shows/hides a line. Deliberately
