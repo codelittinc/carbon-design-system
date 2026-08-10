@@ -698,17 +698,20 @@ function PageHeader({ title, description, actions, className }) {
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
 }
+var UNSET = /* @__PURE__ */ Symbol("DataTable.resetPageOn.unset");
 function DataTable({
   columns,
   data,
   onRowClick,
   pageSize = 25,
   enableSelection = false,
-  emptyMessage = "No results."
+  emptyMessage = "No results.",
+  resetPageOn = UNSET
 }) {
   const [sorting, setSorting] = useState([]);
   const [columnFilters, setColumnFilters] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
+  const driven = resetPageOn !== UNSET;
   const table = useReactTable({
     data,
     columns,
@@ -720,9 +723,18 @@ function DataTable({
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
+    // Hand the reset over to the effect below only when the caller opted in, so the
+    // default stays exactly TanStack's.
+    autoResetPageIndex: !driven,
     state: { sorting, columnFilters, rowSelection },
     initialState: { pagination: { pageSize } }
   });
+  const seen = useRef(resetPageOn);
+  useEffect(() => {
+    if (!driven || Object.is(seen.current, resetPageOn)) return;
+    seen.current = resetPageOn;
+    table.setPageIndex(0);
+  }, [driven, resetPageOn, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
       /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: headerGroup.headers.map((header) => /* @__PURE__ */ jsx(

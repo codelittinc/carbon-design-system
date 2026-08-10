@@ -8,6 +8,38 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.6.0] - 2026-08-10
+
+Gives paginated `DataTable` callers control over when the page resets, so a
+background refresh stops throwing readers back to page 1.
+
+### Added
+
+- **`DataTable` `resetPageOn`** — a value identifying your filters. When you pass
+  it, the page returns to 1 when *that* changes rather than on every `data`
+  change.
+
+  By default (prop omitted) `DataTable` keeps TanStack's `autoResetPageIndex`:
+  the page resets whenever `data` changes. That is right for a filter change and
+  wrong for a refresh, because both hand the table a new array — so a screen that
+  re-fetches its list after editing a row bounced the reader from page 3 back to
+  page 1 on every edit.
+
+  ```tsx
+  <DataTable
+    columns={columns}
+    data={visible}
+    pageSize={10}
+    resetPageOn={filterSignature}
+  />
+  ```
+
+  Filter changes reset the page; a refetch of the same list leaves the reader
+  where they were. Unlike remounting the table on a `key` — the workaround this
+  replaces — the column sort survives.
+
+  Nothing changes for callers that omit the prop.
+
 ## [1.5.0] - 2026-08-10
 
 Makes the pure helpers callable from React Server Components. Additive — nothing

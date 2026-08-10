@@ -12,7 +12,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
@@ -24,7 +24,25 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number;
   enableSelection?: boolean;
   emptyMessage?: string;
+  /**
+   * What a page reset keys off.
+   *
+   * By default the page returns to 1 whenever `data` changes — TanStack's
+   * `autoResetPageIndex`. That is right for a filter change and wrong for a refresh,
+   * because both hand us a new array: re-fetching the same list after a row edit
+   * throws the reader back to page 1, and on a long list they have to page forward
+   * again for every edit.
+   *
+   * Pass a value that identifies the *filters* (a string of their current values, say)
+   * and the page resets when that changes instead of on every `data` change. A refresh
+   * then keeps the reader where they were, and unlike remounting the table on a `key`,
+   * the column sort survives.
+   */
+  resetPageOn?: unknown;
 }
+
+/** Distinguishes "prop omitted" from any value a caller could legitimately pass. */
+const UNSET = Symbol("DataTable.resetPageOn.unset");
 
 export function DataTable<TData, TValue>({
   columns,
@@ -33,10 +51,12 @@ export function DataTable<TData, TValue>({
   pageSize = 25,
   enableSelection = false,
   emptyMessage = "No results.",
+  resetPageOn = UNSET,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const driven = resetPageOn !== UNSET;
 
   const table = useReactTable({
     data,
@@ -49,9 +69,20 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
+    // Hand the reset over to the effect below only when the caller opted in, so the
+    // default stays exactly TanStack's.
+    autoResetPageIndex: !driven,
     state: { sorting, columnFilters, rowSelection },
     initialState: { pagination: { pageSize } },
   });
+
+  // Mount already starts on page 1, so only *changes* to the signature reset.
+  const seen = useRef(resetPageOn);
+  useEffect(() => {
+    if (!driven || Object.is(seen.current, resetPageOn)) return;
+    seen.current = resetPageOn;
+    table.setPageIndex(0);
+  }, [driven, resetPageOn, table]);
 
   return (
     <div>
