@@ -8,6 +8,53 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.5.0] - 2026-08-10
+
+Makes the pure helpers callable from React Server Components. Additive — nothing
+moves and nothing is removed.
+
+### Added
+
+- **`@codelittinc/carbon-design-system/utils`** — a second entry point exporting
+  `cn`, `formatMoney`, `formatDate` and `formatPeriodLabel`, and nothing else.
+  Unlike the package root it carries no `"use client"` directive, so a server
+  component can call these:
+
+  ```ts
+  import { cn } from "@codelittinc/carbon-design-system/utils";
+  ```
+
+  The root is one bundle marked `"use client"`, because almost all of it is
+  React client components. An RSC bundler applies that directive to every export
+  in the module — including plain functions — so a server component that
+  imported `cn` from the root received a client reference and threw when it
+  called it:
+
+  ```
+  Error: Attempted to call cn() from the server but cn is on the client.
+  ```
+
+  Nothing caught it earlier: the types resolve, the bundle builds, and the page
+  only fails when it renders. It took a 500 on a signed-in admin page in
+  player-scoreboard-v2 to surface. **If you call `cn` (or a formatter) from a
+  server component, import it from `/utils`.** Client components can keep
+  importing from either.
+
+- **Build- and test-time guards on the client boundary.** `tsup.config.ts` now
+  classifies each emitted bundle as client or server-safe and fails the build if
+  a bundle is unclassified, if a client bundle is missing the directive, or if
+  the `utils` bundle ever gains one. A test asserts the same invariant against
+  the committed `dist/`, which is what git-dependency consumers actually execute.
+  Both were confirmed to fail on a deliberate violation. A new entry point must
+  now be classified deliberately rather than inheriting the directive by default.
+
+### Notes
+
+- `cn` and the formatters remain exported from the package root, so **no
+  existing import needs to change**. The root's declarations now re-export them
+  from `./utils.js` rather than declaring them inline; the runtime export is
+  unchanged.
+
 ## [1.4.0] - 2026-08-06
 
 Adds data visualization to the system: a validated chart palette and the three
