@@ -166,8 +166,23 @@ interface DataTableProps<TData, TValue> {
     pageSize?: number;
     enableSelection?: boolean;
     emptyMessage?: string;
+    /**
+     * What a page reset keys off.
+     *
+     * By default the page returns to 1 whenever `data` changes — TanStack's
+     * `autoResetPageIndex`. That is right for a filter change and wrong for a refresh,
+     * because both hand us a new array: re-fetching the same list after a row edit
+     * throws the reader back to page 1, and on a long list they have to page forward
+     * again for every edit.
+     *
+     * Pass a value that identifies the *filters* (a string of their current values, say)
+     * and the page resets when that changes instead of on every `data` change. A refresh
+     * then keeps the reader where they were, and unlike remounting the table on a `key`,
+     * the column sort survives.
+     */
+    resetPageOn?: unknown;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, enableSelection, emptyMessage, }: DataTableProps<TData, TValue>): react.JSX.Element;
+declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;

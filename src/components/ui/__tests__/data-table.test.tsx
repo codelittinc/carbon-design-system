@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { useMemo, useState } from "react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DataTable, type ColumnDef } from "../data-table";
 
@@ -81,5 +82,86 @@ describe("DataTable", () => {
     render(<DataTable columns={columns} data={data} onRowClick={onRowClick} />);
     fireEvent.click(screen.getByText("Alice"));
     expect(onRowClick).toHaveBeenCalledWith({ name: "Alice", age: 25 });
+  });
+
+  describe("page reset", () => {
+    const many = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ name: `row${i}`, age: i }));
+
+    /** Drives DataTable the way a filtered list screen does. */
+    function Host({ withSignature }: { withSignature: boolean }) {
+      const [rows, setRows] = useState(24);
+      const [nonce, setNonce] = useState(0);
+      const [filter, setFilter] = useState("a");
+      const data = useMemo(() => many(rows), [rows, nonce]);
+      return (
+        <div>
+          {/* A refresh: same rows, new array — what a refetch after an edit produces. */}
+          <button onClick={() => setNonce((v) => v + 1)}>refetch</button>
+          <button onClick={() => setFilter((f) => f + "!")}>filter</button>
+          <button onClick={() => setRows(22)}>shrink</button>
+          <DataTable
+            columns={columns}
+            data={data}
+            pageSize={10}
+            {...(withSignature ? { resetPageOn: filter } : {})}
+          />
+        </div>
+      );
+    }
+
+    const page = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
+
+    async function toLastPage() {
+      await act(async () => {});
+      const next = () => screen.getAllByRole("button", { name: "" }).at(-1)!;
+      fireEvent.click(next());
+      fireEvent.click(next());
+      await act(async () => {});
+      expect(page()).toBe("3 / 3");
+    }
+
+    const click = async (name: string) => {
+      await act(async () => {
+        fireEvent.click(screen.getByText(name));
+      });
+    };
+
+    it("returns to page 1 on any data change by default", async () => {
+      render(<Host withSignature={false} />);
+      await toLastPage();
+
+      // Both a refresh and a real narrowing reset, because both replace `data`.
+      await click("refetch");
+      expect(page()).toBe("1 / 3");
+
+      await toLastPage();
+      await click("shrink");
+      expect(page()).toBe("1 / 3");
+    });
+
+    it("with resetPageOn, resets on the signature and holds place on a refresh", async () => {
+      render(<Host withSignature />);
+      await toLastPage();
+
+      // A refetch of the same list must not move the reader.
+      await click("refetch");
+      expect(page()).toBe("3 / 3");
+
+      // A filter change must.
+      await click("filter");
+      expect(page()).toBe("1 / 3");
+    });
+
+    it("with resetPageOn, never leaves the reader past the last page", async () => {
+      render(<Host withSignature />);
+      await toLastPage();
+
+      // Shrinking without a signature change keeps pageIndex, so the page must still
+      // be one that exists — TanStack clamps the displayed page to the last one.
+      await click("shrink");
+      expect(page()).toBe("3 / 3");
+      expect(nameColumnOrder()).toEqual(["row20", "row21"]);
+    });
   });
 });
