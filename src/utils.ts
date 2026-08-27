@@ -30,3 +30,17 @@
 
 export { cn } from "./lib/cn";
 export { formatMoney, formatDate, formatPeriodLabel } from "./lib/format";
+
+/**
+ * The rich-text helpers belong here more than anything else does. Stored rich
+ * text is rendered by whatever draws the page, which is usually a server
+ * component, and `sanitizeRichText` has to run there — it is the last thing
+ * between the database and `dangerouslySetInnerHTML`. Imported from the package
+ * root it would come back as a client reference and throw at request time.
+ */
+export {
+  RICH_TEXT_TAGS,
+  isRichTextEmpty,
+  safeHref,
+  sanitizeRichText,
+} from "./lib/rich-text";

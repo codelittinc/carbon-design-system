@@ -2,12 +2,12 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useContext, useId, useMemo } from 'react';
+import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useMemo, useContext, useId } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
+import { Check, ChevronDown, X, Bold, Italic, List, ListOrdered, Link2, ArrowUpDown, ChevronLeft, ChevronRight, Search, Sun, Moon } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
-import { Check, ChevronDown, X, ArrowUpDown, ChevronLeft, ChevronRight, Search, Sun, Moon } from 'lucide-react';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -49,6 +49,227 @@ function formatDate(iso) {
 function formatPeriodLabel(month, year) {
   const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${names[month - 1]} ${year}`;
+}
+
+// src/lib/rich-text.ts
+var TAG_ALIASES = {
+  p: "p",
+  div: "p",
+  br: "br",
+  b: "strong",
+  strong: "strong",
+  i: "em",
+  em: "em",
+  u: "u",
+  s: "s",
+  strike: "s",
+  del: "s",
+  ul: "ul",
+  ol: "ol",
+  li: "li",
+  a: "a"
+};
+var RICH_TEXT_TAGS = ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a"];
+var VOID_TAGS = /* @__PURE__ */ new Set(["br"]);
+var DROP_CONTENT = /* @__PURE__ */ new Set([
+  "script",
+  "style",
+  "iframe",
+  "noscript",
+  "svg",
+  "math",
+  "template",
+  "object",
+  "embed",
+  "head",
+  "title",
+  "textarea"
+]);
+var SAFE_SCHEMES = ["http:", "https:", "mailto:"];
+var NAMED_ENTITIES = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: "\xA0",
+  // Here for one reason: it is the entity used to hide a scheme, as in
+  // `javascript&colon;alert(1)`. safeHref compares against decoded text, so it
+  // has to be decoded to be caught.
+  colon: ":"
+};
+function decodeEntities(input) {
+  return input.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);?/g, (match, body) => {
+    if (body.startsWith("#")) {
+      const isHex = body[1] === "x" || body[1] === "X";
+      const code = parseInt(isHex ? body.slice(2) : body.slice(1), isHex ? 16 : 10);
+      if (!Number.isFinite(code) || code <= 0 || code > 1114111) return match;
+      if (code >= 55296 && code <= 57343) return match;
+      return String.fromCodePoint(code);
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match;
+  });
+}
+function escapeText(text) {
+  return decodeEntities(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\u00a0/g, "&#160;");
+}
+function escapeAttribute(value) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function safeHref(raw) {
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (cleaned === "") return null;
+  const scheme = cleaned.slice(0, cleaned.indexOf(":") + 1).toLowerCase();
+  if (!SAFE_SCHEMES.includes(scheme)) return null;
+  return cleaned.replace(/ /g, "%20");
+}
+function readTag(html, from) {
+  const attrs = {};
+  let i = from;
+  let selfClosing = false;
+  while (i < html.length) {
+    while (i < html.length && /\s/.test(html[i])) i++;
+    if (i >= html.length) break;
+    if (html[i] === ">") {
+      i++;
+      break;
+    }
+    if (html[i] === "/" && html[i + 1] === ">") {
+      selfClosing = true;
+      i += 2;
+      break;
+    }
+    if (html[i] === "<") break;
+    const nameStart = i;
+    while (i < html.length && !/[\s=>/]/.test(html[i])) i++;
+    const name = html.slice(nameStart, i).toLowerCase();
+    while (i < html.length && /\s/.test(html[i])) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < html.length && /\s/.test(html[i])) i++;
+      const quote = html[i];
+      if (quote === '"' || quote === "'") {
+        i++;
+        const valueStart = i;
+        while (i < html.length && html[i] !== quote) i++;
+        value = html.slice(valueStart, i);
+        i++;
+      } else {
+        const valueStart = i;
+        while (i < html.length && !/[\s>]/.test(html[i])) i++;
+        value = html.slice(valueStart, i);
+      }
+    }
+    if (name !== "") attrs[name] = value;
+  }
+  return { attrs, end: i, selfClosing };
+}
+function skipContent(html, from, name) {
+  const pattern = new RegExp(`</${name}`, "i");
+  const match = pattern.exec(html.slice(from));
+  if (!match) return html.length;
+  const gt = html.indexOf(">", from + match.index);
+  return gt === -1 ? html.length : gt + 1;
+}
+function sanitizeRichText(html) {
+  if (!html) return "";
+  const out = [];
+  const stack = [];
+  let i = 0;
+  const closeThrough = (name) => {
+    let depth = -1;
+    for (let d = stack.length - 1; d >= 0; d--) {
+      if (stack[d].name === name) {
+        depth = d;
+        break;
+      }
+    }
+    if (depth === -1) return;
+    for (let d = stack.length - 1; d >= depth; d--) {
+      out.push(`</${stack[d].name}>`);
+    }
+    stack.length = depth;
+  };
+  while (i < html.length) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      out.push(escapeText(html.slice(i)));
+      break;
+    }
+    if (lt > i) out.push(escapeText(html.slice(i, lt)));
+    const next = html[lt + 1];
+    if (html.startsWith("<!--", lt)) {
+      const close = html.indexOf("-->", lt + 4);
+      i = close === -1 ? html.length : close + 3;
+      continue;
+    }
+    if (next === "!" || next === "?") {
+      const gt = html.indexOf(">", lt);
+      i = gt === -1 ? html.length : gt + 1;
+      continue;
+    }
+    if (next === "/") {
+      const nameStart = lt + 2;
+      let j2 = nameStart;
+      while (j2 < html.length && /[a-zA-Z0-9]/.test(html[j2])) j2++;
+      const raw2 = html.slice(nameStart, j2).toLowerCase();
+      const gt = html.indexOf(">", j2);
+      i = gt === -1 ? html.length : gt + 1;
+      const canonical2 = TAG_ALIASES[raw2];
+      if (canonical2 && !VOID_TAGS.has(canonical2)) closeThrough(canonical2);
+      continue;
+    }
+    if (!next || !/[a-zA-Z]/.test(next)) {
+      out.push(escapeText("<"));
+      i = lt + 1;
+      continue;
+    }
+    let j = lt + 1;
+    while (j < html.length && /[a-zA-Z0-9]/.test(html[j])) j++;
+    const raw = html.slice(lt + 1, j).toLowerCase();
+    const { attrs, end } = readTag(html, j);
+    i = end;
+    if (DROP_CONTENT.has(raw)) {
+      i = skipContent(html, end, raw);
+      continue;
+    }
+    const canonical = TAG_ALIASES[raw];
+    if (!canonical) continue;
+    if (VOID_TAGS.has(canonical)) {
+      out.push(`<${canonical} />`);
+      continue;
+    }
+    if (canonical === "a") {
+      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+      const href = safeHref(attrs.href ?? "");
+      if (href === null) continue;
+      out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
+      stack.push({ name: "a" });
+      continue;
+    }
+    if (canonical === "li" && stack.at(-1)?.name === "li") closeThrough("li");
+    if (canonical === "p" && stack.some((tag) => tag.name === "p")) closeThrough("p");
+    out.push(`<${canonical}>`);
+    stack.push({ name: canonical });
+  }
+  for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
+  return collapseEmpty(out.join(""));
+}
+function collapseEmpty(html) {
+  const empty = /<(p|strong|em|u|s|ul|ol|li|a)\b[^>]*><\/\1>/g;
+  let previous;
+  let current = html;
+  do {
+    previous = current;
+    current = current.replace(empty, "");
+  } while (current !== previous);
+  return current;
+}
+function isRichTextEmpty(html) {
+  if (!html) return true;
+  const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
+  return text.replace(/[\s\u00a0]/g, "") === "";
 }
 var loadPromise = null;
 function getApiKey() {
@@ -230,6 +451,344 @@ var Textarea = forwardRef(
   }
 );
 Textarea.displayName = "Textarea";
+function RichTextEditor({
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  className,
+  id,
+  ariaLabel,
+  invalid = false
+}) {
+  const editorRef = useRef(null);
+  const lastEmitted = useRef(null);
+  const [active, setActive] = useState({
+    bold: false,
+    italic: false,
+    unordered: false,
+    ordered: false
+  });
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
+  const savedRange = useRef(null);
+  const empty = isRichTextEmpty(value);
+  const exec = useCallback((command, argument) => {
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") {
+      return false;
+    }
+    try {
+      document.execCommand("styleWithCSS", false, "false");
+      return document.execCommand(command, false, argument);
+    } catch {
+      return false;
+    }
+  }, []);
+  const queryState = useCallback((command) => {
+    if (typeof document === "undefined" || typeof document.queryCommandState !== "function") {
+      return false;
+    }
+    try {
+      return document.queryCommandState(command);
+    } catch {
+      return false;
+    }
+  }, []);
+  const emit = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const html = el.innerHTML;
+    lastEmitted.current = html;
+    onChange(html);
+  }, [onChange]);
+  const selectionInside = useCallback(() => {
+    const el = editorRef.current;
+    const selection = typeof window === "undefined" ? null : window.getSelection();
+    if (!el || !selection || selection.rangeCount === 0) return false;
+    return el.contains(selection.anchorNode);
+  }, []);
+  const refreshActive = useCallback(() => {
+    if (!selectionInside()) return;
+    setActive({
+      bold: queryState("bold"),
+      italic: queryState("italic"),
+      unordered: queryState("insertUnorderedList"),
+      ordered: queryState("insertOrderedList")
+    });
+  }, [queryState, selectionInside]);
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    if (value === lastEmitted.current) return;
+    if (el.innerHTML !== value) el.innerHTML = value;
+    lastEmitted.current = value;
+  }, [value]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.addEventListener("selectionchange", refreshActive);
+    return () => document.removeEventListener("selectionchange", refreshActive);
+  }, [refreshActive]);
+  const runCommand = useCallback(
+    (command) => {
+      editorRef.current?.focus();
+      exec(command);
+      emit();
+      refreshActive();
+    },
+    [emit, exec, refreshActive]
+  );
+  const hrefAtCaret = useCallback(() => {
+    const selection = typeof window === "undefined" ? null : window.getSelection();
+    let node = selection?.anchorNode ?? null;
+    while (node && node !== editorRef.current) {
+      if (node instanceof HTMLAnchorElement) return node.getAttribute("href");
+      node = node.parentNode;
+    }
+    return null;
+  }, []);
+  const openLink = useCallback(() => {
+    const selection = typeof window === "undefined" ? null : window.getSelection();
+    savedRange.current = selectionInside() && selection ? selection.getRangeAt(0).cloneRange() : null;
+    setLinkValue(hrefAtCaret() ?? "https://");
+    setLinkOpen(true);
+  }, [hrefAtCaret, selectionInside]);
+  const closeLink = useCallback(() => {
+    setLinkOpen(false);
+    setLinkValue("");
+    savedRange.current = null;
+    editorRef.current?.focus();
+  }, []);
+  const pendingHref = useMemo(() => safeHref(linkValue), [linkValue]);
+  const applyLink = useCallback(() => {
+    if (pendingHref === null) return;
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const selection = window.getSelection();
+    if (savedRange.current && selection) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange.current);
+    }
+    if (selection?.isCollapsed !== false) {
+      const escaped = pendingHref.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      exec("insertHTML", `<a href="${escaped}">${escaped}</a>`);
+    } else {
+      exec("createLink", pendingHref);
+    }
+    emit();
+    setLinkOpen(false);
+    setLinkValue("");
+    savedRange.current = null;
+  }, [emit, exec, pendingHref]);
+  const removeLink = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const selection = window.getSelection();
+    if (savedRange.current && selection) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange.current);
+    }
+    exec("unlink");
+    emit();
+    closeLink();
+  }, [closeLink, emit, exec]);
+  const handlePaste = useCallback(
+    (event) => {
+      event.preventDefault();
+      const text = event.clipboardData.getData("text/plain");
+      if (text) exec("insertText", text);
+      emit();
+    },
+    [emit, exec]
+  );
+  const handleKeyDown = useCallback(
+    (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openLink();
+      }
+    },
+    [openLink]
+  );
+  const toolbarButtons = [
+    { key: "bold", label: "Bold", icon: Bold, command: "bold", on: active.bold },
+    { key: "italic", label: "Italic", icon: Italic, command: "italic", on: active.italic },
+    {
+      key: "unordered",
+      label: "Bulleted list",
+      icon: List,
+      command: "insertUnorderedList",
+      on: active.unordered
+    },
+    {
+      key: "ordered",
+      label: "Numbered list",
+      icon: ListOrdered,
+      command: "insertOrderedList",
+      on: active.ordered
+    }
+  ];
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      className: cn(
+        "overflow-hidden rounded-md border bg-surface-raised shadow-sm transition-colors focus-within:ring-2 focus-within:ring-accent/50",
+        invalid ? "border-error-border" : "border-border",
+        disabled && "opacity-50"
+      ),
+      children: [
+        /* @__PURE__ */ jsx(
+          "div",
+          {
+            role: "toolbar",
+            "aria-label": "Formatting",
+            "aria-controls": id,
+            className: "flex items-center gap-0.5 border-b border-border-subtle bg-surface px-1.5 py-1",
+            children: linkOpen ? /* @__PURE__ */ jsxs("div", { className: "flex w-full items-center gap-1.5 py-0.5", children: [
+              /* @__PURE__ */ jsx(
+                Input,
+                {
+                  autoFocus: true,
+                  value: linkValue,
+                  "aria-label": "Link address",
+                  "aria-invalid": pendingHref === null,
+                  placeholder: "https://",
+                  className: "h-7 text-xs",
+                  onChange: (event) => setLinkValue(event.target.value),
+                  onKeyDown: (event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      applyLink();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      closeLink();
+                    }
+                  }
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                Button,
+                {
+                  type: "button",
+                  variant: "ghost",
+                  size: "icon",
+                  "aria-label": "Apply link",
+                  disabled: pendingHref === null,
+                  onMouseDown: (event) => event.preventDefault(),
+                  onClick: applyLink,
+                  children: /* @__PURE__ */ jsx(Check, { size: 13 })
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                Button,
+                {
+                  type: "button",
+                  variant: "ghost",
+                  size: "icon",
+                  "aria-label": "Remove link",
+                  onMouseDown: (event) => event.preventDefault(),
+                  onClick: removeLink,
+                  children: /* @__PURE__ */ jsx(Link2, { size: 13, className: "text-text-muted" })
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                Button,
+                {
+                  type: "button",
+                  variant: "ghost",
+                  size: "icon",
+                  "aria-label": "Cancel link",
+                  onMouseDown: (event) => event.preventDefault(),
+                  onClick: closeLink,
+                  children: /* @__PURE__ */ jsx(X, { size: 13 })
+                }
+              )
+            ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+              toolbarButtons.map(({ key, label, icon: Icon2, command, on }) => /* @__PURE__ */ jsx(
+                Button,
+                {
+                  type: "button",
+                  variant: "ghost",
+                  size: "icon",
+                  "aria-label": label,
+                  "aria-pressed": on,
+                  disabled,
+                  onMouseDown: (event) => event.preventDefault(),
+                  onClick: () => runCommand(command),
+                  className: cn("h-7 w-7", on && "bg-accent-muted text-accent-text"),
+                  children: /* @__PURE__ */ jsx(Icon2, { size: 13 })
+                },
+                key
+              )),
+              /* @__PURE__ */ jsx(
+                Button,
+                {
+                  type: "button",
+                  variant: "ghost",
+                  size: "icon",
+                  "aria-label": "Link",
+                  disabled,
+                  onMouseDown: (event) => event.preventDefault(),
+                  onClick: openLink,
+                  className: "h-7 w-7",
+                  children: /* @__PURE__ */ jsx(Link2, { size: 13 })
+                }
+              )
+            ] })
+          }
+        ),
+        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          empty && placeholder && // The usual `:empty::before` trick does not work: a contenteditable
+          // somebody has typed in and cleared holds `<p><br></p>`, which is not
+          // empty. `isRichTextEmpty` is the same check the consumer uses to
+          // decide between the note and its empty state.
+          /* @__PURE__ */ jsx(
+            "p",
+            {
+              "aria-hidden": "true",
+              className: "pointer-events-none absolute left-3 top-2 text-sm text-text-muted",
+              children: placeholder
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              ref: editorRef,
+              id,
+              role: "textbox",
+              "aria-label": ariaLabel,
+              "aria-multiline": "true",
+              "aria-invalid": invalid || void 0,
+              contentEditable: !disabled,
+              suppressContentEditableWarning: true,
+              onInput: emit,
+              onBlur: emit,
+              onPaste: handlePaste,
+              onKeyUp: refreshActive,
+              onMouseUp: refreshActive,
+              onKeyDown: handleKeyDown,
+              className: cn(
+                "min-h-24 w-full px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
+                // The editable surface styles its own output. These match the
+                // renderer a consumer writes for stored rich text, so what somebody
+                // types looks like what they get.
+                "[&_a]:text-accent-text [&_a]:underline",
+                "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
+                "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+                "[&_li]:my-0.5",
+                "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+                disabled && "cursor-not-allowed",
+                className
+              )
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
 var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   CheckboxPrimitive.Root,
   {
@@ -2731,4 +3290,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, isRichTextEmpty, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, safeHref, sanitizeRichText, seriesColor, useTheme, useToast };

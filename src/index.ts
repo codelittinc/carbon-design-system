@@ -11,6 +11,14 @@
 // ── Utilities ──
 export { cn } from "./lib/cn";
 export { formatMoney, formatDate, formatPeriodLabel } from "./lib/format";
+// The rich-text contract. Also exported from `/utils`, which is the entry a
+// server component must import them from — see src/utils.ts.
+export {
+  RICH_TEXT_TAGS,
+  isRichTextEmpty,
+  safeHref,
+  sanitizeRichText,
+} from "./lib/rich-text";
 
 // ── Components ──
 export * from "./components/ui/address-autocomplete";
@@ -19,6 +27,7 @@ export * from "./components/ui/badge";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";
+export * from "./components/ui/rich-text-editor";
 export * from "./components/ui/checkbox";
 export * from "./components/ui/switch";
 export * from "./components/ui/select";
