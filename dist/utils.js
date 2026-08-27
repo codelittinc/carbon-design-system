@@ -70,7 +70,11 @@ var NAMED_ENTITIES = {
   gt: ">",
   quot: '"',
   apos: "'",
-  nbsp: "\xA0"
+  nbsp: "\xA0",
+  // Here for one reason: it is the entity used to hide a scheme, as in
+  // `javascript&colon;alert(1)`. safeHref compares against decoded text, so it
+  // has to be decoded to be caught.
+  colon: ":"
 };
 function decodeEntities(input) {
   return input.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);?/g, (match, body) => {
@@ -81,8 +85,7 @@ function decodeEntities(input) {
       if (code >= 55296 && code <= 57343) return match;
       return String.fromCodePoint(code);
     }
-    const named = NAMED_ENTITIES[body.toLowerCase()];
-    return named ?? (body.toLowerCase() === "colon" ? ":" : match);
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match;
   });
 }
 function escapeText(text) {
@@ -92,11 +95,11 @@ function escapeAttribute(value) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function safeHref(raw) {
-  const cleaned = decodeEntities(raw).replace(/[\u0000-\u0020\u007f]/g, "").trim();
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
   if (cleaned === "") return null;
   const scheme = cleaned.slice(0, cleaned.indexOf(":") + 1).toLowerCase();
   if (!SAFE_SCHEMES.includes(scheme)) return null;
-  return cleaned;
+  return cleaned.replace(/ /g, "%20");
 }
 function readTag(html, from) {
   const attrs = {};
@@ -141,9 +144,10 @@ function readTag(html, from) {
   return { attrs, end: i, selfClosing };
 }
 function skipContent(html, from, name) {
-  const close = html.toLowerCase().indexOf(`</${name}`, from);
-  if (close === -1) return html.length;
-  const gt = html.indexOf(">", close);
+  const pattern = new RegExp(`</${name}`, "i");
+  const match = pattern.exec(html.slice(from));
+  if (!match) return html.length;
+  const gt = html.indexOf(">", from + match.index);
   return gt === -1 ? html.length : gt + 1;
 }
 function sanitizeRichText(html) {
@@ -215,6 +219,7 @@ function sanitizeRichText(html) {
       continue;
     }
     if (canonical === "a") {
+      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
       const href = safeHref(attrs.href ?? "");
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);

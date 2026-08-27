@@ -116,6 +116,10 @@ const NAMED_ENTITIES: Record<string, string> = {
   quot: '"',
   apos: "'",
   nbsp: "\u00a0",
+  // Here for one reason: it is the entity used to hide a scheme, as in
+  // `javascript&colon;alert(1)`. safeHref compares against decoded text, so it
+  // has to be decoded to be caught.
+  colon: ":",
 };
 
 /**
@@ -138,11 +142,12 @@ function decodeEntities(input: string): string {
       if (code >= 0xd800 && code <= 0xdfff) return match;
       return String.fromCodePoint(code);
     }
-    // `&colon;` and the rest of the long list are not decoded to themselves —
-    // they are decoded because a browser would. Anything unrecognised stays
-    // literal, which is the safe direction: it cannot become a delimiter.
-    const named = NAMED_ENTITIES[body.toLowerCase()];
-    return named ?? (body.toLowerCase() === "colon" ? ":" : match);
+    // Anything unrecognised stays literal, which is the safe direction: an
+    // entity this does not know cannot become a delimiter, and in an href it
+    // breaks the scheme match, so the link is refused rather than trusted.
+    // `&Tab;` and `&NewLine;` reach a browser undecoded for that reason and are
+    // harmless — the anchor is already gone.
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match;
   });
 }
 
@@ -169,24 +174,34 @@ function escapeAttribute(value: string): string {
  * The decoded, control-character-free URL if it uses a safe scheme, else null.
  *
  * Control characters are stripped rather than rejected because browsers strip
- * them before resolving a URL: `java\tscript:alert(1)` and `java\x00script:`
- * both navigate, so a prefix test on the raw string sees a scheme that is not
- * there. Relative URLs are refused as well — a note's link is to a console or a
- * document elsewhere, and `/products/…` in stored markup is far more likely to
- * be someone probing than someone linking.
+ * them before resolving a URL: `java\tscript:alert(1)` and `java\0script:` both
+ * navigate, so a prefix test on the raw string sees a scheme that is not there.
+ *
+ * A space is NOT a control character for this purpose, and the distinction
+ * matters twice. Removing internal spaces would silently rewrite
+ * `https://host/a b` to `https://host/ab` — a different URL — and browsers do not
+ * do that; they percent-encode, which is what happens below. And an internal
+ * space cannot hide a scheme, because it breaks the scheme match instead:
+ * `java script:` is not `javascript:` to this function or to a browser, so the
+ * link is refused either way.
+ *
+ * Relative URLs are refused as well — a note's link is to a console or a document
+ * elsewhere, and `/products/…` in stored markup is far more likely to be someone
+ * probing than someone linking.
  */
 export function safeHref(raw: string): string | null {
   // Explicit escapes, not literal characters: this class is the whole defence
-  // against `java\tscript:` and `java\0script:`, and a control character
-  // written literally in the source is invisible to whoever reads it next.
+  // against `java\tscript:` and `java\0script:`, and a control character written
+  // literally in the source is invisible to whoever reads it next.
   // eslint-disable-next-line no-control-regex
-  const cleaned = decodeEntities(raw).replace(/[\u0000-\u0020\u007f]/g, "").trim();
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
   if (cleaned === "") return null;
 
   const scheme = cleaned.slice(0, cleaned.indexOf(":") + 1).toLowerCase();
   if (!SAFE_SCHEMES.includes(scheme)) return null;
 
-  return cleaned;
+  // Encoded, not stripped, so the URL that comes out is the URL that went in.
+  return cleaned.replace(/ /g, "%20");
 }
 
 interface OpenTag {
@@ -258,11 +273,18 @@ function readTag(
   return { attrs, end: i, selfClosing };
 }
 
-/** Skip past `</name>` (or the end of input) for a content-dropping element. */
+/**
+ * Skip past `</name>` (or the end of input) for a content-dropping element.
+ *
+ * Searched with a case-insensitive regex rather than by lowercasing the
+ * document: this is called once per dropped element, and `html.toLowerCase()`
+ * inside it made a paste full of `<script>` tags quadratic in their number.
+ */
 function skipContent(html: string, from: number, name: string): number {
-  const close = html.toLowerCase().indexOf(`</${name}`, from);
-  if (close === -1) return html.length;
-  const gt = html.indexOf(">", close);
+  const pattern = new RegExp(`</${name}`, "i");
+  const match = pattern.exec(html.slice(from));
+  if (!match) return html.length;
+  const gt = html.indexOf(">", from + match.index);
   return gt === -1 ? html.length : gt + 1;
 }
 
@@ -368,6 +390,12 @@ export function sanitizeRichText(html: string | null | undefined): string {
     }
 
     if (canonical === "a") {
+      // An anchor cannot contain an anchor. A browser closes the outer one when
+      // it meets the inner, so leaving both open would store a string whose DOM
+      // is not the tree it describes — and a later `closeThrough("a")` would
+      // then close the wrong one.
+      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+
       const href = safeHref(attrs.href ?? "");
       // No usable href: keep the words, drop the anchor. A link to
       // `javascript:…` is the one case where preserving the element would be

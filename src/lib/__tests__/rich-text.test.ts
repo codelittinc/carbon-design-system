@@ -203,6 +203,32 @@ describe("sanitizeRichText — links", () => {
 
   it("drops an anchor with no href at all", () => {
     expect(sanitizeRichText("<a>click</a>")).toBe("click");
+    expect(sanitizeRichText("<a href>click</a>")).toBe("click");
+  });
+
+  it("closes an anchor before opening another, since a browser would", () => {
+    // Nested anchors are invalid HTML. Left as they came in, the stored string
+    // would describe a tree no browser builds, and closing "the" anchor later
+    // would close the wrong one.
+    expect(sanitizeRichText('<a href="https://a.com">x<a href="https://b.com">y</a></a>')).toBe(
+      '<a href="https://a.com" target="_blank" rel="noopener noreferrer">x</a>' +
+        '<a href="https://b.com" target="_blank" rel="noopener noreferrer">y</a>',
+    );
+  });
+
+  it("takes the last href when a tag carries two, and emits only that one", () => {
+    // Whichever one wins, the output holds a single href that this module wrote,
+    // so a browser never gets to apply its own precedence rule to the pair.
+    expect(sanitizeRichText('<a href="https://ok.com" href="javascript:x">c</a>')).toBe("c");
+    expect(sanitizeRichText('<a href="javascript:x" href="https://ok.com">c</a>')).toBe(
+      '<a href="https://ok.com" target="_blank" rel="noopener noreferrer">c</a>',
+    );
+  });
+
+  it("keeps a space in a URL by encoding it, rather than joining the URL up", () => {
+    expect(sanitizeRichText('<a href="https://a.com/x y">c</a>')).toBe(
+      '<a href="https://a.com/x%20y" target="_blank" rel="noopener noreferrer">c</a>',
+    );
   });
 
   it("escapes a quote inside an otherwise valid href", () => {
@@ -241,6 +267,17 @@ describe("safeHref", () => {
     ]) {
       expect(safeHref(url), url).toBeNull();
     }
+  });
+
+  it("encodes a space rather than removing it, so the URL is not rewritten", () => {
+    expect(safeHref("https://a.com/x y")).toBe("https://a.com/x%20y");
+    expect(safeHref("  https://a.com  ")).toBe("https://a.com");
+  });
+
+  it("refuses a scheme broken by an internal space, the way a browser does", () => {
+    // The space is kept, which is exactly why this is refused: `java script:` is
+    // not a scheme to this function or to a browser.
+    expect(safeHref("java script:alert(1)")).toBeNull();
   });
 
   it("refuses a scheme hidden behind control characters or entities", () => {

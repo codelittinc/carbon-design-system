@@ -58,11 +58,20 @@ declare const RICH_TEXT_TAGS: readonly ["p", "br", "strong", "em", "u", "s", "ul
  * The decoded, control-character-free URL if it uses a safe scheme, else null.
  *
  * Control characters are stripped rather than rejected because browsers strip
- * them before resolving a URL: `java\tscript:alert(1)` and `java\x00script:`
- * both navigate, so a prefix test on the raw string sees a scheme that is not
- * there. Relative URLs are refused as well — a note's link is to a console or a
- * document elsewhere, and `/products/…` in stored markup is far more likely to
- * be someone probing than someone linking.
+ * them before resolving a URL: `java\tscript:alert(1)` and `java\0script:` both
+ * navigate, so a prefix test on the raw string sees a scheme that is not there.
+ *
+ * A space is NOT a control character for this purpose, and the distinction
+ * matters twice. Removing internal spaces would silently rewrite
+ * `https://host/a b` to `https://host/ab` — a different URL — and browsers do not
+ * do that; they percent-encode, which is what happens below. And an internal
+ * space cannot hide a scheme, because it breaks the scheme match instead:
+ * `java script:` is not `javascript:` to this function or to a browser, so the
+ * link is refused either way.
+ *
+ * Relative URLs are refused as well — a note's link is to a console or a document
+ * elsewhere, and `/products/…` in stored markup is far more likely to be someone
+ * probing than someone linking.
  */
 declare function safeHref(raw: string): string | null;
 /**
