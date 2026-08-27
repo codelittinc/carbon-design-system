@@ -1,4 +1,4 @@
-export { cn, formatDate, formatMoney, formatPeriodLabel } from './utils.js';
+export { RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isRichTextEmpty, safeHref, sanitizeRichText } from './utils.js';
 import * as react from 'react';
 import { ReactNode } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
@@ -54,6 +54,63 @@ declare function StatusBadge({ status, className }: StatusBadgeProps): react.JSX
 declare const Input: react.ForwardRefExoticComponent<react.InputHTMLAttributes<HTMLInputElement> & react.RefAttributes<HTMLInputElement>>;
 
 declare const Textarea: react.ForwardRefExoticComponent<react.TextareaHTMLAttributes<HTMLTextAreaElement> & react.RefAttributes<HTMLTextAreaElement>>;
+
+interface RichTextEditorProps {
+    /** The current HTML. See the note on `onChange` about what may be fed back. */
+    value: string;
+    /**
+     * Called with the editor's raw `innerHTML` on every edit.
+     *
+     * **Store this through `sanitizeRichText`, but do not sanitize it here.** The
+     * value handed back through `value` has to be the same string this emitted, or
+     * the sync effect treats it as an external change, rewrites the DOM, and drops
+     * the caret to the start of the field on every keystroke. Sanitize where the
+     * value is *stored* and again where it is *rendered* — see src/lib/rich-text.ts.
+     */
+    onChange: (html: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+    /** Applied to the editable surface, e.g. `min-h-40` to make the box taller. */
+    className?: string;
+    id?: string;
+    ariaLabel?: string;
+    /** Marks the surface invalid for assistive tech and draws the error border. */
+    invalid?: boolean;
+}
+/**
+ * A WYSIWYG editor for a paragraph or two of prose: bold, italic, two kinds of
+ * list, and links.
+ *
+ * ## It emits HTML and does not sanitize it
+ *
+ * This is a client. Whatever it produces reaches a server as a string in a form
+ * post, and that string can say anything regardless of what this component would
+ * have done — so this component is not, and cannot be, the place the markup is
+ * made safe. `sanitizeRichText` in `@codelittinc/carbon-design-system/utils` is,
+ * and it is a separate server-safe entry precisely so the *server* can call it.
+ * The full contract is documented there. The one thing to carry over here: the
+ * toolbar produces exactly the tags that sanitizer allows, so nothing a user
+ * types through this UI is lost on the way to the database.
+ *
+ * ## Why `document.execCommand`
+ *
+ * It is deprecated and it is still the only formatting API every browser
+ * implements. The alternative is a document model of one's own — a Tiptap or a
+ * Lexical — which is the right answer for a real document editor and several
+ * hundred kilobytes to let somebody bold a word in a notes field. When this
+ * component starts needing tables, images or collaborative editing, that is the
+ * signal to replace it wholesale rather than to grow it.
+ *
+ * Two consequences worth knowing. `styleWithCSS` is turned off before every
+ * command, because the default in some browsers is to emit
+ * `<span style="font-weight:bold">` rather than `<b>` — and a style attribute is
+ * stripped by the sanitizer, so the formatting would survive the click and
+ * vanish on save. And pasted content is inserted as plain text on purpose:
+ * pasting from Word or a web page otherwise carries in a document's worth of
+ * markup that the sanitizer then reduces to unstyled prose anyway, with the
+ * paragraph breaks in surprising places.
+ */
+declare function RichTextEditor({ value, onChange, placeholder, disabled, className, id, ariaLabel, invalid, }: RichTextEditorProps): react.JSX.Element;
 
 declare const Checkbox: react.ForwardRefExoticComponent<Omit<CheckboxPrimitive.CheckboxProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
@@ -901,4 +958,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, formatChartValue, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, formatChartValue, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };

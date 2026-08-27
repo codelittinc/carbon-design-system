@@ -8,6 +8,77 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.7.0] - 2026-08-27
+
+Adds a WYSIWYG editor for short prose, and the sanitizer that makes storing its
+output safe. The two ship together on purpose: an editor that emits HTML is only
+half of the feature, and the half that is missing is the one with the security
+hole in it.
+
+### Added
+
+- **`RichTextEditor`** — a contenteditable field with bold, italic, bulleted and
+  numbered lists, and links. Controlled, like `MoneyInput` and `SearchSelect`:
+
+  ```tsx
+  const [notes, setNotes] = useState(product.notes ?? "");
+
+  <FormField label="Notes" htmlFor="notes">
+    <RichTextEditor
+      id="notes"
+      value={notes}
+      onChange={setNotes}
+      placeholder="Add a note…"
+      className="min-h-40"
+    />
+  </FormField>
+  ```
+
+  Pasted content is inserted as plain text, so pasting from Word or a web page
+  does not carry a document's worth of markup into the field. `Cmd/Ctrl+K` opens
+  the link row, which refuses any URL the sanitizer would strip — a link cannot
+  appear to work and then turn back into plain text on save.
+
+- **`sanitizeRichText`, `isRichTextEmpty`, `safeHref`, `RICH_TEXT_TAGS`** —
+  exported from the package root **and** from `/utils`. Import them from
+  `/utils` in a server component; from the root they come back as client
+  references and throw at request time.
+
+### The rule for storing what the editor produces
+
+`RichTextEditor` emits raw `innerHTML` and does **not** sanitize it. That is
+deliberate and is the one thing to get right when adopting it. A client is not a
+trust boundary: whatever the editor produces reaches your server as a string in
+a form post, and a string in a form post can say anything at all regardless of
+what the editor would have done. So:
+
+```ts
+// Writing — the database holds clean markup.
+await db.update(products).set({ notes: sanitizeRichText(input.notes) });
+
+// Rendering — in a server component.
+import { sanitizeRichText } from "@codelittinc/carbon-design-system/utils";
+
+<div dangerouslySetInnerHTML={{ __html: sanitizeRichText(product.notes) }} />
+```
+
+Sanitizing on render is not redundant with sanitizing on write. It covers rows
+written before the allow-list tightened, rows edited by hand in a SQL client, and
+rows imported from somewhere else — the database is storage, not a trust boundary
+either. `sanitizeRichText` is idempotent, so running it twice costs nothing.
+
+**Do not sanitize inside `onChange`.** Feeding back a different string than the
+editor emitted makes it treat the value as an external change, rewrite the DOM,
+and drop the caret to the start of the field on every keystroke.
+
+`sanitizeRichText` re-serializes rather than filters: it parses the input and
+emits fresh markup, writing only tags from `RICH_TEXT_TAGS` and only attributes
+it composes itself. No attribute from the input is ever copied to the output —
+the sole exception is `<a href>`, which must survive `safeHref` (http, https and
+mailto only, checked after entity decoding and control-character stripping) and
+is then re-escaped. `target="_blank" rel="noopener noreferrer"` is written by the
+sanitizer, never carried over. The output tree is balanced by construction.
+
 ## [1.6.0] - 2026-08-10
 
 Gives paginated `DataTable` callers control over when the page resets, so a
