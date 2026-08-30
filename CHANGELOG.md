@@ -8,6 +8,50 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.8.0] - 2026-08-30
+
+### Dialog: a max height, and a body that scrolls inside it
+
+`DialogContent` had no height limit and centres itself with `-translate-y-1/2`,
+so a dialog taller than the viewport ran off BOTH edges — and the top half could
+not be reached at all, because the page behind does not scroll it and there is
+nothing to grab. It is now capped at `85dvh`.
+
+- **`DialogContent`** is a flex column, capped at `85dvh`, and scrolls as a whole
+  if nothing inside it is set up to. That alone makes every existing dialog
+  reachable, with no change at the call site.
+- **New `DialogBody`** — the scrolling middle, between a pinned header and
+  footer. Reach for it whenever a dialog can get long. Without it the whole
+  dialog scrolls, which takes the footer with it (so the primary action ends up
+  below the fold of its own dialog) and takes the close X too, since that is
+  positioned against the content box.
+- **`DialogHeader` and `DialogFooter`** gained `shrink-0`, so they keep their
+  height against a `DialogBody` competing for the same capped space.
+
+`dvh` rather than `vh`: on a phone `vh` measures the viewport with the browser
+chrome retracted, so an `85vh` dialog is taller than the screen it is on exactly
+when somebody is reaching for its buttons.
+
+The cap is overridable — `cn` is tailwind-merge, so a `max-h-*` passed in
+`className` replaces it rather than fighting it.
+
+**Migrating: nothing is required.** To pin the header and footer, wrap the long
+part:
+
+```tsx
+<DialogContent>
+  <DialogHeader>…</DialogHeader>
+  <DialogBody>…the long part…</DialogBody>
+  <DialogFooter>…</DialogFooter>
+</DialogContent>
+```
+
+One behavioural note: `DialogContent` is now `display: flex` (column) rather than
+a block, so margins between its direct children no longer collapse. Dialogs built
+from `DialogHeader` / `DialogFooter` are unaffected — their `mb-4` / `mt-6` did
+not collapse against a typical body anyway.
+
+
 ## [1.7.0] - 2026-08-27
 
 Adds a WYSIWYG editor for short prose, and the sanitizer that makes storing its
