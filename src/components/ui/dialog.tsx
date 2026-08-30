@@ -26,15 +26,21 @@ const DialogOverlay = forwardRef<
 DialogOverlay.displayName = "DialogOverlay";
 
 /**
- * How tall a dialog may get before something has to scroll.
+ * The dialog itself: capped at `85dvh`, and a flex column so a `DialogBody`
+ * inside it can be the thing that scrolls.
  *
  * `dvh` and not `vh`: on a phone `vh` measures the viewport with the browser
- * chrome retracted, so a `85vh` dialog is taller than the screen it is on for as
- * long as the address bar is showing — which is exactly when somebody is trying
- * to reach its buttons.
+ * chrome retracted, so an `85vh` dialog is taller than the screen it is on for
+ * as long as the address bar is showing — exactly when somebody is reaching for
+ * its buttons. The cap is overridable: `cn` is tailwind-merge, so a `max-h-*` in
+ * `className` replaces it rather than fighting it.
  *
- * Consumers can override it — `cn` is tailwind-merge, so a `max-h-*` in
- * `className` replaces this rather than fighting it.
+ * **It is a scroll container, so it CLIPS.** Anything absolutely positioned
+ * inside a dialog that used to spill past its edge — `SearchSelect`'s dropdown
+ * is the one in this package — is now cut off at the boundary. Radix-based
+ * `Select`, `Popover` and `Tooltip` portal out and are unaffected. A consumer
+ * that needs the old behaviour more than it needs the cap can pass
+ * `overflow-visible`, which tailwind-merge will honour.
  */
 
 const DialogContent = forwardRef<
