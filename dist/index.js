@@ -2518,6 +2518,122 @@ function DateRangePicker({ value, onChange, years, className }) {
     ] })
   ] });
 }
+
+// src/lib/calendar.ts
+function dateKey(date) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+}
+function weekdayOf(date) {
+  return (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() + 6) % 7;
+}
+function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+function shiftMonth(from, step) {
+  const zeroBased = from.month - 1 + step;
+  return {
+    year: from.year + Math.floor(zeroBased / 12),
+    month: (zeroBased % 12 + 12) % 12 + 1
+  };
+}
+function compareMonths(a, b) {
+  return a.year !== b.year ? a.year - b.year : a.month - b.month;
+}
+function monthLabel({ year, month }) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+function monthOfKey(key) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return null;
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? { year: Number(match[1]), month } : null;
+}
+function todayIn(now = /* @__PURE__ */ new Date()) {
+  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+}
+var WEEKDAY_INITIALS = ["M", "T", "W", "T", "F", "S", "S"];
+function MonthCalendar({
+  month,
+  onMonthChange,
+  selected,
+  onSelect,
+  available,
+  min,
+  max,
+  className,
+  "aria-label": ariaLabel = "Choose a day"
+}) {
+  const total = daysInMonth(month.year, month.month);
+  const leadingBlanks = weekdayOf({ ...month, day: 1 });
+  const canGoBack = compareMonths(month, min) > 0;
+  const canGoForward = compareMonths(month, max) < 0;
+  return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
+    /* @__PURE__ */ jsxs("div", { className: "mb-2 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsx(
+        Button,
+        {
+          type: "button",
+          variant: "ghost",
+          size: "icon",
+          "aria-label": "Previous month",
+          disabled: !canGoBack,
+          onClick: () => onMonthChange(shiftMonth(month, -1)),
+          children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16 })
+        }
+      ),
+      /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: monthLabel(month) }),
+      /* @__PURE__ */ jsx(
+        Button,
+        {
+          type: "button",
+          variant: "ghost",
+          size: "icon",
+          "aria-label": "Next month",
+          disabled: !canGoForward,
+          onClick: () => onMonthChange(shiftMonth(month, 1)),
+          children: /* @__PURE__ */ jsx(ChevronRight, { size: 16 })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-1", children: [
+      WEEKDAY_INITIALS.map((day, index) => /* @__PURE__ */ jsx(
+        "span",
+        {
+          "aria-hidden": "true",
+          className: "pb-1 text-center text-[10px] font-medium uppercase text-text-faint",
+          children: day
+        },
+        `${day}-${index}`
+      )),
+      Array.from({ length: leadingBlanks }, (_, i) => /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`)),
+      Array.from({ length: total }, (_, i) => {
+        const day = i + 1;
+        const key = dateKey({ ...month, day });
+        const open = available ? available.has(key) : true;
+        const isSelected = key === selected;
+        return /* @__PURE__ */ jsx(
+          Button,
+          {
+            type: "button",
+            variant: isSelected ? "default" : open ? "outline" : "ghost",
+            size: "icon",
+            className: "h-9 w-9",
+            disabled: !open,
+            "aria-label": `${day} ${monthLabel(month)}${open ? "" : ", unavailable"}`,
+            "aria-pressed": isSelected,
+            onClick: () => onSelect(key),
+            children: day
+          },
+          key
+        );
+      })
+    ] })
+  ] });
+}
 var STORAGE_KEY = "carbon-theme";
 var THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="dark";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
 function applyTheme(theme) {
@@ -3293,4 +3409,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, isRichTextEmpty, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, safeHref, sanitizeRichText, seriesColor, useTheme, useToast };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, Money, MoneyInput, MonthCalendar, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, cn, compareMonths, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, isRichTextEmpty, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, safeHref, sanitizeRichText, seriesColor, shiftMonth, todayIn, useTheme, useToast, weekdayOf };

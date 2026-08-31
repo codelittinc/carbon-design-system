@@ -61,6 +61,11 @@ export * from "./components/ui/bar-chart";
 export * from "./components/ui/line-chart";
 export * from "./components/ui/donut-chart";
 export * from "./components/ui/date-range-picker";
+// The day-level counterpart to DateRangePicker, which picks a range of MONTHS.
+export * from "./components/ui/month-calendar";
+// The calendar arithmetic MonthCalendar is built on: pure, zone-free, and
+// useful on its own to anyone laying out days.
+export * from "./lib/calendar";
 export * from "./components/ui/theme";
 export * from "./components/ui/account-combobox";
 export * from "./components/ui/multi-status-filter";
