@@ -59,6 +59,20 @@ Three fixes that need no opting in:
 - **Escape closes it**, and the press is stopped there rather than also
   dismissing whatever sits underneath.
 
+## [1.8.1] - 2026-08-31
+
+### Dialog and Sheet: title element wasn't wired to Radix, so screen readers got no name
+
+`DialogTitle` and `SheetTitle` rendered a plain `<h2>` instead of Radix's
+`DialogPrimitive.Title`. `DialogContent`/`SheetContent` are Radix's real
+`Dialog.Content`, which looks specifically for a `Dialog.Title` descendant to
+label itself for assistive tech — a lookalike heading doesn't satisfy it, so
+Radix logged "`DialogContent` requires a `DialogTitle`" on every open and the
+dialog had no accessible name.
+
+- **`DialogTitle`** and **`SheetTitle`** now render `DialogPrimitive.Title`,
+  keeping the same visual styling. No prop or usage changes for consumers.
+
 ## [1.8.0] - 2026-08-30
 
 ### Dialog: a max height, and a body that scrolls inside it

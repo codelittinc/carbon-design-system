@@ -923,9 +923,15 @@ function DialogBody({ className, ...props }) {
 function DialogHeader({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("mb-4 shrink-0 space-y-1", className), ...props });
 }
-function DialogTitle({ className, ...props }) {
-  return /* @__PURE__ */ jsx("h2", { className: cn("text-lg font-semibold text-text-primary", className), ...props });
-}
+var DialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  DialogPrimitive.Title,
+  {
+    ref,
+    className: cn("text-lg font-semibold text-text-primary", className),
+    ...props
+  }
+));
+DialogTitle.displayName = "DialogTitle";
 function DialogDescription({ className, ...props }) {
   return /* @__PURE__ */ jsx("p", { className: cn("text-sm text-text-muted", className), ...props });
 }
@@ -1072,9 +1078,15 @@ SheetContent.displayName = "SheetContent";
 function SheetHeader({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("border-b border-border px-6 py-4", className), ...props });
 }
-function SheetTitle({ className, ...props }) {
-  return /* @__PURE__ */ jsx("h2", { className: cn("text-lg font-semibold text-text-primary", className), ...props });
-}
+var SheetTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  DialogPrimitive.Title,
+  {
+    ref,
+    className: cn("text-lg font-semibold text-text-primary", className),
+    ...props
+  }
+));
+SheetTitle.displayName = "SheetTitle";
 function SheetBody({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("flex-1 overflow-y-auto px-6 py-4", className), ...props });
 }
