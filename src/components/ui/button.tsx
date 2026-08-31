@@ -36,6 +36,24 @@ interface ButtonProps
   asChild?: boolean;
 }
 
+/**
+ * A button.
+ *
+ * **Inside a `<form>`, pass `type` explicitly.** This renders a bare `<button>`
+ * and sets no default type, which is HTML's own rule and the same one shadcn and
+ * every other headless kit follow — so an unmarked button in a form is
+ * `type="submit"`. A button that opens a dialog, clears a field or pages a
+ * calendar therefore needs `type="button"`, and the one that saves needs
+ * `type="submit"`.
+ *
+ * This is not defaulted to `"button"` on purpose. Flipping it would silently
+ * stop every form whose submit relies on the default, in apps pinned to a SHA
+ * that cannot see the change in their diff — the same class of silent failure,
+ * pointed the other way, and not one a component library should introduce to
+ * save an attribute. `MonthCalendar` marks all three of its buttons for exactly
+ * this reason; see the note there for what happened when it did not.
+ */
+
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";

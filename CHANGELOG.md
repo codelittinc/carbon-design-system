@@ -8,6 +8,50 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.9.0] - 2026-08-30
+
+### MonthCalendar: picking one day
+
+`DateRangePicker` selects a range of **months**, and there was nothing for the
+much more ordinary job of picking a single day. Apps were writing their own —
+one of them had a working implementation sitting in `components/` with a comment
+saying it belonged here.
+
+- **New `MonthCalendar`** — a month grid, controlled in both dimensions: the
+  month on screen and the day chosen, because the two move independently
+  (paging to December does not unpick the 3rd of September). `selected` and
+  `onSelect` speak ISO day keys (`"2026-09-03"`), never `Date`.
+- **`available` is optional.** Omit it and every day is pickable, which is what
+  an ordinary date field wants. Pass a set when the days on offer are the point
+  — somebody's published hours, the nights a room is free — and everything
+  outside it renders **disabled rather than absent**, so the month keeps its
+  shape and the reader can see the pattern of what is available.
+- **New `@/lib/calendar` exports**, which the grid is built on and which are
+  useful on their own: `dateKey`, `weekdayOf` (Monday-first), `daysInMonth`,
+  `shiftMonth`, `compareMonths`, `monthLabel`, `monthOfKey`, `todayIn`, and the
+  `YearMonth` / `CalendarDate` types. All pure and zone-free: `new Date(iso)` is
+  midnight **UTC**, so reading local fields off it is a day out west of
+  Greenwich, and none of this does that.
+
+### `Button` inside a form — documented, not changed
+
+`Button` renders a bare `<button>` and sets **no default `type`**, which is
+HTML's own rule and what shadcn and every other headless kit do. So an unmarked
+button inside a `<form>` is `type="submit"`.
+
+That bit a consuming app: it put a hand-rolled version of this calendar inside a
+form dialog, and every day cell — and both month arrows — submitted the form. On
+that dialog, submitting marked an employee for removal, so paging to the next
+month offboarded them.
+
+The fix is on the calendar, which now marks all three of its buttons, and there
+is a test asserting it never submits a form it is placed in. **The default was
+deliberately left alone:** changing it to `"button"` would silently stop every
+form whose submit relies on it, in apps pinned to a SHA that cannot see the
+change in their diff — the same class of silent failure pointed the other way.
+`Button`'s doc comment now says so, so the next person hits the rule before the
+bug.
+
 ## [1.8.0] - 2026-08-30
 
 ### Dialog: a max height, and a body that scrolls inside it

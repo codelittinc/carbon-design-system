@@ -36,6 +36,23 @@ declare const buttonVariants: (props?: ({
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
     asChild?: boolean;
 }
+/**
+ * A button.
+ *
+ * **Inside a `<form>`, pass `type` explicitly.** This renders a bare `<button>`
+ * and sets no default type, which is HTML's own rule and the same one shadcn and
+ * every other headless kit follow — so an unmarked button in a form is
+ * `type="submit"`. A button that opens a dialog, clears a field or pages a
+ * calendar therefore needs `type="button"`, and the one that saves needs
+ * `type="submit"`.
+ *
+ * This is not defaulted to `"button"` on purpose. Flipping it would silently
+ * stop every form whose submit relies on the default, in apps pinned to a SHA
+ * that cannot see the change in their diff — the same class of silent failure,
+ * pointed the other way, and not one a component library should introduce to
+ * save an attribute. `MonthCalendar` marks all three of its buttons for exactly
+ * this reason; see the note there for what happened when it did not.
+ */
 declare const Button: react.ForwardRefExoticComponent<ButtonProps & react.RefAttributes<HTMLButtonElement>>;
 
 declare const badgeVariants: (props?: ({
@@ -848,6 +865,93 @@ interface DateRangePickerProps {
  */
 declare function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps): react.JSX.Element;
 
+/**
+ * Calendar arithmetic — pure, zone-free, and no `Date` in any public shape.
+ *
+ * A calendar is not a list of instants. The 3rd of September is a Thursday
+ * everywhere, and which month a grid is showing does not depend on who is
+ * looking at it. Everything here works on `{ year, month, day }`, and the two
+ * places a `Date` appears internally are pinned to UTC so the host's zone cannot
+ * move a day.
+ *
+ * That is the whole reason this is not `new Date(iso)`: `new Date("2026-09-12")`
+ * is midnight **UTC**, so reading `.getDate()` off it in Chicago returns 11.
+ */
+interface YearMonth {
+    year: number;
+    /** 1–12, as people write months rather than as `Date` numbers them. */
+    month: number;
+}
+interface CalendarDate extends YearMonth {
+    /** 1–31. */
+    day: number;
+}
+/** `"2026-09-03"` — how a day is keyed wherever a calendar grid is involved. */
+declare function dateKey(date: CalendarDate): string;
+/**
+ * Which weekday a date falls on, **0 = Monday**.
+ *
+ * Monday-first because that is what the grid draws. Deliberately zone-free: the
+ * UTC round trip is what keeps the first column of the month from depending on
+ * the reader.
+ */
+declare function weekdayOf(date: CalendarDate): number;
+/** How many days that month has, leap years included. */
+declare function daysInMonth(year: number, month: number): number;
+/** The month `step` months away, rolling the year over in both directions. */
+declare function shiftMonth(from: YearMonth, step: number): YearMonth;
+/** Negative if `a` is before `b`, positive after, zero for the same month. */
+declare function compareMonths(a: YearMonth, b: YearMonth): number;
+/** `"September 2026"`, for a calendar heading. */
+declare function monthLabel({ year, month }: YearMonth): string;
+/** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
+declare function monthOfKey(key: string): YearMonth | null;
+/** Today, in the READER's zone — the only sensible place to open a picker. */
+declare function todayIn(now?: Date): CalendarDate;
+
+interface MonthCalendarProps {
+    /** The month on screen. Controlled, like the selection. */
+    month: YearMonth;
+    onMonthChange: (next: YearMonth) => void;
+    /** The chosen day as `"2026-09-03"`, or null before anything is picked. */
+    selected: string | null;
+    onSelect: (key: string) => void;
+    /**
+     * The days that may be chosen. Everything else renders disabled rather than
+     * absent, so the month keeps its shape.
+     *
+     * Omit it and every day in the month is pickable, which is what an ordinary
+     * date field wants. Pass a set when the days on offer are the point —
+     * somebody's published hours, the nights a room is free.
+     */
+    available?: Set<string>;
+    /** The furthest back and forward the arrows go. */
+    min: YearMonth;
+    max: YearMonth;
+    className?: string;
+    /** Names the grid for a screen reader; it is a group, not one control. */
+    "aria-label"?: string;
+}
+/**
+ * A month grid for picking one day.
+ *
+ * The day-level counterpart to `DateRangePicker`, which selects a range of
+ * MONTHS and is a different control. Controlled in both dimensions — the month
+ * on screen and the day chosen — because the two move independently: paging to
+ * December does not unpick the 3rd of September.
+ *
+ * Every cell is a `Button`, so keyboard and focus behaviour come from the same
+ * place as everything else rather than being reimplemented on a `<div>`.
+ *
+ * **Every one of those buttons carries `type="button"`, and it is load-bearing.**
+ * `Button` renders a bare `<button>` and sets no default type, matching HTML —
+ * so inside a `<form>` an unmarked one is implicitly `type="submit"`. Without
+ * this, picking a day submits the form the calendar sits in, and so does pressing
+ * the month arrow. That shipped in a consuming app: on a dialog whose submit
+ * marked somebody for removal, paging to the next month did it.
+ */
+declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): react.JSX.Element;
+
 type Theme = "light" | "dark";
 /**
  * Inline script to drop into <head> so the saved theme is applied before the
@@ -993,4 +1097,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, badgeVariants, buttonVariants, capSeries, formatChartValue, isPostalAddressDraftComplete, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, useTheme, useToast };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, badgeVariants, buttonVariants, capSeries, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, todayIn, useTheme, useToast, weekdayOf };
