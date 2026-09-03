@@ -8,6 +8,57 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.9.0] - 2026-09-03
+
+### CommandPalette: usable for a few hundred rows, and it stops losing keystrokes
+
+The palette rendered every row a consumer gave it and let cmdk do the filtering,
+with no way to influence either. Against a directory of 158 rows that produced
+two failures in a real app, reported by its users, and neither could be worked
+around from outside:
+
+- **Rows that arrived while a search was active stayed invisible.** cmdk resolves
+  a row's search value from that row's DOM NODE, and a row that does not match is
+  rendered as `null` — so a row first mounted mid-query has no node to read,
+  caches nothing, scores 0, and never appears again. Fetching rows when the
+  palette opened therefore meant anybody who pressed ⌘K and typed straight away
+  got "No results found." with every row present in the DOM.
+- **Mounting all the rows is superlinear**, because each registration reschedules
+  cmdk's filter and sort. Opening took seconds, and whatever was typed during
+  that time was swallowed by the input arriving late.
+
+Both come back to the same missing ability: a consumer could not render only the
+rows it meant to show. It can now.
+
+- **`CommandPalette` takes `value` / `onValueChange`** — a controlled query, so
+  the consumer can see what was typed and decide what to render.
+- **`CommandPalette` takes `shouldFilter`** (default `true`). With `false`, cmdk
+  neither filters nor sorts, every row given is drawn in the order given, and the
+  invisible-row behaviour above cannot happen.
+- **`CommandPalette` takes `filter`** to replace cmdk's fuzzy scorer, for
+  consumers that want their app's own matcher rather than a second one.
+- **`CommandPalette` takes `loop`** (default `true`, unchanged). `false` stops
+  ArrowUp at the top row instead of jumping to the last, which on a long list
+  reads as the list scrolling itself to the bottom.
+- **`CommandPalette` takes `placeholder`, `emptyMessage` and `label`.**
+- **`CommandItem` forwards `value`, `keywords`, `forceMount` and `disabled`.**
+  `value` is the important one: cmdk keys SELECTION on it, so two rows that read
+  identically — two employees with the same name — were both highlighted, could
+  not be reached from one another with ArrowDown, and Enter always took the first.
+
+Three fixes that need no opting in:
+
+- **The palette renders into `document.body`.** It positions itself with `fixed`,
+  and a `backdrop-filter` anywhere in its ancestry — a translucent app header is
+  the common case — makes that ancestor the containing block for fixed
+  descendants. The palette silently sized itself to the header: measured in a
+  consuming app at 1488×56 instead of 1728×996, with the dimming over the header
+  alone.
+- **The input is focused on open.** It was not, so the first thing anybody typed
+  went to the page behind.
+- **Escape closes it**, and the press is stopped there rather than also
+  dismissing whatever sits underneath.
+
 ## [1.8.0] - 2026-08-30
 
 ### Dialog: a max height, and a body that scrolls inside it

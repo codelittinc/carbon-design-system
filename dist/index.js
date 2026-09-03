@@ -20,6 +20,7 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import { useReactTable, getPaginationRowModel, getFilteredRowModel, getSortedRowModel, getCoreRowModel, flexRender } from '@tanstack/react-table';
+import { createPortal } from 'react-dom';
 import { Command } from 'cmdk';
 import { ResponsiveContainer, BarChart as BarChart$1, CartesianGrid, XAxis, YAxis, Tooltip as Tooltip$1, Bar, Cell, LabelList, AreaChart, ReferenceLine, Area, PieChart, Pie } from 'recharts';
 
@@ -1424,7 +1425,19 @@ var MoneyInput = forwardRef(
   }
 );
 MoneyInput.displayName = "MoneyInput";
-function CommandPalette({ open, onOpenChange, children }) {
+function CommandPalette({
+  open,
+  onOpenChange,
+  children,
+  value,
+  onValueChange,
+  shouldFilter = true,
+  filter,
+  loop = true,
+  placeholder = "Search or type a command...",
+  emptyMessage = "No results found.",
+  label = "Command palette"
+}) {
   useEffect(() => {
     function handleKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -1436,32 +1449,57 @@ function CommandPalette({ open, onOpenChange, children }) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange]);
   if (!open) return null;
-  return /* @__PURE__ */ jsxs("div", { className: "fixed inset-0 z-50", children: [
-    /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/60", onClick: () => onOpenChange(false) }),
-    /* @__PURE__ */ jsx("div", { className: "fixed left-1/2 top-[20%] z-50 w-full max-w-lg -translate-x-1/2", children: /* @__PURE__ */ jsxs(
-      Command,
-      {
-        className: "overflow-hidden rounded-lg border border-border bg-surface-raised shadow-2xl",
-        loop: true,
-        children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 border-b border-border px-3", children: [
-            /* @__PURE__ */ jsx(Search, { size: 16, className: "text-text-muted" }),
-            /* @__PURE__ */ jsx(
-              Command.Input,
-              {
-                placeholder: "Search or type a command...",
-                className: "flex-1 bg-transparent py-3 text-sm text-text-primary outline-none placeholder:text-text-muted"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxs(Command.List, { className: "max-h-80 overflow-y-auto p-2", children: [
-            /* @__PURE__ */ jsx(Command.Empty, { className: "py-6 text-center text-sm text-text-muted", children: "No results found." }),
-            children
-          ] })
-        ]
-      }
-    ) })
-  ] });
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    /* @__PURE__ */ jsxs("div", { className: "fixed inset-0 z-50", children: [
+      /* @__PURE__ */ jsx(
+        "div",
+        {
+          className: "fixed inset-0 bg-black/60",
+          onClick: () => onOpenChange(false),
+          "aria-hidden": "true"
+        }
+      ),
+      /* @__PURE__ */ jsx("div", { className: "fixed left-1/2 top-[20%] z-50 w-full max-w-lg -translate-x-1/2", children: /* @__PURE__ */ jsxs(
+        Command,
+        {
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-label": label,
+          className: "overflow-hidden rounded-lg border border-border bg-surface-raised shadow-2xl",
+          loop,
+          shouldFilter,
+          filter,
+          onKeyDown: (e) => {
+            if (e.key !== "Escape") return;
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenChange(false);
+          },
+          children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 border-b border-border px-3", children: [
+              /* @__PURE__ */ jsx(Search, { size: 16, className: "shrink-0 text-text-muted" }),
+              /* @__PURE__ */ jsx(
+                Command.Input,
+                {
+                  value,
+                  onValueChange,
+                  autoFocus: true,
+                  placeholder,
+                  className: "flex-1 bg-transparent py-3 text-sm text-text-primary outline-none placeholder:text-text-muted"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxs(Command.List, { className: "max-h-80 overflow-y-auto p-2", children: [
+              shouldFilter && /* @__PURE__ */ jsx(Command.Empty, { className: "py-6 text-center text-sm text-text-muted", children: emptyMessage }),
+              children
+            ] })
+          ]
+        }
+      ) })
+    ] }),
+    document.body
+  );
 }
 function CommandGroup({ heading, children }) {
   return /* @__PURE__ */ jsx(
@@ -1473,14 +1511,27 @@ function CommandGroup({ heading, children }) {
     }
   );
 }
-function CommandItem({ onSelect, icon, children }) {
+function CommandItem({
+  onSelect,
+  icon,
+  children,
+  value,
+  keywords,
+  forceMount,
+  disabled
+}) {
   return /* @__PURE__ */ jsxs(
     Command.Item,
     {
       onSelect,
+      value,
+      keywords,
+      forceMount,
+      disabled,
       className: cn(
         "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors",
-        "data-[selected=true]:bg-surface-overlay data-[selected=true]:text-text-primary"
+        "data-[selected=true]:bg-surface-overlay data-[selected=true]:text-text-primary",
+        disabled && "pointer-events-none opacity-50"
       ),
       children: [
         icon && /* @__PURE__ */ jsx("span", { className: "text-text-muted", children: icon }),
