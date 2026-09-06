@@ -8,6 +8,20 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.9.1] - 2026-09-06
+
+### Button: hover had a background swap but no cursor-pointer
+
+`buttonVariants`' base class string set a hover background per variant but never
+`cursor-pointer`, and native `<button>` elements don't get a hand cursor for free
+the way `<a>` does. Every `Button` — every variant, every size — showed the default
+arrow cursor on hover, so a background-color change was the only signal a control
+was clickable.
+
+- Added `cursor-pointer` to the shared base classes, and `disabled:cursor-not-allowed`
+  next to the existing `disabled:pointer-events-none disabled:opacity-50` so a
+  disabled button's cursor doesn't suggest it's clickable either.
+
 ## [1.9.0] - 2026-09-03
 
 ### CommandPalette: usable for a few hundred rows, and it stops losing keystrokes
