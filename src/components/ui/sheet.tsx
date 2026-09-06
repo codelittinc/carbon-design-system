@@ -59,9 +59,17 @@ function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return <div className={cn("border-b border-border px-6 py-4", className)} {...props} />;
 }
 
-function SheetTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-lg font-semibold text-text-primary", className)} {...props} />;
-}
+const SheetTitle = forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold text-text-primary", className)}
+    {...props}
+  />
+));
+SheetTitle.displayName = "SheetTitle";
 
 function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("flex-1 overflow-y-auto px-6 py-4", className)} {...props} />;

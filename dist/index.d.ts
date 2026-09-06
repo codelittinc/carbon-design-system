@@ -163,7 +163,7 @@ declare const DialogContent: react.ForwardRefExoticComponent<Omit<DialogPrimitiv
  */
 declare function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 declare function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
-declare function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>): react.JSX.Element;
+declare const DialogTitle: react.ForwardRefExoticComponent<Omit<DialogPrimitive.DialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
 declare function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>): react.JSX.Element;
 declare function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 
@@ -193,7 +193,7 @@ interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof Dialog
 }
 declare const SheetContent: react.ForwardRefExoticComponent<SheetContentProps & react.RefAttributes<HTMLDivElement>>;
 declare function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
-declare function SheetTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>): react.JSX.Element;
+declare const SheetTitle: react.ForwardRefExoticComponent<Omit<DialogPrimitive.DialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
 declare function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 declare function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 
