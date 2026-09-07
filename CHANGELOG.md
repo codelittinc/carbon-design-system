@@ -8,6 +8,49 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.10.0] - 2026-09-07
+
+### DataTable: every row hovers, and the rows are striped
+
+A row highlight existed but was tied to `onRowClick`, so only a table whose rows
+navigate somewhere had one. That conflated two different questions: whether the
+row does anything when you click it, and whether the reader can tell which row
+their eye is on. A read-only table — an outstanding-work queue, a list of pending
+memberships, a table of proposed matches — is exactly where tracking a row across
+eight columns is hardest, and it was the one kind of table with no highlight at
+all. There was no prop to ask for one either.
+
+- **Hover is on every row**, clickable or not. `cursor-pointer` stays tied to
+  `onRowClick`, because that one really is about whether clicking does anything.
+- **Rows are striped**, first row plain. The banding is keyed to the row's index
+  within the current PAGE, so page 2 opens the same way page 1 did instead of
+  depending on whether the page before it held an odd number of rows.
+- **A selected row keeps its own background.** The stripe is dropped from it
+  rather than being left to CSS source order, and the hover wash is held back so
+  the pointer cannot cover the selection.
+
+Neither is a prop. A table that reads better is not something each consumer
+should have to opt into, and there is no argument for the previous behaviour to
+preserve behind a flag.
+
+### Two new tokens: `--color-table-stripe` and `--color-table-row-hover`
+
+Both are TRANSLUCENT, and that is the load-bearing part rather than a shortcut. A
+`DataTable` draws no background of its own, so its rows sit on whatever the
+consumer put behind them — the page `bg`, a `surface` card, a `surface-raised`
+panel. An opaque stripe has to be a step away from one of those and vanishes
+against the others, and in the light theme `surface` and `surface-raised` are the
+same white, so no opaque value reads on both grounds. An ink wash composites over
+any of them and holds roughly the same delta.
+
+Hover sits about twice as far from the ground as the stripe, because the two are
+seen next to each other: a hover that only matched the stripe would read as no
+hover at all on every unstriped row.
+
+Declared in all three token blocks (`@theme`, `.light`, `.dark`), so a consumer
+importing `@codelittinc/carbon-design-system/styles` gets them with no change.
+Nothing was renamed or removed.
+
 ## [1.9.1] - 2026-09-06
 
 ### Button: hover had a background swap but no cursor-pointer

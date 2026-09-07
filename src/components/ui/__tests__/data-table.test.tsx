@@ -25,6 +25,14 @@ function nameColumnOrder(): string[] {
   return rows.map((r) => within(r).getAllByRole("cell")[0].textContent ?? "");
 }
 
+/** Body rows in DOM order, header dropped. */
+function bodyRows(): HTMLElement[] {
+  return screen.getAllByRole("row").slice(1);
+}
+
+const classesOf = (row: HTMLElement) => (row.getAttribute("class") ?? "").split(/\s+/);
+const has = (row: HTMLElement, cls: string) => classesOf(row).includes(cls);
+
 describe("DataTable", () => {
   it("renders header cells and row cells", () => {
     render(<DataTable columns={columns} data={data} />);
@@ -82,6 +90,89 @@ describe("DataTable", () => {
     render(<DataTable columns={columns} data={data} onRowClick={onRowClick} />);
     fireEvent.click(screen.getByText("Alice"));
     expect(onRowClick).toHaveBeenCalledWith({ name: "Alice", age: 25 });
+  });
+
+  /*
+   * Row backgrounds. jsdom applies no stylesheet, so these assert the class
+   * strings — which is also where the bugs are: every one of these rules was
+   * once expressed as a class that quietly lost to another one on the row.
+   */
+  describe("row backgrounds", () => {
+    it("hovers every row, whether or not the row does anything when clicked", () => {
+      // The regression this pins: hover used to ride along with `cursor-pointer`
+      // on `onRowClick`, so a read-only table had no hover at all and there was
+      // no way for a consumer to ask for one.
+      const { unmount } = render(<DataTable columns={columns} data={data} />);
+      expect(bodyRows()).toHaveLength(3);
+      bodyRows().forEach((row) => {
+        expect(has(row, "hover:bg-table-row-hover")).toBe(true);
+        expect(has(row, "cursor-pointer")).toBe(false);
+      });
+      unmount();
+
+      render(<DataTable columns={columns} data={data} onRowClick={() => {}} />);
+      bodyRows().forEach((row) => {
+        expect(has(row, "hover:bg-table-row-hover")).toBe(true);
+        expect(has(row, "cursor-pointer")).toBe(true);
+      });
+    });
+
+    it("stripes alternate rows, leaving the first one plain", () => {
+      render(<DataTable columns={columns} data={data} />);
+      expect(bodyRows().map((row) => has(row, "bg-table-stripe"))).toEqual([
+        false,
+        true,
+        false,
+      ]);
+    });
+
+    it("starts the banding again on every page", () => {
+      // Keyed to the index within the page, not a running count: page 2 of a
+      // 3-row page would otherwise open on a stripe and the table would look
+      // like it had shifted.
+      const rows = Array.from({ length: 5 }, (_, i) => ({ name: `row${i}`, age: i }));
+      render(<DataTable columns={columns} data={rows} pageSize={3} />);
+      expect(bodyRows().map((row) => has(row, "bg-table-stripe"))).toEqual([
+        false,
+        true,
+        false,
+      ]);
+
+      fireEvent.click(screen.getAllByRole("button").at(-1)!);
+      expect(nameColumnOrder()).toEqual(["row3", "row4"]);
+      expect(bodyRows().map((row) => has(row, "bg-table-stripe"))).toEqual([false, true]);
+    });
+
+    it("leaves a selected row its own background, and no hover over it", () => {
+      const selectable: ColumnDef<Row, unknown>[] = [
+        ...columns,
+        {
+          id: "select",
+          header: "Select",
+          cell: ({ row }) => (
+            <button onClick={() => row.toggleSelected()}>select {row.original.name}</button>
+          ),
+        },
+      ];
+      render(<DataTable columns={selectable} data={data} enableSelection />);
+
+      // Alice is row 2, so she carries the stripe until she is selected.
+      const alice = () => bodyRows()[1];
+      expect(has(alice(), "bg-table-stripe")).toBe(true);
+
+      fireEvent.click(screen.getByText("select Alice"));
+
+      // One background on a row, and selection is the one that means something:
+      // twMerge drops the stripe rather than letting source order decide.
+      expect(has(alice(), "bg-accent-muted")).toBe(true);
+      expect(has(alice(), "bg-table-stripe")).toBe(false);
+      // And the pointer must not wash the selection away.
+      expect(has(alice(), "hover:bg-table-row-hover")).toBe(false);
+
+      // Her unselected neighbours are untouched.
+      expect(has(bodyRows()[0], "hover:bg-table-row-hover")).toBe(true);
+      expect(has(bodyRows()[2], "hover:bg-table-row-hover")).toBe(true);
+    });
   });
 
   describe("page reset", () => {

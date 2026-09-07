@@ -138,3 +138,41 @@ export const SmallPageSize: Story = {
     return <DataTable columns={makeColumns(t)} data={data} pageSize={5} />;
   },
 };
+
+/**
+ * Every row hovers, whether or not it goes anywhere. `onRowClick` adds the
+ * pointer cursor on top — that is the click affordance; the hover tint is the
+ * reading aid, and a read-only table wants it just as much.
+ */
+export const Clickable: Story = {
+  render: () => {
+    const { t } = useTranslation("dataTable");
+    return (
+      <DataTable columns={makeColumns(t)} data={data} onRowClick={() => {}} />
+    );
+  },
+};
+
+/**
+ * The stripe and the hover are translucent washes, so they read on whatever the
+ * consumer put behind the table. Toggle the theme on this story: in light mode
+ * `surface` and `surface-raised` are both white, which is why neither could be
+ * spent as an opaque stripe.
+ */
+export const OnFilledSurfaces: Story = {
+  render: () => {
+    const { t } = useTranslation("dataTable");
+    return (
+      <div className="space-y-6">
+        {(["bg-bg", "bg-surface", "bg-surface-raised"] as const).map((ground) => (
+          <div key={ground} className={`${ground} rounded-lg p-4`}>
+            <p className="mb-2 text-xs uppercase tracking-wider text-text-muted">
+              {ground}
+            </p>
+            <DataTable columns={makeColumns(t)} data={data} pageSize={5} />
+          </div>
+        ))}
+      </div>
+    );
+  },
+};

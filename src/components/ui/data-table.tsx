@@ -115,12 +115,37 @@ export function DataTable<TData, TValue>({
           </thead>
           <tbody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, index) => (
                 <tr
                   key={row.id}
                   className={cn(
                     "border-b border-border-subtle transition-colors last:border-0",
-                    onRowClick && "cursor-pointer hover:bg-surface-overlay",
+                    // Zebra, keyed to the row's index within the CURRENT page, so the
+                    // banding starts the same way on every page instead of depending on
+                    // whether the pages before it held an odd number of rows.
+                    //
+                    // A plain `bg-*` and not the `even:` variant on purpose: a plain
+                    // class is one specificity step below `hover:bg-*`, so the hover
+                    // wins whatever order Tailwind emits the two in. `even:` and
+                    // `hover:` are both class-plus-pseudo-class and TIE, which would
+                    // leave "does hovering a striped row look any different" decided by
+                    // the generated stylesheet's ordering.
+                    index % 2 === 1 && "bg-table-stripe",
+                    onRowClick && "cursor-pointer",
+                    // Hover on EVERY row, clickable or not. It answers "which row am I
+                    // reading" across a table too wide to track by eye, which is a
+                    // reading aid rather than a click affordance — `cursor-pointer`
+                    // above is the separate question of whether the row does anything
+                    // when you click it.
+                    //
+                    // Held back while the row is selected: the hover token is a wash
+                    // OVER whatever the row sits on rather than a shade of it, so on a
+                    // selected row it would cover the selection instead of deepening
+                    // it, and the pointer would appear to clear the one row state that
+                    // has to stay readable under it.
+                    !row.getIsSelected() && "hover:bg-table-row-hover",
+                    // Last, so twMerge drops the stripe from a selected row: a row gets
+                    // one background, and selection is the one that means something.
                     row.getIsSelected() && "bg-accent-muted",
                   )}
                   onClick={() => onRowClick?.(row.original)}
