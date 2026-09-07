@@ -56,6 +56,26 @@
   --color-border: var(--color-carbon-700);
   --color-border-subtle: #1f1f24;
 
+  /*
+   * ── Table rows ──
+   *
+   * The zebra stripe and the row hover, and they are deliberately TRANSLUCENT
+   * rather than two more opaque surface steps. A table draws no background of
+   * its own, so its rows sit on whatever the consumer put behind them — the
+   * page `bg`, a `surface` card, a `surface-raised` panel. An opaque stripe
+   * would have to pick one of those to be a step away from, and would vanish
+   * against the other two: `surface-raised` and `surface` are the SAME white in
+   * the light theme, so there is no opaque value that reads on both grounds.
+   * An ink wash composites over any of them and keeps roughly the same delta.
+   *
+   * Hover sits about twice as far from the ground as the stripe, because it has
+   * to be legible ON a striped row — the two are seen together, and a hover
+   * that only matched the stripe would read as no hover at all on every other
+   * row.
+   */
+  --color-table-stripe: rgb(255 255 255 / 3%);
+  --color-table-row-hover: rgb(255 255 255 / 7%);
+
   /* ── Text ── */
   --color-text-primary: var(--color-carbon-50);
   --color-text-secondary: var(--color-carbon-300);
@@ -184,6 +204,10 @@
   --color-border: #e4e4e7;
   --color-border-subtle: #f0f0f1;
 
+  /* Table rows — dark ink, since the ground is light. See the @theme block. */
+  --color-table-stripe: rgb(9 9 11 / 3.5%);
+  --color-table-row-hover: rgb(9 9 11 / 7.5%);
+
   /* Text — near-black down to faint gray */
   --color-text-primary: #18181b;
   --color-text-secondary: #52525b;
@@ -234,6 +258,8 @@
   --color-surface-overlay: var(--color-carbon-800);
   --color-border: var(--color-carbon-700);
   --color-border-subtle: #1f1f24;
+  --color-table-stripe: rgb(255 255 255 / 3%);
+  --color-table-row-hover: rgb(255 255 255 / 7%);
 
   --color-text-primary: var(--color-carbon-50);
   --color-text-secondary: var(--color-carbon-300);
