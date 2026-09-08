@@ -8,6 +8,40 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.10.1] - 2026-09-08
+
+### `Select` and `SearchSelect`: a long value clips instead of escaping the trigger
+
+Both triggers lay their value out as a flex item, and a flex item's default
+`min-width: auto` will not let it shrink below its own text width. So a trigger
+with a bounded width and an option longer than it did not clip — the value kept
+its full width and pushed the chevron out through the right border, over the
+control's own edge.
+
+This was never opt-in-able. The options of a data-driven select come from a
+query — a charge code, a GL account, a vendor, a resident — so the longest label
+is not knowable when the trigger's width is chosen, and a consumer could not fix
+it from outside without reaching into this component's internal DOM. Consuming
+apps were instead shortening their labels to fit, which loses information the
+label was carrying.
+
+- **The value truncates**, with an ellipsis, inside whatever width the trigger
+  has. `SearchSelect` truncates its placeholder on the same rule.
+- **The chevron and the clear button keep their size.** The label is what gives.
+- **Both triggers can shrink**, so one placed in a flex row rather than a
+  fixed-width box narrows with the row instead of forcing it wider.
+
+No new prop and no API change. A control that stays inside its own border is not
+something a consumer should have to ask for, and there is no case for the old
+behaviour to preserve behind a flag. Consumers that were passing
+`[&>span]:truncate` themselves can drop it — it is now the default, and passing
+it again is harmless.
+
+A truncated label hides information, so a consumer showing values it does not
+control should give the trigger a `title` with the full text. The design system
+cannot do that for them: `Select` never sees the label of the selected item, only
+the value.
+
 ## [1.10.0] - 2026-09-07
 
 ### DataTable: every row hovers, and the rows are striped

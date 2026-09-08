@@ -9,6 +9,30 @@ const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
+/**
+ * THE VALUE TRUNCATES; THE CHEVRON DOES NOT MOVE.
+ *
+ * `SelectValue` renders a `<span>` that sits here as a flex item, and a flex item's default
+ * `min-width: auto` means it will not shrink below its own text width. So a trigger with a
+ * bounded width and an option longer than it did not clip — the span kept its full width and
+ * pushed the chevron out through the right border. Nothing about that is opt-in-able: an
+ * option list whose longest label overflows is the normal case for any data-driven select
+ * (a charge code, an account name, a vendor), and the consumer cannot fix it from outside
+ * without knowing this component's internal DOM.
+ *
+ * Three classes, each load-bearing:
+ *
+ * - `min-w-0` on the trigger, so the trigger itself can shrink when a consumer puts it in a
+ *   flex row rather than a fixed-width box.
+ * - `[&>span]:min-w-0 [&>span]:truncate` on the value span. It has to be the child selector
+ *   rather than a wrapper element: wrapping `{children}` would change the DOM every consumer
+ *   already styles against. `truncate` needs the span blockified to apply `text-overflow`,
+ *   which being a flex item already does for it.
+ * - `shrink-0` on the chevron, so it keeps its 14px even when the label is what has to give.
+ *
+ * `[&>span]` matches the value and nothing else — the icon below is `asChild`, so it renders
+ * as the `<svg>`, not as a span.
+ */
 const SelectTrigger = forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
@@ -16,14 +40,15 @@ const SelectTrigger = forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "[&>span]:min-w-0 [&>span]:truncate",
       className,
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown size={14} className="text-text-muted" />
+      <ChevronDown size={14} className="shrink-0 text-text-muted" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));

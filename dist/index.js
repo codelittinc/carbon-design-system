@@ -831,13 +831,14 @@ var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @_
   {
     ref,
     className: cn(
-      "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "[&>span]:min-w-0 [&>span]:truncate",
       className
     ),
     ...props,
     children: [
       children,
-      /* @__PURE__ */ jsx(SelectPrimitive.Icon, { asChild: true, children: /* @__PURE__ */ jsx(ChevronDown, { size: 14, className: "text-text-muted" }) })
+      /* @__PURE__ */ jsx(SelectPrimitive.Icon, { asChild: true, children: /* @__PURE__ */ jsx(ChevronDown, { size: 14, className: "shrink-0 text-text-muted" }) })
     ]
   }
 ));
@@ -1733,12 +1734,21 @@ function SearchSelect({
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),
         className: cn(
-          "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+          "flex h-8 w-full min-w-0 items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
           triggerClassName
         ),
         children: [
-          /* @__PURE__ */ jsx("span", { className: selectedOption ? "text-text-primary" : "text-text-muted", children: selectedOption?.label ?? placeholder }),
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
+          /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: cn(
+                "min-w-0 truncate",
+                selectedOption ? "text-text-primary" : "text-text-muted"
+              ),
+              children: selectedOption?.label ?? placeholder
+            }
+          ),
+          /* @__PURE__ */ jsxs("div", { className: "flex shrink-0 items-center gap-1", children: [
             clearable && value && /* @__PURE__ */ jsx(
               "span",
               {
