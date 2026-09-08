@@ -76,4 +76,30 @@ describe("Select", () => {
     renderSelect({ triggerClassName: "custom-trigger" });
     expect(screen.getByRole("combobox", { name: "Fruit" })).toHaveClass("custom-trigger");
   });
+
+  // jsdom does no layout, so overflow itself cannot be measured here. What CAN break — and is
+  // what these cover — is the fix silently disappearing: `[&>span]:truncate` lives on the
+  // trigger (the variant selects the span in CSS, it does not move the class onto it), which
+  // puts it in reach of `cn`'s tailwind-merge on every consumer that passes a className.
+  describe("a value longer than the trigger", () => {
+    it("clips the value rather than letting it push the chevron out", () => {
+      renderSelect({ defaultValue: "apple" });
+      const trigger = screen.getByRole("combobox", { name: "Fruit" });
+      expect(trigger).toHaveClass("min-w-0", "[&>span]:min-w-0", "[&>span]:truncate");
+    });
+
+    it("keeps the chevron at its own size", () => {
+      renderSelect();
+      const chevron = screen.getByRole("combobox", { name: "Fruit" }).querySelector("svg");
+      expect(chevron).toHaveClass("shrink-0");
+    });
+
+    it("survives a consumer's own width class", () => {
+      renderSelect({ triggerClassName: "w-40" });
+      const trigger = screen.getByRole("combobox", { name: "Fruit" });
+      expect(trigger).toHaveClass("w-40", "[&>span]:min-w-0", "[&>span]:truncate");
+      // w-full is the one that must lose — a consumer asking for w-40 means w-40.
+      expect(trigger).not.toHaveClass("w-full");
+    });
+  });
 });

@@ -194,6 +194,32 @@ describe("SearchSelect", () => {
     expect(screen.getByText("custom-Banana")).toBeInTheDocument();
   });
 
+  // The options come from a query, so the longest label is not knowable in advance. jsdom does
+  // no layout, so this asserts the mechanism rather than the pixels: the label must be able to
+  // shrink, and the icons must not.
+  describe("a label longer than the trigger", () => {
+    it("clips the label and holds the icons at their own size", () => {
+      render(
+        <Harness
+          clearable
+          initialValue="a"
+          options={[{ value: "a", label: "A label far longer than the trigger is wide" }]}
+        />,
+      );
+      const label = screen.getByText("A label far longer than the trigger is wide");
+      expect(label).toHaveClass("min-w-0", "truncate");
+      expect(getTrigger()).toHaveClass("min-w-0");
+      // The clear button and chevron share one wrapper; it is the wrapper that must not shrink.
+      expect(label.nextElementSibling).toHaveClass("shrink-0");
+    });
+
+    it("clips the placeholder too, and keeps its muted colour", () => {
+      render(<Harness />);
+      const placeholder = screen.getByText("Search...");
+      expect(placeholder).toHaveClass("min-w-0", "truncate", "text-text-muted");
+    });
+  });
+
   describe("keyboard navigation", () => {
     it("ArrowDown on the closed trigger opens the list", () => {
       render(<Harness />);

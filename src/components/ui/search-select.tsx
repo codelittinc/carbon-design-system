@@ -289,14 +289,26 @@ export function SearchSelect({
         onKeyDown={handleKeyDown}
         onClick={() => (open ? closeList() : openList(-1))}
         className={cn(
-          "flex h-8 w-full items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+          "flex h-8 w-full min-w-0 items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
           triggerClassName,
         )}
       >
-        <span className={selectedOption ? "text-text-primary" : "text-text-muted"}>
+        {/*
+         * `min-w-0 truncate` for the same reason as `SelectTrigger`: this span is a flex item,
+         * so its default `min-width: auto` would hold it at full text width and push the icons
+         * out through the right border instead of clipping. A searchable select is exactly where
+         * long labels arrive, since its options come from a query rather than a fixed list.
+         */}
+        <span
+          className={cn(
+            "min-w-0 truncate",
+            selectedOption ? "text-text-primary" : "text-text-muted",
+          )}
+        >
           {selectedOption?.label ?? placeholder}
         </span>
-        <div className="flex items-center gap-1">
+        {/* shrink-0: the clear button and chevron keep their size; the label is what gives. */}
+        <div className="flex shrink-0 items-center gap-1">
           {clearable && value && (
             <span
               role="button"
