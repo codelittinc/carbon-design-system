@@ -1,12 +1,12 @@
 "use client";
 
-import { forwardRef } from "react";
+import { Children, forwardRef, isValidElement, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap min-w-0 [&>svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -20,7 +20,10 @@ const buttonVariants = cva(
         sm: "h-7 px-2.5 text-xs",
         default: "h-8 px-3",
         lg: "h-9 px-4",
-        icon: "h-8 w-8",
+        // A fixed square, so it never gives: min-w-0 above lets a button shrink
+        // in a flex row, which is right for one carrying a label and wrong for
+        // one carrying a single glyph.
+        icon: "h-8 w-8 shrink-0",
       },
     },
     defaultVariants: {
@@ -30,6 +33,31 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * Puts a text label in its own element so it can truncate.
+ *
+ * `text-overflow` needs a block container, and a bare string passed to a flex
+ * parent is an ANONYMOUS flex item — there is no element for the ellipsis to
+ * apply to, so `truncate` on the button itself does nothing for it. Measured, not
+ * assumed: the same label clips at the border with no ellipsis until it has a
+ * wrapper of its own.
+ *
+ * Only strings and numbers are wrapped, which keeps an icon a SIBLING of the
+ * label rather than a child of it — the `gap-2` between them is a flex gap, and
+ * folding both into one span would collapse it. Elements are passed through
+ * untouched, so a consumer who already wraps their own text keeps exactly the DOM
+ * they wrote.
+ */
+function withTruncatableLabels(children: ReactNode): ReactNode {
+  return Children.map(children, (child) =>
+    typeof child === "string" || typeof child === "number" ? (
+      <span className="min-w-0 truncate">{child}</span>
+    ) : (
+      child
+    ),
+  );
+}
+
 interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
@@ -37,10 +65,16 @@ interface ButtonProps
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+        {/* `asChild` hands rendering to the consumer's own element, and Slot
+            requires exactly one child — wrapping would both break that contract
+            and put a span inside markup somebody else owns. */}
+        {asChild && isValidElement(children) ? children : withTruncatableLabels(children)}
+      </Comp>
     );
   },
 );

@@ -63,6 +63,76 @@ describe("Button", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  /*
+   * Truncation.
+   *
+   * A label long enough to exceed the button used to WRAP, and since every size
+   * is a fixed height the second line spilled out through the button's own
+   * border. `whitespace-nowrap` stops that; the wrapper below is what lets the
+   * label end in an ellipsis rather than being cut mid-word.
+   */
+
+  it("never wraps a label onto a second line", () => {
+    render(<Button>Connect another company</Button>);
+    expect(screen.getByRole("button", { name: "Connect another company" })).toHaveClass(
+      "whitespace-nowrap",
+    );
+  });
+
+  it("wraps a text label so it can truncate", () => {
+    // `text-overflow` needs a block container, and a bare string in a flex parent
+    // is an anonymous flex item — there is no element for an ellipsis to apply
+    // to, so `truncate` on the button alone does nothing for it.
+    render(<Button>Connect another company</Button>);
+    const label = screen.getByText("Connect another company");
+    expect(label.tagName).toBe("SPAN");
+    expect(label).toHaveClass("truncate");
+  });
+
+  it("leaves an icon a sibling of the label, not a child of it", () => {
+    // The gap between them is a flex gap. Folding both into one span would
+    // collapse it, and would stop the label truncating independently.
+    render(
+      <Button>
+        <svg data-testid="icon" />
+        Connect another company
+      </Button>,
+    );
+    const icon = screen.getByTestId("icon");
+    const label = screen.getByText("Connect another company");
+    expect(icon.parentElement).toBe(label.parentElement);
+    expect(label.contains(icon)).toBe(false);
+  });
+
+  it("passes elements through untouched, so a consumer keeps the DOM they wrote", () => {
+    render(
+      <Button>
+        <span data-testid="own">Already wrapped</span>
+      </Button>,
+    );
+    const own = screen.getByTestId("own");
+    expect(own).not.toHaveClass("truncate");
+    expect(own.parentElement?.tagName).toBe("BUTTON");
+  });
+
+  it("adds no wrapper under asChild, where Slot requires a single child", () => {
+    render(
+      <Button asChild variant="link">
+        <a href="/home">Home</a>
+      </Button>,
+    );
+    const link = screen.getByRole("link", { name: "Home" });
+    expect(link.querySelector("span")).toBeNull();
+    expect(link.textContent).toBe("Home");
+  });
+
+  it("keeps an icon button from being squashed in a flex row", () => {
+    // `min-w-0` lets a labelled button shrink so its label can truncate. A single
+    // glyph has nothing to give, so the icon size opts back out.
+    render(<Button size="icon" aria-label="Close" />);
+    expect(screen.getByRole("button", { name: "Close" })).toHaveClass("shrink-0");
+  });
+
   it("invokes the click handler when clicked", async () => {
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Click</Button>);

@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, createContext, useState, useCallback, useRef, useEffect, useMemo, useContext, useId } from 'react';
+import { forwardRef, isValidElement, createContext, useState, useCallback, Children, useRef, useEffect, useMemo, useContext, useId } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -334,7 +334,7 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
   );
 }
 var buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap min-w-0 [&>svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -348,7 +348,10 @@ var buttonVariants = cva(
         sm: "h-7 px-2.5 text-xs",
         default: "h-8 px-3",
         lg: "h-9 px-4",
-        icon: "h-8 w-8"
+        // A fixed square, so it never gives: min-w-0 above lets a button shrink
+        // in a flex row, which is right for one carrying a label and wrong for
+        // one carrying a single glyph.
+        icon: "h-8 w-8 shrink-0"
       }
     },
     defaultVariants: {
@@ -357,10 +360,16 @@ var buttonVariants = cva(
     }
   }
 );
+function withTruncatableLabels(children) {
+  return Children.map(
+    children,
+    (child) => typeof child === "string" || typeof child === "number" ? /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate", children: child }) : child
+  );
+}
 var Button = forwardRef(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, className })), ref, ...props });
+    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
   }
 );
 Button.displayName = "Button";
