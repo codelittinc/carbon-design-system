@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { createRef, useState } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { isRichTextEmpty } from "@/lib/rich-text";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
-import { RichTextEditor } from "../rich-text-editor";
+import { RichTextEditor, type RichTextEditorHandle } from "../rich-text-editor";
 import { Harness, edit, editorOf, paste, press, surface as editor, typeChars } from "./rich-text-editor.helpers";
 
 /**
@@ -540,7 +540,7 @@ describe("RichTextEditor — accessibility", () => {
 });
 
 describe("RichTextEditor — server render", () => {
-  it("renders the frame without the editor, and hydrates without a warning", async () => {
+  it("renders the loading box without the editor, and hydrates without a warning", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const element = (
       <RichTextEditor
@@ -552,7 +552,9 @@ describe("RichTextEditor — server render", () => {
       />
     );
     const html = renderToString(element);
-    expect(html).toContain('role="toolbar"');
+    // The server never loads TipTap: it draws the box the editor will fill.
+    expect(html).toContain('aria-busy="true"');
+    expect(html).not.toContain("contenteditable");
     expect(html).toContain("min-h-32");
     // The editor is not a sanitizer, so the stored value is not rendered
     // before the client editor exists.
@@ -569,4 +571,36 @@ describe("RichTextEditor — server render", () => {
     errors.mockRestore();
     container.remove();
   });
+});
+
+describe("RichTextEditor — loading TipTap", () => {
+  // The test setup loads the editor once for every file. A fresh module
+  // registry gives this test the state an app is in before the chunk arrives.
+  it("gives a ref handle that does nothing until the editor has loaded", async () => {
+    vi.resetModules();
+    const fresh = await import("../rich-text-editor");
+    const ref = createRef<RichTextEditorHandle>();
+    render(<fresh.RichTextEditor ref={ref} value="" onChange={() => {}} ariaLabel="Early" />);
+    expect(ref.current).not.toBeNull();
+    expect(() => ref.current!.insert("<p>too soon</p>")).not.toThrow();
+    expect(() => ref.current!.focus()).not.toThrow();
+
+    await screen.findByRole("textbox", { name: "Early" });
+    act(() => ref.current!.insert("<p>now</p>"));
+    expect(screen.getByRole("textbox", { name: "Early" })).toHaveTextContent("now");
+  });
+
+  it("draws the loading box, then the editor, without calling onChange", async () => {
+    vi.resetModules();
+    const fresh = await import("../rich-text-editor");
+    const onChange = vi.fn();
+    render(<fresh.RichTextEditor value="<p>stored</p>" onChange={onChange} ariaLabel="Fresh" />);
+    expect(screen.queryByRole("textbox", { name: "Fresh" })).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+
+    expect(await screen.findByRole("textbox", { name: "Fresh" })).toHaveTextContent("stored");
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
 });

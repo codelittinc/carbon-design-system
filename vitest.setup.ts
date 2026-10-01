@@ -48,3 +48,12 @@ range.getClientRects ??= noRects;
 proto.getClientRects ??= noRects;
 const doc = document as unknown as Record<string, unknown>;
 doc.elementFromPoint ??= () => null;
+
+/**
+ * `RichTextEditor` loads TipTap on first render (see
+ * rich-text-editor-loader.ts). Loaded once here, every test renders the editor
+ * synchronously, as an app does once the chunk has arrived; the loading box has
+ * its own test, which resets the module registry.
+ */
+const { loadRichTextEditor } = await import("@/components/ui/rich-text-editor-loader");
+await loadRichTextEditor();
