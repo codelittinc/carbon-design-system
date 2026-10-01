@@ -8,6 +8,25 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.4] - 2026-10-01
+
+### `Button`: a label made of text and expressions keeps its spaces
+
+1.11.0 put each string child of a `Button` in its own truncating span. JSX
+splits `Create {label} account` into three string children, so that became
+three spans, and each span was a flex item. A flex item drops the spaces at its
+edges, so:
+
+- **On screen**, the words were a flex gap (8px) apart instead of a space apart,
+  and each piece truncated on its own.
+- **The accessible name** lost the spaces too: `"Createoperatingaccount"`,
+  `"Confirm2026-07-31"`. Tests that find a button by its name failed.
+
+Adjacent strings and numbers now go into one span, so the label renders and
+reads as written. An element between text (an icon) still splits the label
+around it, and a consumer's own elements are still passed through untouched.
+No API change.
+
 ## [1.15.3] - 2026-10-01
 
 ### Tag, Alert, MultiSelect and SegmentedControl compose the design system's own controls
