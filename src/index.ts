@@ -32,6 +32,16 @@ export {
   type LinkHrefReason,
   type LinkHrefResult,
 } from "./lib/link-href";
+// Categorical id → color identity. Also exported from `/utils`.
+export {
+  CATEGORICAL_PALETTE,
+  NEUTRAL_CATEGORICAL_COLOR,
+  OVERFLOW_SEGMENT_COLOR,
+  MAX_CHIP_SEGMENTS,
+  getCategoricalColor,
+  getCategoricalSegments,
+  type CategoricalSegment,
+} from "./lib/categorical-colors";
 
 // ── Components ──
 export * from "./components/ui/address-autocomplete";
@@ -45,6 +55,9 @@ export * from "./components/ui/label";
 export * from "./components/ui/pagination";
 export * from "./components/ui/multi-select";
 export * from "./components/ui/segmented-control";
+export * from "./components/ui/segmented-chip";
+export * from "./components/ui/status-indicator";
+export * from "./components/ui/checkbox-group";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";
@@ -84,6 +97,11 @@ export * from "./components/ui/donut-chart";
 export * from "./components/ui/date-range-picker";
 // The day-level counterpart to DateRangePicker, which picks a range of MONTHS.
 export * from "./components/ui/month-calendar";
+// A month of days with items in them (who is off, what is due), for showing
+// rather than picking.
+export * from "./components/ui/event-calendar";
+// Hours per contract per day, with its API contract and the default fetch API.
+export * from "./components/ui/timesheet-table";
 // The calendar arithmetic MonthCalendar is built on: pure, zone-free, and
 // useful on its own to anyone laying out days.
 export * from "./lib/calendar";

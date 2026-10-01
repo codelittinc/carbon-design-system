@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactElement } from "react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Input } from "./input";
 
@@ -24,6 +24,23 @@ interface MultiSelectProps {
   id?: string;
   ariaLabel?: string;
   className?: string;
+  /**
+   * Called on every keystroke in the search. When given, the caller owns the
+   * filtering — fetch matching `options` from the server — and the list shows
+   * `options` as passed instead of filtering them itself.
+   */
+  onSearchChange?: (query: string) => void;
+  /** Shows "Loading…" in place of an empty list, while server results are on the way. */
+  loading?: boolean;
+  /**
+   * Offers to create the typed value. It shows as the last option whenever the
+   * trimmed search has no option with exactly that label (ignoring case), and
+   * is called with the trimmed search. Add the new option to `options` and its
+   * value to `value` yourself; the search clears once it resolves.
+   */
+  onCreate?: (input: string) => void | Promise<void>;
+  /** Text of the create option. Defaults to `Create "<input>"`. */
+  createLabel?: (input: string) => React.ReactNode;
 }
 
 /**
@@ -34,6 +51,9 @@ interface MultiSelectProps {
  * chip (a status, a warning), so render the selection beside it — `Tag` with
  * `onRemove` is the usual fit. Backspace in an empty search removes the last
  * value.
+ *
+ * For a list searched on the server, pass `onSearchChange` and `loading`. To
+ * let people add a value that is not there yet, pass `onCreate`.
  */
 export function MultiSelect({
   value,
@@ -45,7 +65,11 @@ export function MultiSelect({
   id,
   ariaLabel,
   className,
-}: MultiSelectProps) {
+  onSearchChange,
+  loading = false,
+  onCreate,
+  createLabel = (input) => `Create "${input}"`,
+}: MultiSelectProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [highlighted, setHighlighted] = useState(-1);
@@ -55,13 +79,36 @@ export function MultiSelect({
 
   const selected = new Set(value);
   const query = search.trim().toLowerCase();
-  const filtered = query
-    ? options.filter((o) => o.label.toLowerCase().includes(query))
-    : options;
+  // With onSearchChange the server has already filtered `options`.
+  const filtered =
+    query && !onSearchChange
+      ? options.filter((o) => o.label.toLowerCase().includes(query))
+      : options;
+  const trimmed = search.trim();
+  const showCreate =
+    !!onCreate && trimmed.length > 0 && !options.some((o) => o.label.toLowerCase() === query);
+  // The create option sits after the options, at index `filtered.length`.
+  const rowCount = filtered.length + (showCreate ? 1 : 0);
+
+  // A ref as well as state: `close` also runs from the outside-click listener,
+  // which would otherwise see the search as it was when the list opened.
+  const searchRef = useRef(search);
+  function updateSearch(next: string) {
+    setSearch(next);
+    if (next !== searchRef.current) onSearchChange?.(next);
+    searchRef.current = next;
+  }
 
   function close() {
     setOpen(false);
-    setSearch("");
+    updateSearch("");
+    setHighlighted(-1);
+  }
+
+  async function create() {
+    if (!onCreate || !trimmed) return;
+    await onCreate(trimmed);
+    updateSearch("");
     setHighlighted(-1);
   }
 
@@ -95,7 +142,7 @@ export function MultiSelect({
       case "ArrowDown":
         e.preventDefault();
         if (!open) setOpen(true);
-        else setHighlighted((i) => Math.min(i + 1, filtered.length - 1));
+        else setHighlighted((i) => Math.min(i + 1, rowCount - 1));
         break;
       case "ArrowUp":
         e.preventDefault();
@@ -105,6 +152,9 @@ export function MultiSelect({
         if (open && filtered[highlighted]) {
           e.preventDefault();
           toggle(filtered[highlighted]);
+        } else if (open && showCreate && highlighted === filtered.length) {
+          e.preventDefault();
+          void create();
         }
         break;
       case "Escape":
@@ -141,7 +191,7 @@ export function MultiSelect({
           placeholder={placeholder}
           disabled={disabled}
           onChange={(e) => {
-            setSearch(e.target.value);
+            updateSearch(e.target.value);
             setOpen(true);
             setHighlighted(-1);
           }}
@@ -166,10 +216,13 @@ export function MultiSelect({
           id={listboxId}
           role="listbox"
           aria-multiselectable="true"
+          aria-busy={loading || undefined}
           className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
         >
-          {filtered.length === 0 ? (
-            <li className="px-2 py-3 text-center text-sm text-text-muted">{emptyMessage}</li>
+          {filtered.length === 0 && !showCreate ? (
+            <li className="px-2 py-3 text-center text-sm text-text-muted">
+              {loading ? "Loading…" : emptyMessage}
+            </li>
           ) : (
             filtered.map((option, index) => {
               const isSelected = selected.has(option.value);
@@ -207,6 +260,24 @@ export function MultiSelect({
                 </li>
               );
             })
+          )}
+          {showCreate && (
+            <li
+              role="option"
+              aria-selected={false}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                void create();
+              }}
+              onMouseEnter={() => setHighlighted(filtered.length)}
+              className={cn(
+                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
+                highlighted === filtered.length && "bg-surface-overlay",
+              )}
+            >
+              <Plus size={12} aria-hidden="true" className="shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{createLabel(trimmed)}</span>
+            </li>
           )}
         </ul>
       )}

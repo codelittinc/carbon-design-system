@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
-import { DataTable, type ColumnDef } from "./data-table";
+import { useEffect, useState } from "react";
+import { DataTable, type ColumnDef, type SortingState } from "./data-table";
+import { Pagination } from "./pagination";
 import { StatusBadge } from "./status-badge";
 
 i18n.addResourceBundle(
@@ -172,6 +174,79 @@ export const OnFilledSurfaces: Story = {
             <DataTable columns={makeColumns(t)} data={data} pageSize={5} />
           </div>
         ))}
+      </div>
+    );
+  },
+};
+
+/**
+ * The server sorts and pages: the table gets one page of rows, reports header
+ * clicks through `onSortingChange` (`manualSorting`), and draws no pager of its
+ * own (`paginate={false}`) — `Pagination` sits under it. Amounts are
+ * right-aligned through column `meta`, and voided charges are dimmed with
+ * `rowClassName`. The "server" here is a 300ms timeout over the same rows.
+ */
+export const ServerSideSortAndPaging: Story = {
+  render: () => {
+    const PAGE_SIZE = 8;
+    const [sorting, setSorting] = useState<SortingState>([{ id: "tenant", desc: false }]);
+    const [page, setPage] = useState(1);
+    const [rows, setRows] = useState<ChargeRow[]>([]);
+
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        const [sort] = sorting;
+        const sorted = sort
+          ? [...data].sort((a, b) => {
+              const key = sort.id as keyof ChargeRow;
+              const cmp =
+                key === "amount"
+                  ? Number(a.amount) - Number(b.amount)
+                  : String(a[key]).localeCompare(String(b[key]));
+              return sort.desc ? -cmp : cmp;
+            })
+          : data;
+        setRows(sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE));
+      }, 300);
+      return () => clearTimeout(timer);
+    }, [sorting, page]);
+
+    const columns: ColumnDef<ChargeRow>[] = [
+      { accessorKey: "id", header: "Charge ID", meta: { className: "whitespace-nowrap" } },
+      { accessorKey: "tenant", header: "Tenant" },
+      { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.getValue("status")} /> },
+      {
+        accessorKey: "amount",
+        header: "Amount",
+        meta: { align: "right" },
+        cell: ({ row }) => (
+          <span className="font-mono tabular-nums text-text-primary">${row.getValue("amount")}</span>
+        ),
+      },
+    ];
+
+    return (
+      <div className="space-y-3">
+        <DataTable
+          columns={columns}
+          data={rows}
+          getRowId={(row) => row.id}
+          sorting={sorting}
+          onSortingChange={(next) => {
+            setSorting(next);
+            setPage(1);
+          }}
+          manualSorting
+          paginate={false}
+          rowClassName={(row) => (row.status === "VOIDED" ? "opacity-60" : undefined)}
+        />
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(data.length / PAGE_SIZE)}
+          onPageChange={setPage}
+          totalItems={data.length}
+          pageSize={PAGE_SIZE}
+        />
       </div>
     );
   },

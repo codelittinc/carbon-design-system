@@ -14,12 +14,17 @@ import { describe, expect, it } from "vitest";
 const COMPOSED = [
   "alert",
   "card",
+  "checkbox-group",
+  "event-calendar",
   "label",
   "multi-select",
   "pagination",
   "segmented-control",
   "spinner",
+  "status-indicator",
   "tag",
+  "timesheet-month",
+  "timesheet-table",
 ];
 
 const RAW_CONTROL = /<(button|select|textarea|input)\b(?![^>]*type="hidden")/g;
