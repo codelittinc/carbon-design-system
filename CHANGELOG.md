@@ -8,6 +8,20 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.13.0] - 2026-10-01
+
+### Button and MultiStatusFilter: white on the accent fill in light mode
+
+- The `default` (accent) `Button` now uses white text in light mode instead of
+  near-black. Dark mode still uses `carbon-950` on amber.
+- **New token `--color-accent-foreground`** (utility `text-accent-foreground`):
+  the text color for anything on a solid `bg-accent` fill. It is `carbon-950`
+  in dark mode and white in `.light`.
+- `MultiStatusFilter`: the checkmark in a selected option's box now uses the
+  same token, so it is white in light mode too.
+- `Checkbox` (checked) still uses `text-carbon-950` on the accent fill and is
+  unchanged.
+
 ## [1.12.0] - 2026-10-01
 
 ### MonthCalendar: picking one day

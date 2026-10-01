@@ -93,7 +93,11 @@
    * are the defaults here; the `.light` block overrides them. Components use these
    * (text-accent-text, text-error-text, …) instead of raw amber/red/green/blue so
    * contrast holds in both modes.
+   *
+   * accent-foreground is the text ON a solid accent fill (bg-accent): carbon-950
+   * on dark's amber-500, white on light's amber-600.
    */
+  --color-accent-foreground: var(--color-carbon-950);
   --color-accent-text: var(--color-amber-400);
   --color-success-text: #4ade80;
   --color-error-text: #f87171;
@@ -220,6 +224,9 @@
   /* Pale amber (amber-100) fill so amber-800 accent text clears AA on top */
   --color-accent-muted: #fef3c7;
 
+  /* Text on a solid accent fill */
+  --color-accent-foreground: #ffffff;
+
   /* Adaptive foregrounds — darker so they read on light tints */
   --color-accent-text: #92400e; /* amber-800 */
   --color-success-text: #15803d;
@@ -270,6 +277,7 @@
   --color-accent-hover: var(--color-amber-400);
   --color-accent-muted: var(--color-amber-900);
 
+  --color-accent-foreground: var(--color-carbon-950);
   --color-accent-text: var(--color-amber-400);
   --color-success-text: #4ade80;
   --color-error-text: #f87171;

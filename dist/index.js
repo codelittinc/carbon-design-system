@@ -338,7 +338,7 @@ var buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-accent text-carbon-950 hover:bg-accent-hover",
+        default: "bg-accent text-accent-foreground hover:bg-accent-hover",
         destructive: "bg-red-600 text-white hover:bg-red-500",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
@@ -3028,7 +3028,7 @@ function MultiStatusFilter({
                   "aria-hidden": "true",
                   className: cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                    checked ? "border-accent bg-accent text-carbon-950" : "border-border bg-surface-raised"
+                    checked ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-raised"
                   ),
                   children: checked && /* @__PURE__ */ jsx(Check, { size: 12, strokeWidth: 3 })
                 }
