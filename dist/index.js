@@ -2595,7 +2595,7 @@ function NumberSelect({
   ] });
 }
 function DateRangePicker({ value, onChange, years, className }) {
-  const yearOptions = years.map((y) => ({ value: y, label: String(y) }));
+  const yearOptions = [.../* @__PURE__ */ new Set([...years, value.startYear, value.endYear])].sort((a, b) => a - b).map((y) => ({ value: y, label: String(y) }));
   return /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1.5 text-xs", className), children: [
     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
       /* @__PURE__ */ jsx(

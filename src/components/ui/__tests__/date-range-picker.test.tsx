@@ -71,4 +71,22 @@ describe("DateRangePicker", () => {
     pick("Start year", "2023");
     expect(screen.getByRole("combobox", { name: "Start year" })).toHaveTextContent("2023");
   });
+
+  it("still shows a selected year that is not in `years`", () => {
+    render(
+      <DateRangePicker
+        value={{ startMonth: 1, startYear: 2020, endMonth: 12, endYear: 2024 }}
+        years={YEARS}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "Start year" })).toHaveTextContent("2020");
+    fireEvent.click(screen.getByRole("combobox", { name: "Start year" }));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "2020",
+      "2023",
+      "2024",
+      "2025",
+    ]);
+  });
 });

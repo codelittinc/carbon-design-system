@@ -62,7 +62,12 @@ function NumberSelect({
  * month+year. Controlled via a MonthYearRange value, used for report periods.
  */
 export function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps) {
-  const yearOptions = years.map((y) => ({ value: y, label: String(y) }));
+  // A Radix Select shows nothing for a value with no matching item, so a saved
+  // period from outside `years` would render as a blank trigger. Always offer
+  // the selected years.
+  const yearOptions = [...new Set([...years, value.startYear, value.endYear])]
+    .sort((a, b) => a - b)
+    .map((y) => ({ value: y, label: String(y) }));
   return (
     <div className={cn("flex items-center gap-1.5 text-xs", className)}>
       <div className="flex items-center gap-1">
