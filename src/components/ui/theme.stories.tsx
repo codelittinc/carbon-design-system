@@ -63,7 +63,7 @@ function ThemeDemo() {
         <div className="rounded-md border border-border bg-surface-raised p-3 text-sm text-text-primary">
           {t("raised")}
         </div>
-        <div className="rounded-md bg-accent p-3 text-sm text-carbon-950">
+        <div className="rounded-md bg-accent p-3 text-sm text-accent-foreground">
           {t("accent")}
         </div>
         <div className="rounded-md border border-border bg-surface p-3 text-sm text-text-muted">
