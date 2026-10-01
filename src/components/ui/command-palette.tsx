@@ -60,8 +60,10 @@ interface CommandPaletteProps {
 /**
  * A ⌘K command palette.
  *
- * Binds ⌘K / Ctrl+K on `document` while mounted, closes on Escape and on a click
- * outside, and **renders into `document.body`** — the last of those is not
+ * Binds ⌘K / Ctrl+K on `document` while mounted — unless something nearer the
+ * target already handled the press (`defaultPrevented`), so a focused control
+ * with its own ⌘K, such as `RichTextEditor`'s link shortcut, keeps it — closes
+ * on Escape and on a click outside, and **renders into `document.body`** — the last of those is not
  * cosmetic. The panel positions itself with `fixed`, and a `backdrop-filter`
  * anywhere in its ancestry (a translucent app header, say) makes that ancestor
  * the containing block for fixed descendants, so an in-place palette silently
@@ -82,6 +84,9 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // A ⌘K the focused control already took (the editor's link shortcut)
+      // is not also a request to open the palette over it.
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         onOpenChange(!open);

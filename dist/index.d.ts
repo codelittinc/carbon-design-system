@@ -615,8 +615,10 @@ interface CommandPaletteProps {
 /**
  * A ⌘K command palette.
  *
- * Binds ⌘K / Ctrl+K on `document` while mounted, closes on Escape and on a click
- * outside, and **renders into `document.body`** — the last of those is not
+ * Binds ⌘K / Ctrl+K on `document` while mounted — unless something nearer the
+ * target already handled the press (`defaultPrevented`), so a focused control
+ * with its own ⌘K, such as `RichTextEditor`'s link shortcut, keeps it — closes
+ * on Escape and on a click outside, and **renders into `document.body`** — the last of those is not
  * cosmetic. The panel positions itself with `fixed`, and a `backdrop-filter`
  * anywhere in its ancestry (a translucent app header, say) makes that ancestor
  * the containing block for fixed descendants, so an in-place palette silently

@@ -59,6 +59,29 @@ describe("CommandPalette", () => {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
+  it("leaves a Cmd+K that a focused control already handled", () => {
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <input
+          aria-label="Editor"
+          onKeyDown={(e) => {
+            if (e.metaKey && e.key === "k") e.preventDefault();
+          }}
+        />
+        <CommandPalette open={false} onOpenChange={onOpenChange}>
+          <CommandItem onSelect={() => {}}>Do thing</CommandItem>
+        </CommandPalette>
+      </>,
+    );
+    fireEvent.keyDown(screen.getByLabelText("Editor"), { key: "k", metaKey: true });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    // Unhandled, from the same element, it still opens.
+    fireEvent.keyDown(screen.getByLabelText("Editor"), { key: "k", ctrlKey: true });
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
   it("renders into document.body, so a filtered ancestor cannot size it", () => {
     // A `backdrop-filter` on any ancestor makes that ancestor the containing
     // block for `fixed` descendants, which silently sizes the palette to the
