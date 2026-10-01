@@ -191,4 +191,43 @@ declare function isAllowedEditorHref(url: string | undefined): boolean;
 /** The message the link panel shows for a refused href. */
 declare function linkHrefErrorMessage(reason: LinkHrefReason, { targets }?: LinkHrefOptions): string;
 
-export { type LinkHrefOptions, type LinkHrefReason, type LinkHrefResult, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, type RichTextFormatting, type RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };
+/**
+ * Deterministic id → color identity, for an unbounded set of entities (a
+ * project, a team) that each need a stable color. Colors are never stored or
+ * sent over the wire: they are derived from the numeric id at render time.
+ *
+ * Every value is a CSS variable reference to a `--color-category-*` token in
+ * theme.css, so it can go straight into a `style` (`backgroundColor`) or an SVG
+ * `fill`. Those tokens are fills under WHITE text and all clear 4.5:1 against
+ * it. They cycle and stay the same in both themes, which is what separates them
+ * from the `chart-*` series slots (`seriesColor`): those never cycle and are
+ * re-stepped per theme. The token block in theme.css has the full reasoning.
+ *
+ * Pure, no React — also exported from `/utils` for server components.
+ */
+declare const CATEGORICAL_PALETTE: readonly string[];
+/** Fill for an item with no category. */
+declare const NEUTRAL_CATEGORICAL_COLOR = "var(--color-category-neutral)";
+/** Fill for the capped "+N more" segment. */
+declare const OVERFLOW_SEGMENT_COLOR = "var(--color-category-overflow)";
+/** Maximum number of color segments drawn on a `SegmentedChip`. */
+declare const MAX_CHIP_SEGMENTS = 4;
+/** The palette fill for an integer id. Cycles; negative ids are safe. */
+declare function getCategoricalColor(id: number): string;
+interface CategoricalSegment {
+    color: string;
+    /** Present only on the capped overflow segment: how many ids it stands for. */
+    overflowCount?: number;
+}
+/**
+ * Equal-width segments for a `SegmentedChip`, from ids the caller has already
+ * put in display order.
+ *
+ * - no ids → one neutral segment
+ * - up to `MAX_CHIP_SEGMENTS` ids → one segment each
+ * - more → the first `MAX_CHIP_SEGMENTS − 1`, then an overflow segment whose
+ *   `overflowCount` is the rest
+ */
+declare function getCategoricalSegments(ids: number[]): CategoricalSegment[];
+
+export { CATEGORICAL_PALETTE, type CategoricalSegment, type LinkHrefOptions, type LinkHrefReason, type LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, type RichTextFormatting, type RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };

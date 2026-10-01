@@ -8,6 +8,84 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.16.0] - 2026-10-01
+
+### New components: TimesheetTable, EventCalendar, SegmentedChip, StatusIndicator, CheckboxGroup
+
+Added while moving Backstage off the Backstage design system, which had these and
+Carbon did not. Each is built on the semantic tokens, so it works in both themes.
+
+- **`TimesheetTable`**: a person's hours per contract per day, in a weekly grid
+  or a monthly calendar, with expected hours, time off and a progress summary.
+  Edits save 15 seconds after the last change (or with Save, or on navigating),
+  only changed cells are sent, and "Revert" undoes a save for 5 seconds. The
+  props, the `TimesheetApi` shape and `createDefaultApi(baseUrl, headers)` are
+  the Backstage design system's, unchanged, so existing call sites keep working.
+  Types: `TimesheetTableProps`, `TimesheetContract`, `TimesheetEntry`,
+  `TimesheetApi`, `TimeEntryResponse`, `ExpectedHoursResponse`, `SaveResponse`,
+  `TimesheetTimeOff`, `TimesheetViewMode`, `TimesheetGridData`. A failed load
+  now shows an inline error with "Try again" as well as the error toast.
+- **`EventCalendar`**: a Sunday-first month grid of items per day (who is off,
+  what is due), generic over the item type, with a "+N more" popover past
+  `maxVisibleItems`. The Backstage design system's `MonthCalendar` under a new
+  name, because Carbon's `MonthCalendar` is a day picker.
+- **`SegmentedChip`**: a small clickable chip whose fill is split into one
+  color band per category, with a white label. Forwards its ref.
+- **`StatusIndicator`** and **`StatusLegend`**: a colored dot for a status, and
+  a key for a set of them. You pass the `color` (any CSS color, such as
+  `"var(--color-chart-2)"`) and the `label`, which is also the dot's accessible
+  name; the app keeps its own status → color mapping.
+- **`CheckboxGroup`**: labelled checkboxes for choosing any of a few options,
+  in a `role="group"`, horizontal or vertical. `name` submits each checked
+  value with a form.
+
+### Categorical colors
+
+`getCategoricalColor(id)` gives an entity (a project, a team) a stable color
+from its numeric id, and `getCategoricalSegments(ids)` turns a list of ids into
+`SegmentedChip` segments, capped at `MAX_CHIP_SEGMENTS` with a "+N" overflow.
+Also `CATEGORICAL_PALETTE`, `NEUTRAL_CATEGORICAL_COLOR`, `OVERFLOW_SEGMENT_COLOR`
+and the `CategoricalSegment` type. They are exported from `/utils` too, for
+server components.
+
+The values are `var(--color-category-*)` references to **new tokens**
+`--color-category-1` … `--color-category-11`, `--color-category-neutral`,
+`--color-category-overflow` and `--color-category-foreground` (white). They are
+fills under white text, so every one clears 4.5:1 against it. Unlike the
+`chart-*` slots they cycle (the set of ids has no end) and they are the same in
+both themes, so an entity keeps one color whoever is looking.
+
+### DataTable: alignment, row classes, server-side sorting
+
+All optional; a table that passes none of them behaves as before.
+
+- Column `meta`: `align` (`left` · `right` · `center`) aligns the header and
+  the cells, and `className` / `headerClassName` add classes to them. `meta` is
+  typed on TanStack's `ColumnMeta`, so it needs no cast.
+- `rowClassName(row)`: extra classes per row, applied over the stripe and
+  hover, so a tint or `opacity-60` wins.
+- `sorting` + `onSortingChange` control the sort, and `manualSorting` leaves
+  the order of `data` alone, for a server sort. A sorted header now shows an
+  up or down arrow, and `aria-sort`. `SortingState` is re-exported.
+
+### Popover: `openOnHover`
+
+`<Popover openOnHover>` opens as a preview when the pointer rests on the
+trigger, and a click pins it open until a second click, Escape or a click
+outside. A preview does not take focus, and while one popover is pinned,
+hovering another trigger does not open it. Without the prop, Popover is
+unchanged.
+
+### SearchSelect and MultiSelect: create a missing option
+
+- **`onCreate(input)`** and **`createLabel(input)`** (default `Create "…"`) on
+  both. The create option is the last one, shown when the trimmed search has
+  no option with exactly that label (ignoring case).
+- **`MultiSelect`** gained `onSearchChange(query)` for server-side search
+  (it then shows `options` as given, without filtering them) and `loading`.
+- **`SearchSelect`** gained `emptyMessage`, shown when there are no options
+  (default "No results").
+
 ## [1.15.4] - 2026-10-01
 
 ### `Button`: a label made of text and expressions keeps its spaces

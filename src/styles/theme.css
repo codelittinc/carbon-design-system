@@ -151,6 +151,45 @@
   /* Gridlines sit below border-subtle — they must recede behind the data. */
   --color-chart-grid: #232329;
 
+  /*
+   * ── Category fills (id → color identity) ──
+   * Eleven fills for giving an unbounded set of entities (projects, teams…) a
+   * stable color derived from their numeric id — `getCategoricalColor(id)` in
+   * src/lib/categorical-colors.ts. They are a different contract from the
+   * chart-* slots above, on purpose:
+   *
+   *   - They CYCLE. The set of ids has no upper bound, so id 12 reuses slot 1.
+   *     Chart slots never cycle, because there a repeated hue would read as a
+   *     repeated series; here a label always rides on the fill, so a shared hue
+   *     between two distant ids is acceptable.
+   *   - They are FILLS UNDER WHITE TEXT (a chip, a calendar bar), so every value
+   *     clears 4.5:1 against white. Chart slots are strokes and swatches on the
+   *     surface and are tuned for that instead.
+   *   - They are THEME-INDEPENDENT. White-on-fill contrast does not depend on
+   *     the page behind it, and an entity should keep one color whichever theme
+   *     a teammate uses — so `.light` and `.dark` do not override these, unlike
+   *     the chart slots, which are re-stepped per theme.
+   *
+   * neutral is "no category"; overflow is the capped "+N more" segment, and it
+   * is a step lighter than the dark surfaces so it stays visible on them. Both
+   * also clear 4.5:1 under white, which `category-foreground` names.
+   */
+  --color-category-1: #2563eb; /* blue */
+  --color-category-2: #0f766e; /* teal */
+  --color-category-3: #7c3aed; /* violet */
+  --color-category-4: #e11d48; /* rose */
+  --color-category-5: #b45309; /* amber */
+  --color-category-6: #047857; /* emerald */
+  --color-category-7: #4f46e5; /* indigo */
+  --color-category-8: #a21caf; /* fuchsia */
+  --color-category-9: #c2410c; /* orange */
+  --color-category-10: #0369a1; /* sky */
+  --color-category-11: #0e7490; /* cyan */
+  --color-category-neutral: #52525b;
+  --color-category-overflow: #3f3f46;
+  /* The text on any category fill. */
+  --color-category-foreground: #ffffff;
+
   /* ── Typography ── */
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "DM Sans", system-ui, sans-serif;

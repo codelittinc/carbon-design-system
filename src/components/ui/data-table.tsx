@@ -4,7 +4,9 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
+  type RowData,
   type RowSelectionState,
+  type Updater,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -12,10 +14,38 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
+
+/**
+ * Per-column presentation, set on a column's `meta`:
+ *
+ * ```ts
+ * { accessorKey: "amount", header: "Amount", meta: { align: "right", className: "w-32" } }
+ * ```
+ *
+ * Declared on TanStack's own `ColumnMeta` so it typechecks in the consumer's
+ * column definitions with no cast.
+ */
+declare module "@tanstack/react-table" {
+  // The type parameters must match TanStack's declaration to merge with it.
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /** Aligns the header and the cells. Right for numbers. Defaults to left. */
+    align?: "left" | "right" | "center";
+    /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
+    className?: string;
+    /** Extra classes on the column's header cell. */
+    headerClassName?: string;
+  }
+}
+
+const alignClasses = {
+  left: { cell: "text-left", header: "text-left", content: "justify-start" },
+  right: { cell: "text-right", header: "text-right", content: "justify-end" },
+  center: { cell: "text-center", header: "text-center", content: "justify-center" },
+};
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -52,6 +82,16 @@ interface DataTableProps<TData, TValue> {
    * the column sort survives.
    */
   resetPageOn?: unknown;
+  /** Extra classes for a row, applied after the stripe and hover so a tint wins. */
+  rowClassName?: (row: TData) => string | undefined;
+  /**
+   * Controlled sort. Without it the table keeps its own sort state, as before.
+   * With `manualSorting` the table only reports header clicks through
+   * `onSortingChange` and shows `data` in the order given — for a server sort.
+   */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  manualSorting?: boolean;
 }
 
 /** Distinguishes "prop omitted" from any value a caller could legitimately pass. */
@@ -67,11 +107,22 @@ export function DataTable<TData, TValue>({
   enableSelection = false,
   emptyMessage = "No results.",
   resetPageOn = UNSET,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  rowClassName,
+  sorting: controlledSorting,
+  onSortingChange,
+  manualSorting = false,
+}: DataTableProps<TData, TValue>): ReactElement {
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
+  const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const driven = resetPageOn !== UNSET;
+
+  function handleSortingChange(updater: Updater<SortingState>) {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    if (controlledSorting === undefined) setInternalSorting(next);
+    onSortingChange?.(next);
+  }
 
   const table = useReactTable({
     data,
@@ -81,7 +132,8 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: paginate ? getPaginationRowModel() : undefined,
     getRowId: getRowId ? (row) => getRowId(row) : undefined,
-    onSortingChange: setSorting,
+    manualSorting,
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
@@ -107,25 +159,41 @@ export function DataTable<TData, TValue>({
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-border">
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={cn(
-                      "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
-                      header.column.getCanSort() && "cursor-pointer select-none",
-                    )}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    <div className="flex items-center gap-1">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getCanSort() && (
-                        <ArrowUpDown size={12} className="text-text-faint" />
+                {headerGroup.headers.map((header) => {
+                  const meta = header.column.columnDef.meta;
+                  const align = alignClasses[meta?.align ?? "left"];
+                  const sorted = header.column.getIsSorted();
+                  const SortIcon =
+                    sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+                  return (
+                    <th
+                      key={header.id}
+                      aria-sort={
+                        sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined
+                      }
+                      className={cn(
+                        "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
+                        align.header,
+                        header.column.getCanSort() && "cursor-pointer select-none",
+                        meta?.headerClassName,
                       )}
-                    </div>
-                  </th>
-                ))}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <div className={cn("flex items-center gap-1", align.content)}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          <SortIcon
+                            size={12}
+                            aria-hidden="true"
+                            className={sorted ? "text-text-secondary" : "text-text-faint"}
+                          />
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
@@ -163,11 +231,21 @@ export function DataTable<TData, TValue>({
                     // Last, so twMerge drops the stripe from a selected row: a row gets
                     // one background, and selection is the one that means something.
                     row.getIsSelected() && "bg-accent-muted",
+                    // The caller's, last of all, so a row tint or `opacity-60` wins.
+                    rowClassName?.(row.original),
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-2 text-text-secondary">
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        "px-3 py-2 text-text-secondary",
+                        cell.column.columnDef.meta?.align &&
+                          alignClasses[cell.column.columnDef.meta.align].cell,
+                        cell.column.columnDef.meta?.className,
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -216,4 +294,4 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export { type ColumnDef } from "@tanstack/react-table";
+export { type ColumnDef, type SortingState } from "@tanstack/react-table";

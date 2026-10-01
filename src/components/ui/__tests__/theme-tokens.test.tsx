@@ -66,6 +66,13 @@ const THEME_CRITICAL = [
   "bar-chart.tsx",
   "line-chart.tsx",
   "donut-chart.tsx",
+  "timesheet-table.tsx",
+  "timesheet-month.tsx",
+  "segmented-chip.tsx",
+  "status-indicator.tsx",
+  "checkbox-group.tsx",
+  "event-calendar.tsx",
+  "popover.tsx",
 ];
 
 describe("no fixed palette utilities in theme-critical components", () => {

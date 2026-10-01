@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { MultiSelect, type MultiSelectOption } from "../multi-select";
@@ -82,5 +82,96 @@ describe("MultiSelect", () => {
     fireEvent.focus(input);
     fireEvent.keyDown(input, { key: "Escape" });
     expect(input).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+describe("MultiSelect create and server search", () => {
+  const optionTexts = () => screen.getAllByRole("option").map((o) => o.textContent);
+
+  it("offers to create the search when no label matches it exactly", async () => {
+    const onCreate = vi.fn();
+    render(
+      <MultiSelect ariaLabel="Tags" value={[]} onChange={() => {}} options={OPTIONS} onCreate={onCreate} />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "  Dora " } });
+    expect(optionTexts()).toEqual(['Create "Dora"']);
+
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("option", { name: 'Create "Dora"' }));
+    });
+    expect(onCreate).toHaveBeenCalledWith("Dora");
+    // The search clears, and the list stays open for the next pick.
+    expect(input).toHaveValue("");
+    expect(input).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("hides the create option on an exact match, ignoring case", () => {
+    render(
+      <MultiSelect ariaLabel="Tags" value={[]} onChange={() => {}} options={OPTIONS} onCreate={() => {}} />,
+    );
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "bruno" } });
+    expect(optionTexts()).toEqual(["Bruno"]);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "bru" } });
+    expect(optionTexts()).toEqual(["Bruno", 'Create "bru"']);
+  });
+
+  it("reaches the create option from the keyboard, with a custom label", async () => {
+    const onCreate = vi.fn(async () => {});
+    render(
+      <MultiSelect
+        ariaLabel="Tags"
+        value={[]}
+        onChange={() => {}}
+        options={OPTIONS}
+        onCreate={onCreate}
+        createLabel={(input) => `Add tag ${input}`}
+      />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "an" } });
+    expect(optionTexts()).toEqual(["Ana", "Add tag an"]);
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(onCreate).toHaveBeenCalledWith("an");
+  });
+
+  it("leaves filtering to the caller with onSearchChange", () => {
+    const onSearchChange = vi.fn();
+    const { rerender } = render(
+      <MultiSelect
+        ariaLabel="People"
+        value={[]}
+        onChange={() => {}}
+        options={OPTIONS}
+        onSearchChange={onSearchChange}
+        loading
+      />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "zz" } });
+    expect(onSearchChange).toHaveBeenLastCalledWith("zz");
+    // Not filtered locally: the server decides what matches.
+    expect(optionTexts()).toEqual(["Ana", "Bruno", "Carla"]);
+
+    rerender(
+      <MultiSelect
+        ariaLabel="People"
+        value={[]}
+        onChange={() => {}}
+        options={[]}
+        onSearchChange={onSearchChange}
+        loading
+      />,
+    );
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(screen.getByRole("listbox")).toHaveAttribute("aria-busy", "true");
+
+    // Closing clears the search, and says so.
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onSearchChange).toHaveBeenLastCalledWith("");
   });
 });

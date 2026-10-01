@@ -57,3 +57,17 @@ export {
   type LinkHrefReason,
   type LinkHrefResult,
 } from "./lib/link-href";
+
+/**
+ * Pure, and wanted on the server: a server component that colors a project's
+ * row or legend swatch needs the same id → color answer the client chips use.
+ */
+export {
+  CATEGORICAL_PALETTE,
+  NEUTRAL_CATEGORICAL_COLOR,
+  OVERFLOW_SEGMENT_COLOR,
+  MAX_CHIP_SEGMENTS,
+  getCategoricalColor,
+  getCategoricalSegments,
+  type CategoricalSegment,
+} from "./lib/categorical-colors";

@@ -2,11 +2,11 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useId, useContext, useMemo } from 'react';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useContext, useCallback, Children, useId, useMemo, Fragment as Fragment$1 } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
-import { Check, ChevronDown, X, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
+import { Check, ChevronDown, X, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -389,6 +389,31 @@ function linkHrefErrorMessage(reason, { targets = [] } = {}) {
   }
   return `Use a web address, including https://, an email link (mailto:\u2026) or ${list}.`;
 }
+
+// src/lib/categorical-colors.ts
+var PALETTE_SIZE = 11;
+var CATEGORICAL_PALETTE = Array.from(
+  { length: PALETTE_SIZE },
+  (_, i) => `var(--color-category-${i + 1})`
+);
+var NEUTRAL_CATEGORICAL_COLOR = "var(--color-category-neutral)";
+var OVERFLOW_SEGMENT_COLOR = "var(--color-category-overflow)";
+var MAX_CHIP_SEGMENTS = 4;
+function getCategoricalColor(id) {
+  const index = (id % PALETTE_SIZE + PALETTE_SIZE) % PALETTE_SIZE;
+  return CATEGORICAL_PALETTE[index];
+}
+function getCategoricalSegments(ids) {
+  if (ids.length === 0) return [{ color: NEUTRAL_CATEGORICAL_COLOR }];
+  if (ids.length <= MAX_CHIP_SEGMENTS) {
+    return ids.map((id) => ({ color: getCategoricalColor(id) }));
+  }
+  const visible = ids.slice(0, MAX_CHIP_SEGMENTS - 1);
+  return [
+    ...visible.map((id) => ({ color: getCategoricalColor(id) })),
+    { color: OVERFLOW_SEGMENT_COLOR, overflowCount: ids.length - visible.length }
+  ];
+}
 var Input = forwardRef(
   ({ className, type, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -767,7 +792,11 @@ function MultiSelect({
   disabled = false,
   id,
   ariaLabel,
-  className
+  className,
+  onSearchChange,
+  loading = false,
+  onCreate,
+  createLabel = (input) => `Create "${input}"`
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -777,10 +806,25 @@ function MultiSelect({
   const listboxId = useId();
   const selected = new Set(value);
   const query = search.trim().toLowerCase();
-  const filtered = query ? options.filter((o) => o.label.toLowerCase().includes(query)) : options;
+  const filtered = query && !onSearchChange ? options.filter((o) => o.label.toLowerCase().includes(query)) : options;
+  const trimmed = search.trim();
+  const showCreate = !!onCreate && trimmed.length > 0 && !options.some((o) => o.label.toLowerCase() === query);
+  const rowCount = filtered.length + (showCreate ? 1 : 0);
+  const searchRef = useRef(search);
+  function updateSearch(next) {
+    setSearch(next);
+    if (next !== searchRef.current) onSearchChange?.(next);
+    searchRef.current = next;
+  }
   function close() {
     setOpen(false);
-    setSearch("");
+    updateSearch("");
+    setHighlighted(-1);
+  }
+  async function create() {
+    if (!onCreate || !trimmed) return;
+    await onCreate(trimmed);
+    updateSearch("");
     setHighlighted(-1);
   }
   useEffect(() => {
@@ -807,7 +851,7 @@ function MultiSelect({
       case "ArrowDown":
         e.preventDefault();
         if (!open) setOpen(true);
-        else setHighlighted((i) => Math.min(i + 1, filtered.length - 1));
+        else setHighlighted((i) => Math.min(i + 1, rowCount - 1));
         break;
       case "ArrowUp":
         e.preventDefault();
@@ -817,6 +861,9 @@ function MultiSelect({
         if (open && filtered[highlighted]) {
           e.preventDefault();
           toggle(filtered[highlighted]);
+        } else if (open && showCreate && highlighted === filtered.length) {
+          e.preventDefault();
+          void create();
         }
         break;
       case "Escape":
@@ -853,7 +900,7 @@ function MultiSelect({
           placeholder,
           disabled,
           onChange: (e) => {
-            setSearch(e.target.value);
+            updateSearch(e.target.value);
             setOpen(true);
             setHighlighted(-1);
           },
@@ -875,44 +922,67 @@ function MultiSelect({
         }
       )
     ] }),
-    open && !disabled && /* @__PURE__ */ jsx(
+    open && !disabled && /* @__PURE__ */ jsxs(
       "ul",
       {
         ref: listRef,
         id: listboxId,
         role: "listbox",
         "aria-multiselectable": "true",
+        "aria-busy": loading || void 0,
         className: "absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg",
-        children: filtered.length === 0 ? /* @__PURE__ */ jsx("li", { className: "px-2 py-3 text-center text-sm text-text-muted", children: emptyMessage }) : filtered.map((option, index) => {
-          const isSelected = selected.has(option.value);
-          return /* @__PURE__ */ jsxs(
+        children: [
+          filtered.length === 0 && !showCreate ? /* @__PURE__ */ jsx("li", { className: "px-2 py-3 text-center text-sm text-text-muted", children: loading ? "Loading\u2026" : emptyMessage }) : filtered.map((option, index) => {
+            const isSelected = selected.has(option.value);
+            return /* @__PURE__ */ jsxs(
+              "li",
+              {
+                role: "option",
+                "aria-selected": isSelected,
+                "aria-disabled": option.disabled || void 0,
+                onMouseDown: (e) => {
+                  e.preventDefault();
+                  toggle(option);
+                },
+                onMouseEnter: () => setHighlighted(index),
+                className: cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary",
+                  highlighted === index && "bg-surface-overlay text-text-primary",
+                  isSelected && "text-text-primary",
+                  option.disabled && "cursor-not-allowed opacity-50"
+                ),
+                children: [
+                  /* @__PURE__ */ jsx("span", { className: "flex h-3.5 w-3.5 shrink-0 items-center justify-center text-accent-text", children: isSelected && /* @__PURE__ */ jsx(Check, { size: 12 }) }),
+                  /* @__PURE__ */ jsxs("span", { className: "min-w-0 flex-1", children: [
+                    /* @__PURE__ */ jsx("span", { className: "block truncate", children: option.label }),
+                    option.sublabel && /* @__PURE__ */ jsx("span", { className: "block truncate text-xs text-text-muted", children: option.sublabel })
+                  ] })
+                ]
+              },
+              option.value
+            );
+          }),
+          showCreate && /* @__PURE__ */ jsxs(
             "li",
             {
               role: "option",
-              "aria-selected": isSelected,
-              "aria-disabled": option.disabled || void 0,
+              "aria-selected": false,
               onMouseDown: (e) => {
                 e.preventDefault();
-                toggle(option);
+                void create();
               },
-              onMouseEnter: () => setHighlighted(index),
+              onMouseEnter: () => setHighlighted(filtered.length),
               className: cn(
-                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary",
-                highlighted === index && "bg-surface-overlay text-text-primary",
-                isSelected && "text-text-primary",
-                option.disabled && "cursor-not-allowed opacity-50"
+                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
+                highlighted === filtered.length && "bg-surface-overlay"
               ),
               children: [
-                /* @__PURE__ */ jsx("span", { className: "flex h-3.5 w-3.5 shrink-0 items-center justify-center text-accent-text", children: isSelected && /* @__PURE__ */ jsx(Check, { size: 12 }) }),
-                /* @__PURE__ */ jsxs("span", { className: "min-w-0 flex-1", children: [
-                  /* @__PURE__ */ jsx("span", { className: "block truncate", children: option.label }),
-                  option.sublabel && /* @__PURE__ */ jsx("span", { className: "block truncate text-xs text-text-muted", children: option.sublabel })
-                ] })
+                /* @__PURE__ */ jsx(Plus, { size: 12, "aria-hidden": "true", className: "shrink-0" }),
+                /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1 truncate", children: createLabel(trimmed) })
               ]
-            },
-            option.value
-          );
-        })
+            }
+          )
+        ]
       }
     )
   ] });
@@ -1000,6 +1070,135 @@ function SegmentedControl({
         }),
         name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: value ?? "", disabled })
       ]
+    }
+  );
+}
+var SegmentedChip = forwardRef(
+  ({ segments, label, className, ...props }, ref) => /* @__PURE__ */ jsxs(
+    "button",
+    {
+      ref,
+      ...props,
+      type: "button",
+      className: cn(
+        "relative flex h-6 w-full shrink-0 cursor-pointer items-center overflow-hidden rounded-md px-1.5 ring-1 ring-border transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+        className
+      ),
+      children: [
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", className: "absolute inset-0 flex", children: segments.map((segment, i) => /* @__PURE__ */ jsx("span", { className: "flex-1", style: { backgroundColor: segment.color } }, i)) }),
+        /* @__PURE__ */ jsx("span", { className: "relative z-10 truncate text-xs font-medium text-category-foreground text-shadow-xs", children: label })
+      ]
+    }
+  )
+);
+SegmentedChip.displayName = "SegmentedChip";
+var sizeClasses3 = {
+  sm: "h-3 w-3",
+  md: "h-4 w-4"
+};
+function StatusIndicator({
+  color,
+  label,
+  showLabel = false,
+  size = "md",
+  className
+}) {
+  return /* @__PURE__ */ jsxs("span", { className: cn("inline-flex items-center gap-2", className), children: [
+    /* @__PURE__ */ jsx(
+      "span",
+      {
+        ...showLabel ? { "aria-hidden": true } : { role: "img", "aria-label": label },
+        title: label,
+        className: cn("shrink-0 rounded-full", sizeClasses3[size]),
+        style: { backgroundColor: color }
+      }
+    ),
+    showLabel && /* @__PURE__ */ jsx("span", { className: "text-sm text-text-secondary", children: label })
+  ] });
+}
+function StatusLegend({ items, className }) {
+  return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-2 text-sm", className), children: items.map((item) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-text-secondary", children: [
+    /* @__PURE__ */ jsx(
+      "span",
+      {
+        "aria-hidden": "true",
+        className: "h-3 w-3 shrink-0 rounded-full",
+        style: { backgroundColor: item.color }
+      }
+    ),
+    item.label
+  ] }, item.label)) });
+}
+var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  CheckboxPrimitive.Root,
+  {
+    ref,
+    className: cn(
+      "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground",
+      className
+    ),
+    ...props,
+    children: /* @__PURE__ */ jsx(CheckboxPrimitive.Indicator, { className: "flex items-center justify-center", children: /* @__PURE__ */ jsx(Check, { size: 12, strokeWidth: 3 }) })
+  }
+));
+Checkbox.displayName = "Checkbox";
+function CheckboxGroup({
+  value,
+  onChange,
+  options,
+  name,
+  orientation = "horizontal",
+  disabled = false,
+  className,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy
+}) {
+  const baseId = useId();
+  function toggle(optionValue, checked) {
+    if (checked) {
+      if (!value.includes(optionValue)) onChange([...value, optionValue]);
+    } else {
+      onChange(value.filter((v) => v !== optionValue));
+    }
+  }
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      role: "group",
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      className: cn(
+        orientation === "vertical" ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-4",
+        className
+      ),
+      children: options.map((option, index) => {
+        const id = `${baseId}-${index}`;
+        const isDisabled = disabled || option.disabled;
+        return /* @__PURE__ */ jsxs("div", { className: "inline-flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(
+            Checkbox,
+            {
+              id,
+              name,
+              value: option.value,
+              checked: value.includes(option.value),
+              disabled: isDisabled,
+              onCheckedChange: (checked) => toggle(option.value, checked === true)
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            Label,
+            {
+              htmlFor: id,
+              className: cn(
+                "text-sm text-text-secondary",
+                isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+              ),
+              children: option.label
+            }
+          )
+        ] }, option.value);
+      })
     }
   );
 }
@@ -1114,19 +1313,6 @@ var RichTextEditor = forwardRef(
     );
   }
 );
-var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  CheckboxPrimitive.Root,
-  {
-    ref,
-    className: cn(
-      "peer h-4 w-4 shrink-0 rounded border border-border bg-surface-raised transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground",
-      className
-    ),
-    ...props,
-    children: /* @__PURE__ */ jsx(CheckboxPrimitive.Indicator, { className: "flex items-center justify-center", children: /* @__PURE__ */ jsx(Check, { size: 12, strokeWidth: 3 }) })
-  }
-));
-Checkbox.displayName = "Checkbox";
 var Switch = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   SwitchPrimitive.Root,
   {
@@ -1508,22 +1694,160 @@ var TooltipContent = forwardRef(({ className, sideOffset = 4, ...props }, ref) =
   }
 ) }));
 TooltipContent.displayName = "TooltipContent";
-var Popover = PopoverPrimitive.Root;
-var PopoverTrigger = PopoverPrimitive.Trigger;
-var PopoverAnchor = PopoverPrimitive.Anchor;
-var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
-  PopoverPrimitive.Content,
-  {
-    ref,
-    align,
-    sideOffset,
-    className: cn(
-      "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-      className
-    ),
-    ...props
+var HoverContext = createContext(null);
+var pinnedPopover = null;
+function Popover({
+  openOnHover = false,
+  hoverOpenDelayMs = 150,
+  hoverCloseDelayMs = 120,
+  ...props
+}) {
+  if (!openOnHover) return /* @__PURE__ */ jsx(PopoverPrimitive.Root, { ...props });
+  return /* @__PURE__ */ jsx(HoverPopover, { hoverOpenDelayMs, hoverCloseDelayMs, ...props });
+}
+function HoverPopover({
+  hoverOpenDelayMs,
+  hoverCloseDelayMs,
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const [pinned, setPinned] = useState(false);
+  const id = useRef(/* @__PURE__ */ Symbol("popover")).current;
+  const timer = useRef(null);
+  const clearTimer = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const setOpen = useCallback(
+    (next) => {
+      if (controlledOpen === void 0) setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [controlledOpen, onOpenChange]
+  );
+  const pin = (next) => {
+    setPinned(next);
+    if (next) pinnedPopover = id;
+    else if (pinnedPopover === id) pinnedPopover = null;
+  };
+  useEffect(() => {
+    if (!open && pinned) pin(false);
+  });
+  useEffect(
+    () => () => {
+      clearTimer();
+      if (pinnedPopover === id) pinnedPopover = null;
+    },
+    [id]
+  );
+  const controls = {
+    pinned,
+    onTriggerEnter: () => {
+      if (pinned || pinnedPopover && pinnedPopover !== id) return;
+      clearTimer();
+      timer.current = setTimeout(() => setOpen(true), hoverOpenDelayMs);
+    },
+    onLeave: () => {
+      clearTimer();
+      if (pinned || !open) return;
+      timer.current = setTimeout(() => setOpen(false), hoverCloseDelayMs);
+    },
+    onContentEnter: clearTimer,
+    onTriggerClick: () => {
+      clearTimer();
+      if (pinned) {
+        pin(false);
+        setOpen(false);
+      } else {
+        pin(true);
+        setOpen(true);
+      }
+    }
+  };
+  return /* @__PURE__ */ jsx(HoverContext.Provider, { value: controls, children: /* @__PURE__ */ jsx(
+    PopoverPrimitive.Root,
+    {
+      ...props,
+      open,
+      onOpenChange: (next) => {
+        if (!next) pin(false);
+        setOpen(next);
+      }
+    }
+  ) });
+}
+var PopoverTrigger = forwardRef(({ onClick, onPointerEnter, onPointerLeave, ...props }, ref) => {
+  const hover = useContext(HoverContext);
+  if (!hover) {
+    return /* @__PURE__ */ jsx(
+      PopoverPrimitive.Trigger,
+      {
+        ref,
+        onClick,
+        onPointerEnter,
+        onPointerLeave,
+        ...props
+      }
+    );
   }
-) }));
+  return /* @__PURE__ */ jsx(
+    PopoverPrimitive.Trigger,
+    {
+      ref,
+      ...props,
+      onClick: (e) => {
+        onClick?.(e);
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        hover.onTriggerClick();
+      },
+      onPointerEnter: (e) => {
+        onPointerEnter?.(e);
+        if (e.pointerType !== "touch") hover.onTriggerEnter();
+      },
+      onPointerLeave: (e) => {
+        onPointerLeave?.(e);
+        hover.onLeave();
+      }
+    }
+  );
+});
+PopoverTrigger.displayName = "PopoverTrigger";
+var PopoverAnchor = PopoverPrimitive.Anchor;
+var PopoverContent = forwardRef(
+  ({ className, align = "center", sideOffset = 4, onOpenAutoFocus, onPointerEnter, onPointerLeave, ...props }, ref) => {
+    const hover = useContext(HoverContext);
+    return /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+      PopoverPrimitive.Content,
+      {
+        ref,
+        align,
+        sideOffset,
+        onOpenAutoFocus: (e) => {
+          onOpenAutoFocus?.(e);
+          if (hover && !hover.pinned) e.preventDefault();
+        },
+        onPointerEnter: (e) => {
+          onPointerEnter?.(e);
+          hover?.onContentEnter();
+        },
+        onPointerLeave: (e) => {
+          onPointerLeave?.(e);
+          hover?.onLeave();
+        },
+        className: cn(
+          "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          className
+        ),
+        ...props
+      }
+    ) });
+  }
+);
 PopoverContent.displayName = "PopoverContent";
 var ScrollArea = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(ScrollAreaPrimitive.Root, { ref, className: cn("relative overflow-hidden", className), ...props, children: [
   /* @__PURE__ */ jsx(ScrollAreaPrimitive.Viewport, { className: "h-full w-full rounded-[inherit]", children }),
@@ -1635,6 +1959,11 @@ function PageHeader({ title, description, actions, className }) {
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
 }
+var alignClasses = {
+  left: { cell: "text-left", header: "text-left", content: "justify-start" },
+  right: { cell: "text-right", header: "text-right", content: "justify-end" },
+  center: { cell: "text-center", header: "text-center", content: "justify-center" }
+};
 var UNSET = /* @__PURE__ */ Symbol("DataTable.resetPageOn.unset");
 function DataTable({
   columns,
@@ -1645,12 +1974,22 @@ function DataTable({
   getRowId,
   enableSelection = false,
   emptyMessage = "No results.",
-  resetPageOn = UNSET
+  resetPageOn = UNSET,
+  rowClassName,
+  sorting: controlledSorting,
+  onSortingChange,
+  manualSorting = false
 }) {
-  const [sorting, setSorting] = useState([]);
+  const [internalSorting, setInternalSorting] = useState([]);
+  const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const driven = resetPageOn !== UNSET;
+  function handleSortingChange(updater) {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    if (controlledSorting === void 0) setInternalSorting(next);
+    onSortingChange?.(next);
+  }
   const table = useReactTable({
     data,
     columns,
@@ -1659,7 +1998,8 @@ function DataTable({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: paginate ? getPaginationRowModel() : void 0,
     getRowId: getRowId ? (row) => getRowId(row) : void 0,
-    onSortingChange: setSorting,
+    manualSorting,
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
@@ -1677,21 +2017,37 @@ function DataTable({
   }, [driven, resetPageOn, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: headerGroup.headers.map((header) => /* @__PURE__ */ jsx(
-        "th",
-        {
-          className: cn(
-            "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
-            header.column.getCanSort() && "cursor-pointer select-none"
-          ),
-          onClick: header.column.getToggleSortingHandler(),
-          children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
-            header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext()),
-            header.column.getCanSort() && /* @__PURE__ */ jsx(ArrowUpDown, { size: 12, className: "text-text-faint" })
-          ] })
-        },
-        header.id
-      )) }, headerGroup.id)) }),
+      /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: headerGroup.headers.map((header) => {
+        const meta = header.column.columnDef.meta;
+        const align = alignClasses[meta?.align ?? "left"];
+        const sorted = header.column.getIsSorted();
+        const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+        return /* @__PURE__ */ jsx(
+          "th",
+          {
+            "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
+            className: cn(
+              "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
+              align.header,
+              header.column.getCanSort() && "cursor-pointer select-none",
+              meta?.headerClassName
+            ),
+            onClick: header.column.getToggleSortingHandler(),
+            children: /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1", align.content), children: [
+              header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext()),
+              header.column.getCanSort() && /* @__PURE__ */ jsx(
+                SortIcon,
+                {
+                  size: 12,
+                  "aria-hidden": "true",
+                  className: sorted ? "text-text-secondary" : "text-text-faint"
+                }
+              )
+            ] })
+          },
+          header.id
+        );
+      }) }, headerGroup.id)) }),
       /* @__PURE__ */ jsx("tbody", { children: table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => /* @__PURE__ */ jsx(
         "tr",
         {
@@ -1723,10 +2079,23 @@ function DataTable({
             !row.getIsSelected() && "hover:bg-table-row-hover",
             // Last, so twMerge drops the stripe from a selected row: a row gets
             // one background, and selection is the one that means something.
-            row.getIsSelected() && "bg-accent-muted"
+            row.getIsSelected() && "bg-accent-muted",
+            // The caller's, last of all, so a row tint or `opacity-60` wins.
+            rowClassName?.(row.original)
           ),
           onClick: () => onRowClick?.(row.original),
-          children: row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: flexRender(cell.column.columnDef.cell, cell.getContext()) }, cell.id))
+          children: row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx(
+            "td",
+            {
+              className: cn(
+                "px-3 py-2 text-text-secondary",
+                cell.column.columnDef.meta?.align && alignClasses[cell.column.columnDef.meta.align].cell,
+                cell.column.columnDef.meta?.className
+              ),
+              children: flexRender(cell.column.columnDef.cell, cell.getContext())
+            },
+            cell.id
+          ))
         },
         row.id
       )) : /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: columns.length, className: "px-3 py-8 text-center text-text-muted", children: emptyMessage }) }) })
@@ -1948,6 +2317,7 @@ function SearchSelect({
   options,
   loading = false,
   placeholder = "Search...",
+  emptyMessage = "No results",
   className,
   id,
   ariaLabel,
@@ -1958,7 +2328,9 @@ function SearchSelect({
   optionClassName,
   clearable = true,
   renderOption,
-  autoFocus = false
+  autoFocus = false,
+  onCreate,
+  createLabel = (input) => `Create "${input}"`
 }) {
   const [open, setOpen] = useState(autoFocus);
   const [query, setQuery] = useState("");
@@ -1972,6 +2344,9 @@ function SearchSelect({
   const optionId = (i) => `${listboxId}-option-${i}`;
   const requiredHintId = `${listboxId}-required`;
   const selectedOption = options.find((o) => o.value === value);
+  const trimmed = query.trim();
+  const showCreate = !!onCreate && !loading && trimmed.length > 0 && !options.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
+  const rowCount = options.length + (showCreate ? 1 : 0);
   useEffect(() => {
     function handleClickOutside(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -2019,6 +2394,13 @@ function SearchSelect({
     },
     [onChange, closeList, cancelPendingSearch]
   );
+  const handleCreate = useCallback(async () => {
+    if (!onCreate || !trimmed) return;
+    cancelPendingSearch();
+    await onCreate(trimmed);
+    setQuery("");
+    closeList();
+  }, [onCreate, trimmed, cancelPendingSearch, closeList]);
   const handleClear = useCallback(
     (e) => {
       e.stopPropagation();
@@ -2049,8 +2431,8 @@ function SearchSelect({
             openList(options.length ? 0 : -1);
             return;
           }
-          if (options.length === 0) return;
-          setActiveIndex((i) => (i + 1) % options.length);
+          if (rowCount === 0) return;
+          setActiveIndex((i) => (i + 1) % rowCount);
           break;
         }
         case "ArrowUp": {
@@ -2059,14 +2441,17 @@ function SearchSelect({
             openList(options.length ? options.length - 1 : -1);
             return;
           }
-          if (options.length === 0) return;
-          setActiveIndex((i) => i <= 0 ? options.length - 1 : i - 1);
+          if (rowCount === 0) return;
+          setActiveIndex((i) => i <= 0 ? rowCount - 1 : i - 1);
           break;
         }
         case "Enter": {
           if (open && activeIndex >= 0 && options[activeIndex]) {
             e.preventDefault();
             handleSelect(options[activeIndex].value);
+          } else if (open && showCreate && activeIndex === options.length) {
+            e.preventDefault();
+            void handleCreate();
           }
           break;
         }
@@ -2079,7 +2464,7 @@ function SearchSelect({
         }
       }
     },
-    [open, options, activeIndex, openList, closeList, handleSelect]
+    [open, options, activeIndex, openList, closeList, handleSelect, rowCount, showCreate, handleCreate]
   );
   return /* @__PURE__ */ jsxs("div", { ref, onBlur: handleBlur, className: cn("relative", className), children: [
     /* @__PURE__ */ jsxs(
@@ -2158,29 +2543,52 @@ function SearchSelect({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx("div", { ref: listRef, role: "listbox", id: listboxId, className: "max-h-60 overflow-y-auto py-1", children: loading ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "Searching..." }) : options.length === 0 ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "No results" }) : options.map((option, i) => /* @__PURE__ */ jsx(
-            "button",
-            {
-              id: optionId(i),
-              role: "option",
-              "aria-selected": option.value === value,
-              type: "button",
-              tabIndex: -1,
-              onClick: () => handleSelect(option.value),
-              onMouseEnter: () => setActiveIndex(i),
-              className: cn(
-                "flex w-full items-center px-3 py-1.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-overlay",
-                i === activeIndex && "bg-surface-overlay",
-                option.value === value && "bg-accent-muted text-accent-text",
-                optionClassName
-              ),
-              children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
-                /* @__PURE__ */ jsx("div", { children: option.label }),
-                option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
-              ] })
-            },
-            option.value
-          )) })
+          /* @__PURE__ */ jsxs("div", { ref: listRef, role: "listbox", id: listboxId, className: "max-h-60 overflow-y-auto py-1", children: [
+            loading ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "Searching..." }) : options.length === 0 && !showCreate ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: emptyMessage }) : options.map((option, i) => /* @__PURE__ */ jsx(
+              "button",
+              {
+                id: optionId(i),
+                role: "option",
+                "aria-selected": option.value === value,
+                type: "button",
+                tabIndex: -1,
+                onClick: () => handleSelect(option.value),
+                onMouseEnter: () => setActiveIndex(i),
+                className: cn(
+                  "flex w-full items-center px-3 py-1.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-overlay",
+                  i === activeIndex && "bg-surface-overlay",
+                  option.value === value && "bg-accent-muted text-accent-text",
+                  optionClassName
+                ),
+                children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
+                  /* @__PURE__ */ jsx("div", { children: option.label }),
+                  option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
+                ] })
+              },
+              option.value
+            )),
+            showCreate && /* @__PURE__ */ jsxs(
+              "button",
+              {
+                id: optionId(options.length),
+                role: "option",
+                "aria-selected": false,
+                type: "button",
+                tabIndex: -1,
+                onClick: () => void handleCreate(),
+                onMouseEnter: () => setActiveIndex(options.length),
+                className: cn(
+                  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
+                  activeIndex === options.length && "bg-surface-overlay",
+                  optionClassName
+                ),
+                children: [
+                  /* @__PURE__ */ jsx(Plus, { size: 12, "aria-hidden": "true", className: "shrink-0" }),
+                  /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate", children: createLabel(trimmed) })
+                ]
+              }
+            )
+          ] })
         ]
       }
     )
@@ -3113,6 +3521,1066 @@ function MonthCalendar({
     ] })
   ] });
 }
+var WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function parseMonth(month) {
+  const [year, m] = month.split("-").map(Number);
+  return { year, month: m };
+}
+function formatMonth({ year, month }) {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+function format(date, options) {
+  return date.toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
+}
+function EventCalendar({
+  month,
+  onMonthChange,
+  itemsByDate,
+  renderItem,
+  itemKey,
+  maxVisibleItems = 3,
+  loading = false,
+  overflowPopoverTitle,
+  overflowAriaLabel,
+  ariaLabel,
+  className
+}) {
+  const todayIso = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const currentMonth = todayIso.slice(0, 7);
+  const shown = parseMonth(month);
+  const monthTitle = monthLabel(shown);
+  const cells = useMemo(() => {
+    const { year, month: m } = parseMonth(month);
+    const firstDow = new Date(Date.UTC(year, m - 1, 1)).getUTCDay();
+    const total = Math.ceil((firstDow + daysInMonth(year, m)) / 7) * 7;
+    return Array.from({ length: total }, (_, i) => {
+      const date = new Date(Date.UTC(year, m - 1, 1 - firstDow + i));
+      const dow = date.getUTCDay();
+      return {
+        date,
+        iso: date.toISOString().slice(0, 10),
+        inMonth: date.getUTCMonth() === m - 1,
+        isWeekend: dow === 0 || dow === 6
+      };
+    });
+  }, [month]);
+  const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${format(/* @__PURE__ */ new Date(`${isoDate}T00:00:00Z`), { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
+  const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${format(/* @__PURE__ */ new Date(`${isoDate}T00:00:00Z`), { month: "long", day: "numeric" })}`);
+  return /* @__PURE__ */ jsxs("div", { className, children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4", children: [
+      /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold text-text-primary", "aria-live": "polite", children: monthTitle }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsx(
+          Button,
+          {
+            type: "button",
+            variant: "outline",
+            disabled: month === currentMonth || loading,
+            onClick: () => onMonthChange(currentMonth),
+            children: "Today"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          Button,
+          {
+            type: "button",
+            variant: "outline",
+            size: "icon",
+            "aria-label": "Previous month",
+            disabled: loading,
+            onClick: () => onMonthChange(formatMonth(shiftMonth(shown, -1))),
+            children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16, "aria-hidden": "true" })
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          Button,
+          {
+            type: "button",
+            variant: "outline",
+            size: "icon",
+            "aria-label": "Next month",
+            disabled: loading,
+            onClick: () => onMonthChange(formatMonth(shiftMonth(shown, 1))),
+            children: /* @__PURE__ */ jsx(ChevronRight, { size: 16, "aria-hidden": "true" })
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "relative pt-4", children: [
+      loading && /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-20 flex items-center justify-center bg-bg/60", children: /* @__PURE__ */ jsx(Spinner, { size: "sm" }) }),
+      /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("div", { className: "min-w-[700px]", children: [
+        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7", children: WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
+          "div",
+          {
+            className: "py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted",
+            children: label
+          },
+          label
+        )) }),
+        /* @__PURE__ */ jsx(
+          "div",
+          {
+            role: "grid",
+            "aria-label": ariaLabel ?? `Calendar, ${monthTitle}`,
+            className: "divide-y divide-border overflow-hidden rounded-lg border border-border",
+            children: Array.from({ length: cells.length / 7 }, (_, week) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: cells.slice(week * 7, week * 7 + 7).map((cell) => {
+              const items = cell.inMonth ? itemsByDate.get(cell.iso) || [] : [];
+              const visible = items.slice(0, maxVisibleItems);
+              const overflow = items.length - visible.length;
+              const isToday = cell.inMonth && cell.iso === todayIso;
+              return /* @__PURE__ */ jsxs(
+                "div",
+                {
+                  role: "gridcell",
+                  "aria-label": format(cell.date, { weekday: "long", month: "long", day: "numeric" }),
+                  "aria-current": isToday ? "date" : void 0,
+                  className: cn(
+                    "flex min-h-[96px] flex-col gap-1 p-1.5 lg:min-h-[112px]",
+                    !cell.inMonth ? "bg-bg" : cell.isWeekend ? "bg-surface-raised" : "bg-surface"
+                  ),
+                  children: [
+                    /* @__PURE__ */ jsx(
+                      "span",
+                      {
+                        className: cn(
+                          "flex h-5 w-5 items-center justify-center rounded-full text-xs tabular-nums",
+                          isToday ? "bg-accent font-semibold text-accent-foreground" : cell.inMonth ? "font-medium text-text-secondary" : "font-medium text-text-faint"
+                        ),
+                        children: cell.date.getUTCDate()
+                      }
+                    ),
+                    visible.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso))),
+                    overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
+                      /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
+                        Button,
+                        {
+                          type: "button",
+                          variant: "ghost",
+                          size: "sm",
+                          "aria-label": ariaLabelOf(cell.iso, overflow),
+                          className: "h-6 w-full justify-start px-1.5 text-text-muted",
+                          children: `+${overflow} more`
+                        }
+                      ) }),
+                      /* @__PURE__ */ jsxs(
+                        PopoverContent,
+                        {
+                          align: "start",
+                          "aria-label": `Items on ${format(cell.date, { month: "long", day: "numeric" })}`,
+                          className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
+                          children: [
+                            /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(cell.iso, items.length) }),
+                            items.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso)))
+                          ]
+                        }
+                      )
+                    ] })
+                  ]
+                },
+                cell.iso
+              );
+            }) }, week))
+          }
+        )
+      ] }) })
+    ] })
+  ] });
+}
+
+// src/lib/timesheet.ts
+function createDefaultApi(baseUrl = "", extraHeaders = {}) {
+  const headers = (contentType) => ({
+    ...extraHeaders,
+    ...contentType ? { "Content-Type": contentType } : {}
+  });
+  return {
+    async fetchTimeEntries(params) {
+      const searchParams = new URLSearchParams({
+        startDate: params.startDate,
+        endDate: params.endDate
+      });
+      const res = await fetch(`${baseUrl}/api/my-timesheets/entries?${searchParams}`, {
+        headers: headers()
+      });
+      if (!res.ok) throw new Error("Failed to fetch time entries");
+      return res.json();
+    },
+    async fetchExpectedHours(params) {
+      const searchParams = new URLSearchParams({
+        startDate: params.startDate,
+        endDate: params.endDate
+      });
+      const res = await fetch(`${baseUrl}/api/my-timesheets/expected-hours?${searchParams}`, {
+        headers: headers()
+      });
+      if (!res.ok) throw new Error("Failed to fetch expected hours");
+      return res.json();
+    },
+    async saveTimesheet(entries) {
+      const res = await fetch(`${baseUrl}/api/my-timesheets/save`, {
+        method: "POST",
+        headers: headers("application/json"),
+        body: JSON.stringify({ entries })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+      return res.json();
+    }
+  };
+}
+function parseUTCDate(dateStr) {
+  return /* @__PURE__ */ new Date(dateStr + "T00:00:00.000Z");
+}
+function toISODate(date) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function datePart(iso) {
+  return iso.split("T")[0];
+}
+function getDaysInMonth(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+}
+function formatMonthYear(date) {
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+function getMonday(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - day + (day === 0 ? -6 : 1));
+  return d;
+}
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+function formatShortDate(date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+function formatWeekRange(monday) {
+  const sunday = addDays(monday, 6);
+  const monStr = formatShortDate(monday);
+  const sunStr = sunday.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+  return `${monStr} \u2013 ${sunStr}`;
+}
+function getFirstOfMonth(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+function getLastOfMonth(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+}
+function cellKey(contractId, date) {
+  return `${contractId}::${date}`;
+}
+function parseCellKey(key) {
+  const [contractIdStr, date] = key.split("::");
+  return { contractId: parseInt(contractIdStr), date };
+}
+function contractCoversDay(contract, date) {
+  return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);
+}
+var DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+var hoursInputClass = "h-8 px-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+function dayLabel(date, weekday = "short") {
+  return (/* @__PURE__ */ new Date(date + "T00:00:00.000Z")).toLocaleDateString("en-US", {
+    weekday,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+}
+function isTimeOffDay(date, timeOffs) {
+  return timeOffs.some((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
+}
+function MonthlyCalendarGrid({
+  monthDate,
+  gridData,
+  contracts,
+  timeOffs,
+  today,
+  selectedDay,
+  onDaySelect,
+  onCellChange
+}) {
+  const year = monthDate.getUTCFullYear();
+  const month = monthDate.getUTCMonth();
+  const inlineInputRef = useRef(null);
+  useEffect(() => {
+    if (selectedDay && inlineInputRef.current) {
+      inlineInputRef.current.focus();
+      inlineInputRef.current.select();
+    }
+  }, [selectedDay]);
+  const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+  const cells = Array(startDow).fill(null);
+  for (let d = 1; d <= getDaysInMonth(monthDate); d++) {
+    cells.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  const dayTotal = (date) => contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsx("div", { className: "mb-px grid grid-cols-7 gap-px", children: DAY_HEADERS.map((label, i) => /* @__PURE__ */ jsx(
+      "div",
+      {
+        className: cn(
+          "py-2 text-center text-xs font-medium uppercase tracking-wider",
+          i >= 5 ? "text-text-faint" : "text-text-muted"
+        ),
+        children: label
+      },
+      label
+    )) }),
+    /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border", children: cells.map((date, idx) => {
+      if (!date) return /* @__PURE__ */ jsx("div", { className: "min-h-[72px] bg-bg" }, `empty-${idx}`);
+      const dow = (/* @__PURE__ */ new Date(date + "T00:00:00.000Z")).getUTCDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const isToday = date === today;
+      const isSelected = date === selectedDay;
+      const total = dayTotal(date);
+      const hasTimeOff = isTimeOffDay(date, timeOffs);
+      const isMissingHours = !isWeekend && date < today && total === 0 && !hasTimeOff;
+      const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
+      const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : isWeekend ? "bg-surface-raised" : "bg-surface";
+      const header = /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between", children: [
+        /* @__PURE__ */ jsx(
+          "span",
+          {
+            className: cn(
+              "text-sm font-medium tabular-nums",
+              isToday ? "text-accent-text" : isWeekend ? "text-text-faint" : "text-text-primary"
+            ),
+            children: parseInt(date.split("-")[2])
+          }
+        ),
+        hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" })
+      ] });
+      if (isSelected && dayContracts.length === 1) {
+        const contract = dayContracts[0];
+        return /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: cn("min-h-[72px] p-2 ring-2 ring-inset ring-accent", background),
+            children: [
+              header,
+              /* @__PURE__ */ jsx(
+                Input,
+                {
+                  ref: inlineInputRef,
+                  type: "number",
+                  step: "0.25",
+                  min: "0",
+                  max: "24",
+                  "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
+                  value: gridData[cellKey(contract.id, date)] ?? "",
+                  onChange: (e) => onCellChange(contract.id, date, e.target.value),
+                  onFocus: (e) => e.target.select(),
+                  onKeyDown: (e) => {
+                    if (e.key === "Escape") onDaySelect(date);
+                  },
+                  placeholder: "\u2013",
+                  className: cn(hoursInputClass, "mt-1 h-7")
+                }
+              )
+            ]
+          },
+          date
+        );
+      }
+      return /* @__PURE__ */ jsxs(
+        Button,
+        {
+          type: "button",
+          variant: "ghost",
+          "aria-pressed": isSelected,
+          "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`,
+          onClick: () => onDaySelect(date),
+          className: cn(
+            // A whole calendar cell, not an inline button: stacked, square, full height.
+            "flex h-auto min-h-[72px] w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
+            background,
+            "hover:bg-surface-overlay",
+            isSelected && "ring-2 ring-inset ring-accent"
+          ),
+          children: [
+            header,
+            total > 0 && /* @__PURE__ */ jsxs("div", { className: "mt-1 text-xs font-semibold tabular-nums text-text-primary", children: [
+              total,
+              "h"
+            ] }),
+            isMissingHours && /* @__PURE__ */ jsx("div", { className: "mt-1 text-[10px] text-error-text", children: "No hours" })
+          ]
+        },
+        date
+      );
+    }) })
+  ] });
+}
+function DayDetailPanel({
+  selectedDay,
+  contracts,
+  gridData,
+  onCellChange,
+  onClose
+}) {
+  const inputRefs = useRef([]);
+  const panelRef = useRef(null);
+  useEffect(() => {
+    inputRefs.current = inputRefs.current.slice(0, contracts.length);
+  }, [contracts.length]);
+  useEffect(() => {
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedDay]);
+  const focusRow = (idx) => {
+    inputRefs.current[idx]?.focus();
+    inputRefs.current[idx]?.select();
+  };
+  const handleKeyDown = (e, idx) => {
+    if (e.key === "ArrowUp" || e.key === "Tab" && e.shiftKey) {
+      if (idx > 0) {
+        e.preventDefault();
+        focusRow(idx - 1);
+      }
+    } else if (e.key === "ArrowDown" || e.key === "Enter" || e.key === "Tab" && !e.shiftKey) {
+      if (idx < contracts.length - 1) {
+        e.preventDefault();
+        focusRow(idx + 1);
+      }
+    }
+  };
+  const total = contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, selectedDay)] || 0), 0);
+  return /* @__PURE__ */ jsx("div", { ref: panelRef, children: /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-3 pb-3 pt-2", children: [
+      /* @__PURE__ */ jsx("h3", { className: "text-sm font-semibold text-text-primary", children: dayLabel(selectedDay, "long") }),
+      /* @__PURE__ */ jsx(Button, { type: "button", variant: "ghost", size: "icon", "aria-label": "Close", onClick: onClose, children: /* @__PURE__ */ jsx(X, { size: 14 }) })
+    ] }),
+    /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
+      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
+        /* @__PURE__ */ jsx("th", { className: "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted", children: "Contract" }),
+        /* @__PURE__ */ jsx("th", { className: "w-[100px] px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted", children: "Hours" })
+      ] }) }),
+      /* @__PURE__ */ jsxs("tbody", { children: [
+        contracts.length === 0 && /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 2, className: "py-6 text-center text-text-muted", children: "No active contracts for this day." }) }),
+        contracts.map((contract, idx) => /* @__PURE__ */ jsxs(
+          "tr",
+          {
+            className: "border-b border-border-subtle hover:bg-table-row-hover",
+            children: [
+              /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+              /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(
+                Input,
+                {
+                  ref: (el) => {
+                    inputRefs.current[idx] = el;
+                  },
+                  type: "number",
+                  step: "0.25",
+                  min: "0",
+                  max: "24",
+                  "aria-label": `Hours for ${contract.projectName} on ${dayLabel(selectedDay)}`,
+                  value: gridData[cellKey(contract.id, selectedDay)] ?? "",
+                  disabled: !contractCoversDay(contract, selectedDay),
+                  onChange: (e) => onCellChange(contract.id, selectedDay, e.target.value),
+                  onFocus: (e) => e.target.select(),
+                  onKeyDown: (e) => handleKeyDown(e, idx),
+                  placeholder: contractCoversDay(contract, selectedDay) ? "\u2013" : "",
+                  className: hoursInputClass
+                }
+              ) })
+            ]
+          },
+          contract.id
+        ))
+      ] }),
+      /* @__PURE__ */ jsx("tfoot", { children: /* @__PURE__ */ jsxs("tr", { className: "border-t-2 border-border", children: [
+        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-xs font-medium uppercase text-text-muted", children: "Total" }),
+        /* @__PURE__ */ jsx(
+          "td",
+          {
+            className: cn(
+              "px-3 py-2 text-center font-semibold tabular-nums",
+              total > 0 ? "text-text-primary" : "text-text-faint"
+            ),
+            children: total > 0 ? `${total}h` : "\u2013"
+          }
+        )
+      ] }) })
+    ] })
+  ] }) });
+}
+function ContractName({ contract }) {
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx("div", { className: "truncate text-sm font-medium text-text-primary", children: contract.projectName }),
+    /* @__PURE__ */ jsxs("div", { className: "truncate text-xs text-text-muted", children: [
+      contract.customerName,
+      " \xB7 ",
+      contract.name
+    ] })
+  ] });
+}
+var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+var VIEW_OPTIONS = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" }
+];
+var AUTOSAVE_DELAY_MS = 15e3;
+var REVERT_WINDOW_MS = 5e3;
+var headClass = "px-2 py-3 text-xs font-medium uppercase tracking-wider";
+function HoursSummary({
+  loggedHours,
+  expectedHours,
+  ptoHours
+}) {
+  const hasExpected = expectedHours > 0;
+  const percentage = hasExpected ? Math.min(loggedHours / expectedHours * 100, 100) : 0;
+  const isComplete = hasExpected && loggedHours >= expectedHours;
+  const isOver = hasExpected && loggedHours > expectedHours;
+  return /* @__PURE__ */ jsxs(Card, { padding: "md", children: [
+    /* @__PURE__ */ jsxs("div", { className: "mb-3 flex items-center justify-between gap-3", children: [
+      /* @__PURE__ */ jsxs("p", { className: "text-sm text-text-secondary", children: [
+        /* @__PURE__ */ jsxs("span", { className: "font-semibold tabular-nums text-text-primary", children: [
+          loggedHours,
+          "h"
+        ] }),
+        " of",
+        " ",
+        /* @__PURE__ */ jsxs("span", { className: "font-semibold tabular-nums text-text-primary", children: [
+          expectedHours,
+          "h"
+        ] }),
+        " ",
+        "expected"
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+        ptoHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
+          ptoHours,
+          "h time off"
+        ] }),
+        hasExpected && (isOver ? /* @__PURE__ */ jsxs(Badge, { variant: "warning", children: [
+          "+",
+          loggedHours - expectedHours,
+          "h over"
+        ] }) : isComplete ? /* @__PURE__ */ jsx(Badge, { variant: "success", children: "Complete" }) : /* @__PURE__ */ jsxs(Badge, { children: [
+          Math.max(0, expectedHours - loggedHours),
+          "h remaining"
+        ] }))
+      ] })
+    ] }),
+    hasExpected && /* @__PURE__ */ jsx("div", { "aria-hidden": "true", className: "h-2 overflow-hidden rounded-full bg-surface-overlay", children: /* @__PURE__ */ jsx(
+      "div",
+      {
+        className: cn(
+          "h-full rounded-full transition-all duration-500",
+          isOver ? "bg-warning" : isComplete ? "bg-success" : "bg-error"
+        ),
+        style: { width: `${percentage}%` }
+      }
+    ) })
+  ] });
+}
+function TimesheetTable({
+  userId,
+  userFullName,
+  contracts,
+  api: apiOverrides,
+  baseUrl = "",
+  apiHeaders,
+  defaultView = "weekly",
+  onViewChange,
+  onNavigate,
+  initialWeek,
+  initialMonth,
+  title = "My Timesheets",
+  className
+}) {
+  const api = useMemo(() => {
+    const defaultApi = createDefaultApi(baseUrl, apiHeaders);
+    return {
+      fetchTimeEntries: apiOverrides?.fetchTimeEntries ?? defaultApi.fetchTimeEntries,
+      fetchExpectedHours: apiOverrides?.fetchExpectedHours ?? defaultApi.fetchExpectedHours,
+      saveTimesheet: apiOverrides?.saveTimesheet ?? defaultApi.saveTimesheet
+    };
+  }, [apiOverrides, baseUrl, apiHeaders]);
+  const [viewMode, setViewMode] = useState(defaultView);
+  const [weekStart, setWeekStart] = useState(() => {
+    if (initialWeek) {
+      const parsed = parseUTCDate(initialWeek);
+      if (!isNaN(parsed.getTime())) return getMonday(parsed);
+    }
+    return getMonday(/* @__PURE__ */ new Date());
+  });
+  const [monthDate, setMonthDate] = useState(() => {
+    if (initialMonth) {
+      const parsed = parseUTCDate(initialMonth + "-01");
+      if (!isNaN(parsed.getTime())) return getFirstOfMonth(parsed);
+    }
+    return getFirstOfMonth(/* @__PURE__ */ new Date());
+  });
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [gridData, setGridData] = useState({});
+  const [originalData, setOriginalData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [expectedHours, setExpectedHours] = useState(null);
+  const [ptoHours, setPtoHours] = useState(0);
+  const [timeOffs, setTimeOffs] = useState([]);
+  const inputRefs = useRef({});
+  const [revertSnapshot, setRevertSnapshot] = useState(null);
+  const autoSaveTimerRef = useRef(null);
+  const revertHideTimerRef = useRef(null);
+  const weekDates = Array.from({ length: 7 }, (_, i) => toISODate(addDays(weekStart, i)));
+  const weekEnd = addDays(weekStart, 6);
+  const today = toISODate(/* @__PURE__ */ new Date());
+  const rangeStart = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
+  const rangeEnd = viewMode === "weekly" ? weekEnd : getLastOfMonth(monthDate);
+  const activeContracts = contracts.filter((c) => {
+    if (!c.projectActive) return false;
+    return new Date(c.startDate) <= rangeEnd && new Date(c.endDate) >= rangeStart;
+  });
+  const selectedDayContracts = selectedDay ? contracts.filter((c) => c.projectActive && contractCoversDay(c, selectedDay)) : [];
+  const isDirty = JSON.stringify(gridData) !== JSON.stringify(originalData);
+  const clearTimer = (ref) => {
+    if (ref.current) {
+      clearTimeout(ref.current);
+      ref.current = null;
+    }
+  };
+  const fetchEntries = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const start = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
+      const end = viewMode === "weekly" ? addDays(weekStart, 6) : getLastOfMonth(monthDate);
+      const startDate = toISODate(start);
+      const endDate = toISODate(end);
+      const [entriesRes, expectedRes] = await Promise.all([
+        api.fetchTimeEntries({ userId, startDate, endDate }),
+        api.fetchExpectedHours({ startDate, endDate })
+      ]);
+      const newGrid = {};
+      for (const entry of entriesRes.timeEntries) {
+        newGrid[cellKey(entry.contractId, entry.date.split("T")[0])] = entry.hours;
+      }
+      setGridData(newGrid);
+      setOriginalData(newGrid);
+      setExpectedHours(expectedRes.expectedHours);
+      setPtoHours(expectedRes.ptoHours);
+      setTimeOffs(expectedRes.timeOffs || []);
+      setRevertSnapshot(null);
+      clearTimer(autoSaveTimerRef);
+      clearTimer(revertHideTimerRef);
+    } catch (error) {
+      console.error("Error fetching time entries:", error);
+      setLoadError(true);
+      toast.error("Failed to load time entries");
+    } finally {
+      setLoading(false);
+    }
+  }, [viewMode, weekStart, monthDate, userId, api]);
+  useEffect(() => {
+    fetchEntries();
+  }, [fetchEntries]);
+  useEffect(() => {
+    if (!onNavigate) return;
+    const params = viewMode === "monthly" ? { view: "monthly", month: toISODate(monthDate).slice(0, 7) } : { view: "weekly", week: toISODate(weekStart) };
+    onNavigate(params);
+  }, [viewMode, weekStart, monthDate, onNavigate]);
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+  const handleCellChange = (contractId, date, value) => {
+    const key = cellKey(contractId, date);
+    if (value === "" || value === null) {
+      setGridData((prev) => ({ ...prev, [key]: null }));
+    } else {
+      const num = parseFloat(value);
+      if (!isNaN(num) && num >= 0 && num <= 24) {
+        setGridData((prev) => ({ ...prev, [key]: num }));
+      }
+    }
+  };
+  const persistDiff = useCallback(
+    async (snapshotBefore, gridNow) => {
+      const changedEntries = [];
+      const allKeys = /* @__PURE__ */ new Set([...Object.keys(gridNow), ...Object.keys(snapshotBefore)]);
+      for (const key of allKeys) {
+        const currentVal = gridNow[key] ?? null;
+        if (currentVal !== (snapshotBefore[key] ?? null)) {
+          const { contractId, date } = parseCellKey(key);
+          changedEntries.push({ contractId, date, hours: currentVal });
+        }
+      }
+      if (changedEntries.length === 0) return false;
+      await api.saveTimesheet(changedEntries);
+      return true;
+    },
+    [api]
+  );
+  const performAutoSave = useCallback(async () => {
+    clearTimer(autoSaveTimerRef);
+    const snapshotBefore = originalData;
+    const gridNow = gridData;
+    if (JSON.stringify(gridNow) === JSON.stringify(snapshotBefore)) return;
+    setSaving(true);
+    try {
+      const saved = await persistDiff(snapshotBefore, gridNow);
+      if (!saved) return;
+      setOriginalData({ ...gridNow });
+      setRevertSnapshot(snapshotBefore);
+      clearTimer(revertHideTimerRef);
+      revertHideTimerRef.current = setTimeout(() => {
+        setRevertSnapshot(null);
+        revertHideTimerRef.current = null;
+      }, REVERT_WINDOW_MS);
+    } catch (error) {
+      console.error("Error auto-saving timesheet:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save timesheet");
+    } finally {
+      setSaving(false);
+    }
+  }, [originalData, gridData, persistDiff]);
+  const flushPendingAutoSave = useCallback(async () => {
+    clearTimer(autoSaveTimerRef);
+    if (isDirty) await performAutoSave();
+  }, [isDirty, performAutoSave]);
+  const handleRevert = useCallback(async () => {
+    if (!revertSnapshot) return;
+    const snapshot = revertSnapshot;
+    setRevertSnapshot(null);
+    clearTimer(revertHideTimerRef);
+    clearTimer(autoSaveTimerRef);
+    const currentSaved = originalData;
+    setGridData(snapshot);
+    setOriginalData(snapshot);
+    setSaving(true);
+    try {
+      await persistDiff(currentSaved, snapshot);
+    } catch (error) {
+      console.error("Error reverting timesheet:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to revert changes");
+    } finally {
+      setSaving(false);
+    }
+  }, [revertSnapshot, originalData, persistDiff]);
+  useEffect(() => {
+    if (!isDirty || loading || saving) return;
+    if (revertSnapshot) {
+      setRevertSnapshot(null);
+      clearTimer(revertHideTimerRef);
+    }
+    clearTimer(autoSaveTimerRef);
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      performAutoSave();
+    }, AUTOSAVE_DELAY_MS);
+    return () => clearTimer(autoSaveTimerRef);
+  }, [gridData, isDirty, loading, saving, performAutoSave, revertSnapshot]);
+  useEffect(() => {
+    return () => {
+      clearTimer(autoSaveTimerRef);
+      clearTimer(revertHideTimerRef);
+    };
+  }, []);
+  const getRowTotal = (contractId) => weekDates.reduce((sum, date) => sum + (gridData[cellKey(contractId, date)] || 0), 0);
+  const getColumnTotal = (date) => activeContracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
+  const getGrandTotal = () => {
+    if (viewMode === "weekly") {
+      return activeContracts.reduce((sum, c) => sum + getRowTotal(c.id), 0);
+    }
+    return Object.entries(gridData).reduce((sum, [key, val]) => {
+      const { contractId } = parseCellKey(key);
+      return activeContracts.some((c) => c.id === contractId) ? sum + (val || 0) : sum;
+    }, 0);
+  };
+  const shiftMonth2 = (step) => (prev) => new Date(Date.UTC(prev.getUTCFullYear(), prev.getUTCMonth() + step, 1));
+  const goToPrev = async () => {
+    await flushPendingAutoSave();
+    if (viewMode === "weekly") {
+      setWeekStart((prev) => addDays(prev, -7));
+    } else {
+      setSelectedDay(null);
+      setMonthDate(shiftMonth2(-1));
+    }
+  };
+  const goToNext = async () => {
+    await flushPendingAutoSave();
+    if (viewMode === "weekly") {
+      setWeekStart((prev) => addDays(prev, 7));
+    } else {
+      setSelectedDay(null);
+      setMonthDate(shiftMonth2(1));
+    }
+  };
+  const goToToday = async () => {
+    await flushPendingAutoSave();
+    if (viewMode === "weekly") {
+      setWeekStart(getMonday(/* @__PURE__ */ new Date()));
+    } else {
+      setSelectedDay(null);
+      setMonthDate(getFirstOfMonth(/* @__PURE__ */ new Date()));
+    }
+  };
+  const handleViewModeChange = async (mode) => {
+    if (mode === viewMode) return;
+    await flushPendingAutoSave();
+    if (mode === "monthly") {
+      setMonthDate(getFirstOfMonth(weekStart));
+      setSelectedDay(null);
+    } else {
+      setWeekStart(getMonday(monthDate));
+    }
+    setViewMode(mode);
+    onViewChange?.(mode);
+  };
+  const handleKeyDown = (e, contractIdx, dayIdx) => {
+    let targetContract = contractIdx;
+    let targetDay = dayIdx;
+    if (e.key === "ArrowUp") {
+      targetContract = Math.max(0, contractIdx - 1);
+    } else if (e.key === "ArrowDown" || e.key === "Enter") {
+      targetContract = Math.min(activeContracts.length - 1, contractIdx + 1);
+    } else if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
+      targetDay = Math.max(0, dayIdx - 1);
+    } else if (e.key === "ArrowRight" && e.currentTarget.selectionStart === e.currentTarget.value.length) {
+      targetDay = Math.min(6, dayIdx + 1);
+    } else {
+      return;
+    }
+    e.preventDefault();
+    const target = inputRefs.current[cellKey(activeContracts[targetContract].id, weekDates[targetDay])];
+    target?.focus();
+    target?.select();
+  };
+  const grandTotal = getGrandTotal();
+  const showRevert = revertSnapshot && !isDirty && !saving;
+  return /* @__PURE__ */ jsxs("div", { className: cn("space-y-6", className), children: [
+    /* @__PURE__ */ jsx(
+      PageHeader,
+      {
+        className: "mb-0",
+        title,
+        description: userFullName,
+        actions: /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsx(
+            SegmentedControl,
+            {
+              "aria-label": "View",
+              options: VIEW_OPTIONS,
+              value: viewMode,
+              onChange: (v) => handleViewModeChange(v)
+            }
+          ),
+          showRevert ? /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx("span", { role: "status", className: "text-sm font-medium text-success-text", children: "Saved" }),
+            /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: handleRevert, children: "Revert" })
+          ] }) : isDirty || saving ? /* @__PURE__ */ jsx(Button, { type: "button", onClick: performAutoSave, disabled: saving || !isDirty, children: saving ? "Saving..." : "Save" }) : null
+        ] })
+      }
+    ),
+    /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxs(Button, { type: "button", variant: "outline", size: "sm", onClick: goToPrev, children: [
+        /* @__PURE__ */ jsx(ChevronLeft, { size: 14, "aria-hidden": "true" }),
+        "Prev"
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: goToToday, children: "Today" }),
+        /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: viewMode === "weekly" ? formatWeekRange(weekStart) : formatMonthYear(monthDate) })
+      ] }),
+      /* @__PURE__ */ jsxs(Button, { type: "button", variant: "outline", size: "sm", onClick: goToNext, children: [
+        "Next",
+        /* @__PURE__ */ jsx(ChevronRight, { size: 14, "aria-hidden": "true" })
+      ] })
+    ] }) }),
+    loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx(
+        HoursSummary,
+        {
+          loggedHours: grandTotal,
+          expectedHours: expectedHours ?? 0,
+          ptoHours
+        }
+      ),
+      viewMode === "weekly" ? /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
+        /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
+          /* @__PURE__ */ jsx("th", { className: cn(headClass, "min-w-[200px] px-3 text-left text-text-muted"), children: "Contract" }),
+          weekDates.map((date, i) => /* @__PURE__ */ jsxs(
+            "th",
+            {
+              className: cn(
+                headClass,
+                "w-[90px] text-center",
+                date === today ? "bg-accent-muted text-accent-text" : i >= 5 ? "text-text-faint" : "text-text-muted"
+              ),
+              children: [
+                /* @__PURE__ */ jsx("div", { children: DAY_LABELS[i] }),
+                /* @__PURE__ */ jsx("div", { className: "mt-0.5 text-[10px] font-normal normal-case", children: formatShortDate(addDays(weekStart, i)) })
+              ]
+            },
+            date
+          )),
+          /* @__PURE__ */ jsx("th", { className: cn(headClass, "w-[70px] text-center text-text-muted"), children: "Total" })
+        ] }) }),
+        /* @__PURE__ */ jsxs("tbody", { children: [
+          activeContracts.length === 0 && /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 9, className: "py-8 text-center text-text-muted", children: "No active contracts for this week." }) }),
+          activeContracts.map((contract, contractIdx) => {
+            const rowTotal = getRowTotal(contract.id);
+            return /* @__PURE__ */ jsxs(
+              "tr",
+              {
+                className: "border-b border-border-subtle hover:bg-table-row-hover",
+                children: [
+                  /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+                  weekDates.map((date, dayIdx) => {
+                    const key = cellKey(contract.id, date);
+                    const value = gridData[key];
+                    const isOutside = !contractCoversDay(contract, date);
+                    return /* @__PURE__ */ jsx(
+                      "td",
+                      {
+                        className: cn("px-1 py-2", date === today && "bg-accent-muted"),
+                        children: /* @__PURE__ */ jsx(
+                          Input,
+                          {
+                            ref: (el) => {
+                              inputRefs.current[key] = el;
+                            },
+                            type: "number",
+                            step: "0.25",
+                            min: "0",
+                            max: "24",
+                            "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
+                            value: value ?? "",
+                            disabled: isOutside,
+                            onChange: (e) => handleCellChange(contract.id, date, e.target.value),
+                            onFocus: (e) => e.target.select(),
+                            onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
+                            placeholder: isOutside ? "" : "\u2013",
+                            className: cn(
+                              hoursInputClass,
+                              dayIdx >= 5 && !value && "bg-surface"
+                            )
+                          }
+                        )
+                      },
+                      date
+                    );
+                  }),
+                  /* @__PURE__ */ jsx(
+                    "td",
+                    {
+                      className: cn(
+                        "px-2 py-2 text-center font-medium tabular-nums",
+                        rowTotal > 0 ? "text-text-primary" : "text-text-faint"
+                      ),
+                      children: rowTotal > 0 ? rowTotal : "\u2013"
+                    }
+                  )
+                ]
+              },
+              contract.id
+            );
+          })
+        ] }),
+        /* @__PURE__ */ jsx("tfoot", { children: /* @__PURE__ */ jsxs("tr", { className: "border-t-2 border-border", children: [
+          /* @__PURE__ */ jsx("td", { className: "px-3 py-3 text-xs font-medium uppercase text-text-muted", children: "Daily Total" }),
+          weekDates.map((date) => {
+            const colTotal = getColumnTotal(date);
+            const isOver = colTotal > 24;
+            return /* @__PURE__ */ jsxs(
+              "td",
+              {
+                className: cn(
+                  "px-2 py-3 text-center font-semibold tabular-nums",
+                  date === today && "bg-accent-muted",
+                  isOver ? "text-accent-text" : colTotal > 0 ? "text-text-primary" : "text-text-faint"
+                ),
+                title: isOver ? "More than 24 hours in a day" : void 0,
+                children: [
+                  colTotal > 0 ? colTotal : "\u2013",
+                  isOver && " !"
+                ]
+              },
+              date
+            );
+          }),
+          /* @__PURE__ */ jsx("td", { className: "px-2 py-3 text-center font-bold tabular-nums text-text-primary", children: grandTotal > 0 ? grandTotal : "\u2013" })
+        ] }) })
+      ] }) }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(
+          MonthlyCalendarGrid,
+          {
+            monthDate,
+            gridData,
+            contracts: activeContracts,
+            timeOffs,
+            today,
+            selectedDay,
+            onDaySelect: setSelectedDay,
+            onCellChange: handleCellChange
+          }
+        ),
+        selectedDay && selectedDayContracts.length > 1 && /* @__PURE__ */ jsx(
+          DayDetailPanel,
+          {
+            selectedDay,
+            contracts: selectedDayContracts,
+            gridData,
+            onCellChange: handleCellChange,
+            onClose: () => setSelectedDay(null)
+          }
+        )
+      ] }),
+      timeOffs.length > 0 && /* @__PURE__ */ jsx(TimeOffList, { timeOffs, viewMode })
+    ] })
+  ] });
+}
+function TimeOffList({
+  timeOffs,
+  viewMode
+}) {
+  const fmt = (iso) => new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC"
+  });
+  return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
+    /* @__PURE__ */ jsxs("h2", { className: "px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted", children: [
+      "Time Off This ",
+      viewMode === "weekly" ? "Week" : "Month"
+    ] }),
+    /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
+      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: ["Type", "From", "To"].map((h) => /* @__PURE__ */ jsx(
+        "th",
+        {
+          className: "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
+          children: h
+        },
+        h
+      )) }) }),
+      /* @__PURE__ */ jsx("tbody", { children: timeOffs.map((to) => /* @__PURE__ */ jsxs("tr", { className: "border-b border-border-subtle last:border-0", children: [
+        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-primary", children: to.type }),
+        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: fmt(to.startsAt) }),
+        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: fmt(to.endsAt) })
+      ] }, to.id)) })
+    ] })
+  ] });
+}
 var STORAGE_KEY = "carbon-theme";
 var THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="dark";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
 function applyTheme(theme) {
@@ -3871,4 +5339,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, linkHrefErrorMessage, monthLabel, monthOfKey, normalizeLinkHref, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedChip, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StatusLegend, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, linkHrefErrorMessage, monthLabel, monthOfKey, normalizeLinkHref, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };

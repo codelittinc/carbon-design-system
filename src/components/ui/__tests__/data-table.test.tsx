@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { DataTable, type ColumnDef } from "../data-table";
+import { DataTable, type ColumnDef, type SortingState } from "../data-table";
 
 interface Row {
   name: string;
@@ -302,4 +302,88 @@ describe("DataTable", () => {
       expect(notes()).toEqual(["Charlie", "Alice", "Bob"]);
     });
   });
+  describe("column meta", () => {
+    const aligned: ColumnDef<Row, unknown>[] = [
+      { accessorKey: "name", header: "Name", meta: { className: "w-40", headerClassName: "w-48" } },
+      { accessorKey: "age", header: "Age", meta: { align: "right" } },
+    ];
+
+    it("aligns the header and the cells", () => {
+      render(<DataTable columns={aligned} data={data} />);
+      const header = screen.getByRole("columnheader", { name: /Age/ });
+      expect(header).toHaveClass("text-right");
+      expect(header.firstElementChild).toHaveClass("justify-end");
+      expect(screen.getByText("25")).toHaveClass("text-right");
+      // Unaligned columns keep today's left alignment.
+      expect(screen.getByRole("columnheader", { name: /Name/ })).toHaveClass("text-left");
+    });
+
+    it("adds the column's cell and header classes", () => {
+      render(<DataTable columns={aligned} data={data} />);
+      expect(screen.getByRole("columnheader", { name: /Name/ })).toHaveClass("w-48");
+      expect(screen.getByText("Alice")).toHaveClass("w-40");
+    });
+  });
+
+  it("merges rowClassName over the stripe", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        rowClassName={(row) => (row.name === "Alice" ? "bg-error-soft opacity-60" : undefined)}
+      />,
+    );
+    // Alice is the striped second row; her own tint replaces the stripe.
+    const alice = bodyRows()[1];
+    expect(has(alice, "bg-error-soft")).toBe(true);
+    expect(has(alice, "opacity-60")).toBe(true);
+    expect(has(alice, "bg-table-stripe")).toBe(false);
+    expect(has(bodyRows()[0], "opacity-60")).toBe(false);
+  });
+
+  describe("controlled sorting", () => {
+    function Server({ onSort }: { onSort: (s: SortingState) => void }) {
+      const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
+      return (
+        <DataTable
+          columns={columns}
+          data={data}
+          sorting={sorting}
+          manualSorting
+          onSortingChange={(s) => {
+            setSorting(s);
+            onSort(s);
+          }}
+        />
+      );
+    }
+
+    it("reports header clicks and leaves the order to the server", () => {
+      const onSort = vi.fn();
+      render(<Server onSort={onSort} />);
+      // Shown as given, though the sort says name ascending.
+      expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
+      const name = screen.getByRole("columnheader", { name: /Name/ });
+      expect(name).toHaveAttribute("aria-sort", "ascending");
+
+      fireEvent.click(name);
+      expect(onSort).toHaveBeenLastCalledWith([{ id: "name", desc: true }]);
+      expect(name).toHaveAttribute("aria-sort", "descending");
+      expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
+    });
+
+    it("sorts the rows itself when controlled without manualSorting", () => {
+      render(<DataTable columns={columns} data={data} sorting={[{ id: "age", desc: true }]} />);
+      expect(nameColumnOrder()).toEqual(["Bob", "Charlie", "Alice"]);
+    });
+
+    it("still reports changes while uncontrolled", () => {
+      const onSortingChange = vi.fn();
+      render(<DataTable columns={columns} data={data} onSortingChange={onSortingChange} />);
+      fireEvent.click(screen.getByRole("columnheader", { name: /Name/ }));
+      expect(onSortingChange).toHaveBeenCalledWith([{ id: "name", desc: false }]);
+      expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
+    });
+  });
+
 });
