@@ -146,3 +146,34 @@ export const Empty: Story = {
     </ChartCard>
   ),
 };
+
+const RESOURCES = [
+  { label: "Acme", value: 3, names: ["Ana", "Bo", "Cy"] },
+  { label: "Globex", value: 2, names: ["Di", "Ed"] },
+  { label: "Initech", value: 1, names: ["Flo"] },
+];
+
+/** `tooltipContent` gets the slice's own row, so extra fields like `names` come along. */
+export const CustomTooltip: Story = {
+  render: () => (
+    <ChartCard title="Resources by customer">
+      <DonutChart
+        data={RESOURCES}
+        categoryLabel="Customer"
+        tooltipContent={({ datum, value, color }) => (
+          <div className="text-xs">
+            <p className="flex items-center gap-2 font-medium text-text-primary">
+              <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: color }} />
+              {datum.label}: {value}
+            </p>
+            <ul className="mt-1 text-text-secondary">
+              {((datum as (typeof RESOURCES)[number]).names ?? []).map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      />
+    </ChartCard>
+  ),
+};

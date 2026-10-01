@@ -251,3 +251,46 @@ export const ServerSideSortAndPaging: Story = {
     );
   },
 };
+
+type AuditRow = { id: string; when: string; user: string; action: string; changes: [string, string, string][] };
+
+const AUDIT: AuditRow[] = [
+  { id: "a1", when: "Sep 30, 14:02", user: "ana@example.com", action: "update", changes: [["status", "draft", "active"], ["owner", "—", "Bruno"]] },
+  { id: "a2", when: "Sep 30, 11:47", user: "bruno@example.com", action: "create", changes: [["name", "—", "Globex renewal"]] },
+  { id: "a3", when: "Sep 29, 09:15", user: "carla@example.com", action: "delete", changes: [] },
+];
+
+/**
+ * `renderExpanded` adds a toggle column and shows a detail row under each
+ * opened row; `expandOnRowClick` lets the whole row toggle it. Rows with nothing
+ * to show are left without a toggle via `getRowCanExpand`.
+ */
+export const ExpandableRows: Story = {
+  render: () => (
+    <DataTable
+      columns={[
+        { accessorKey: "when", header: "Timestamp", meta: { className: "whitespace-nowrap" } },
+        { accessorKey: "user", header: "User" },
+        { accessorKey: "action", header: "Action" },
+      ] as ColumnDef<AuditRow>[]}
+      data={AUDIT}
+      getRowId={(row) => row.id}
+      paginate={false}
+      expandOnRowClick
+      getRowCanExpand={(row) => row.changes.length > 0}
+      renderExpanded={(row) => (
+        <table className="text-xs">
+          <tbody>
+            {row.changes.map(([field, from, to]) => (
+              <tr key={field}>
+                <th className="pr-4 text-left font-medium text-text-muted">{field}</th>
+                <td className="pr-2 text-error-text line-through">{from}</td>
+                <td className="text-success-text">{to}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    />
+  ),
+};

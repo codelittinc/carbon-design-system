@@ -702,8 +702,23 @@ interface DataTableProps<TData, TValue> {
     sorting?: SortingState;
     onSortingChange?: (sorting: SortingState) => void;
     manualSorting?: boolean;
+    /**
+     * Detail shown in a full-width row under an expanded row — an audit entry's
+     * changed fields, say. Setting it adds a leading column with a toggle button
+     * on every row that can expand. Pair with `getRowId` so a refetch keeps the
+     * same rows open.
+     */
+    renderExpanded?: (row: TData) => React.ReactNode;
+    /** Which rows get a toggle. Defaults to every row when `renderExpanded` is set. */
+    getRowCanExpand?: (row: TData) => boolean;
+    /**
+     * A click anywhere on an expandable row toggles it too, not just the button.
+     * `onRowClick` still fires for those clicks; a click on the button itself
+     * never reaches `onRowClick`.
+     */
+    expandOnRowClick?: boolean;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, rowClassName, sorting: controlledSorting, onSortingChange, manualSorting, }: DataTableProps<TData, TValue>): ReactElement;
+declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, rowClassName, sorting: controlledSorting, onSortingChange, manualSorting, renderExpanded, getRowCanExpand, expandOnRowClick, }: DataTableProps<TData, TValue>): ReactElement;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;
@@ -1090,6 +1105,29 @@ interface TooltipPayloadItem {
     dataKey?: string | number;
     payload?: Record<string, unknown>;
 }
+/** One plotted series at the hovered category, as a custom tooltip sees it. */
+interface ChartTooltipEntry {
+    /** The series `key`. */
+    key: string;
+    /** The series `label`. */
+    label: string;
+    value: number;
+    color: string;
+    /** The whole data row for the hovered category. */
+    datum: ChartDatum;
+}
+interface ChartTooltipContext {
+    /** The hovered category, as in the data (before any `labelFormatter`). */
+    label: string | number;
+    /** The visible series, in plot order. */
+    payload: ChartTooltipEntry[];
+}
+/**
+ * A custom tooltip body for `LineChart` and `BarChart`. It renders inside the
+ * standard tooltip shell, replacing the heading and rows. Return `null` to show
+ * no tooltip for that category.
+ */
+type ChartTooltipRenderer = (ctx: ChartTooltipContext) => react.ReactNode;
 interface ChartTooltipContentProps {
     active?: boolean;
     payload?: TooltipPayloadItem[];
@@ -1097,12 +1135,32 @@ interface ChartTooltipContentProps {
     valueFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a short week key into a full date. */
     labelFormatter?: (label: string | number) => string;
+    /** Replaces the body. See `ChartTooltipRenderer`. */
+    render?: ChartTooltipRenderer;
 }
 /**
  * Tooltip body. Values are monospaced so they stay column-aligned across rows,
  * matching the tabular-nums treatment used in tables.
  */
-declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, }: ChartTooltipContentProps): react.JSX.Element | null;
+declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, render, }: ChartTooltipContentProps): react.JSX.Element | null;
+/** The hovered slice of a `DonutChart`, as a custom tooltip sees it. */
+interface DonutTooltipContext<TDatum = {
+    label: string;
+    value: number;
+    color?: string;
+}> {
+    /** The slice's data row — the folded "Other" slice gets a synthetic one. */
+    datum: TDatum;
+    value: number;
+    color: string;
+}
+interface SliceTooltipContentProps<TDatum> {
+    active?: boolean;
+    payload?: TooltipPayloadItem[];
+    render: (ctx: DonutTooltipContext<TDatum>) => react.ReactNode;
+}
+/** Custom tooltip body for a pie slice, in the standard shell. */
+declare function ChartSliceTooltipContent<TDatum>({ active, payload, render, }: SliceTooltipContentProps<TDatum>): react.ReactElement | null;
 interface ChartDataTableProps {
     caption: string;
     categoryLabel: string;
@@ -1206,6 +1264,12 @@ interface BarChartProps extends ChartStateProps {
     tickFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
     labelFormatter?: (label: string | number) => string;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a count. Gets the hovered category and each visible
+     * series' value, color and full data row.
+     */
+    tooltipContent?: ChartTooltipRenderer;
     /** Name for the category dimension, used in the accessible table. */
     categoryLabel?: string;
     /** Caption for the accessible table. Falls back to a generic description. */
@@ -1230,7 +1294,7 @@ interface BarChartProps extends ChartStateProps {
  * Renders a visually hidden data table alongside the plot, so the values are
  * reachable by screen reader and in forced-colors mode.
  */
-declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
+declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
 
 interface LineChartProps extends ChartStateProps {
     data: ChartDatum[];
@@ -1265,6 +1329,12 @@ interface LineChartProps extends ChartStateProps {
     tickFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
     labelFormatter?: (label: string | number) => string;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a count. Gets the hovered category and each visible
+     * series' value, color and full data row.
+     */
+    tooltipContent?: ChartTooltipRenderer;
     /** Name for the x dimension, used in the accessible table. */
     categoryLabel?: string;
     tableCaption?: string;
@@ -1289,7 +1359,7 @@ interface LineChartProps extends ChartStateProps {
  * make the crossing point of the two lines meaningless — plot them as two
  * charts, or index both to a common base.
  */
-declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
+declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
 
 interface DonutChartDatum {
     label: string;
@@ -1327,6 +1397,12 @@ interface DonutChartProps extends ChartStateProps {
     categoryLabel?: string;
     tableCaption?: string;
     onSliceClick?: (datum: DonutChartDatum, index: number) => void;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a slice. `datum` is the slice's row as you passed
+     * it (with any extra fields), or a synthetic row for the folded "Other".
+     */
+    tooltipContent?: (ctx: DonutTooltipContext<DonutChartDatum>) => react.ReactNode;
     className?: string;
 }
 /**
@@ -1343,7 +1419,7 @@ interface DonutChartProps extends ChartStateProps {
  * close together, a bar chart is the honest form — the eye can compare bar
  * lengths far better than wedge angles.
  */
-declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
+declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, tooltipContent, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
 
 interface MonthYearRange {
     startMonth: number;
@@ -1757,4 +1833,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, type PopoverProps, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedChip, type SegmentedChipProps, type SegmentedChipSegment, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, StatusLegend, type StatusLegendItem, type StatusLegendProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, type PopoverProps, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedChip, type SegmentedChipProps, type SegmentedChipSegment, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, StatusLegend, type StatusLegendItem, type StatusLegendProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };

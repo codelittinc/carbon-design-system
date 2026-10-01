@@ -55,7 +55,7 @@ fills under white text, so every one clears 4.5:1 against it. Unlike the
 `chart-*` slots they cycle (the set of ids has no end) and they are the same in
 both themes, so an entity keeps one color whoever is looking.
 
-### DataTable: alignment, row classes, server-side sorting
+### DataTable: alignment, row classes, server-side sorting, expandable rows
 
 All optional; a table that passes none of them behaves as before.
 
@@ -67,6 +67,23 @@ All optional; a table that passes none of them behaves as before.
 - `sorting` + `onSortingChange` control the sort, and `manualSorting` leaves
   the order of `data` alone, for a server sort. A sorted header now shows an
   up or down arrow, and `aria-sort`. `SortingState` is re-exported.
+- Expandable rows: `renderExpanded(row)` shows a full-width detail row (on
+  `surface-raised`) under an opened row, toggled by a chevron button in a new
+  leading column (`aria-expanded`, named "Show details"). The toggle never
+  fires `onRowClick`. `getRowCanExpand(row)` limits which rows get one (all, by
+  default), and `expandOnRowClick` lets a click anywhere on the row toggle it.
+  Open rows stay open across a refetch when rows are keyed with `getRowId`.
+
+### Charts: custom tooltip content
+
+`tooltipContent` on `LineChart` and `BarChart` replaces the tooltip body,
+inside the standard tooltip shell, with your own. It gets
+`{ label, payload: [{ key, label, value, color, datum }] }`: the hovered
+category and each visible series, with the full data row. `DonutChart` takes
+one too, called with `{ datum, value, color }` for the hovered slice. Return
+`null` for no tooltip. Without it the tooltips are unchanged. New types:
+`ChartTooltipRenderer`, `ChartTooltipContext`, `ChartTooltipEntry`,
+`DonutTooltipContext`.
 
 ### Popover: `openOnHover`
 

@@ -4,6 +4,7 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
+  type ExpandedState,
   type RowData,
   type RowSelectionState,
   type Updater,
@@ -14,8 +15,15 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useRef, useState, type ReactElement } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Fragment, useEffect, useId, useRef, useState, type ReactElement } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronRight as ChevronExpand,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
 
@@ -92,6 +100,21 @@ interface DataTableProps<TData, TValue> {
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
   manualSorting?: boolean;
+  /**
+   * Detail shown in a full-width row under an expanded row — an audit entry's
+   * changed fields, say. Setting it adds a leading column with a toggle button
+   * on every row that can expand. Pair with `getRowId` so a refetch keeps the
+   * same rows open.
+   */
+  renderExpanded?: (row: TData) => React.ReactNode;
+  /** Which rows get a toggle. Defaults to every row when `renderExpanded` is set. */
+  getRowCanExpand?: (row: TData) => boolean;
+  /**
+   * A click anywhere on an expandable row toggles it too, not just the button.
+   * `onRowClick` still fires for those clicks; a click on the button itself
+   * never reaches `onRowClick`.
+   */
+  expandOnRowClick?: boolean;
 }
 
 /** Distinguishes "prop omitted" from any value a caller could legitimately pass. */
@@ -111,7 +134,16 @@ export function DataTable<TData, TValue>({
   sorting: controlledSorting,
   onSortingChange,
   manualSorting = false,
+  renderExpanded,
+  getRowCanExpand,
+  expandOnRowClick = false,
 }: DataTableProps<TData, TValue>): ReactElement {
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const expandable = renderExpanded !== undefined;
+  const detailId = useId();
+  // The toggle column, when there is one, is not a column def: it would show up
+  // in the consumer's column model, and in sorting and visibility.
+  const colCount = columns.length + (expandable ? 1 : 0);
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -134,13 +166,19 @@ export function DataTable<TData, TValue>({
     getRowId: getRowId ? (row) => getRowId(row) : undefined,
     manualSorting,
     onSortingChange: handleSortingChange,
+    getRowCanExpand: expandable
+      ? (row) => (getRowCanExpand ? getRowCanExpand(row.original) : true)
+      : () => false,
+    onExpandedChange: setExpanded,
+    // Hold rows open across a refetch; `getRowId` keeps them the same rows.
+    autoResetExpanded: false,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
     // Hand the reset over to the effect below only when the caller opted in, so the
     // default stays exactly TanStack's.
     autoResetPageIndex: !driven,
-    state: { sorting, columnFilters, rowSelection },
+    state: { sorting, columnFilters, rowSelection, expanded },
     initialState: { pagination: { pageSize } },
   });
 
@@ -159,6 +197,11 @@ export function DataTable<TData, TValue>({
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-border">
+                {expandable && (
+                  <th className="w-10 px-1 py-2">
+                    <span className="sr-only">Details</span>
+                  </th>
+                )}
                 {headerGroup.headers.map((header) => {
                   const meta = header.column.columnDef.meta;
                   const align = alignClasses[meta?.align ?? "left"];
@@ -169,7 +212,11 @@ export function DataTable<TData, TValue>({
                     <th
                       key={header.id}
                       aria-sort={
-                        sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined
+                        sorted === "asc"
+                          ? "ascending"
+                          : sorted === "desc"
+                            ? "descending"
+                            : undefined
                       }
                       className={cn(
                         "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
@@ -199,61 +246,105 @@ export function DataTable<TData, TValue>({
           </thead>
           <tbody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row, index) => (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    "border-b border-border-subtle transition-colors last:border-0",
-                    // Zebra, keyed to the row's index within the CURRENT page, so the
-                    // banding starts the same way on every page instead of depending on
-                    // whether the pages before it held an odd number of rows.
-                    //
-                    // A plain `bg-*` and not the `even:` variant on purpose: a plain
-                    // class is one specificity step below `hover:bg-*`, so the hover
-                    // wins whatever order Tailwind emits the two in. `even:` and
-                    // `hover:` are both class-plus-pseudo-class and TIE, which would
-                    // leave "does hovering a striped row look any different" decided by
-                    // the generated stylesheet's ordering.
-                    index % 2 === 1 && "bg-table-stripe",
-                    onRowClick && "cursor-pointer",
-                    // Hover on EVERY row, clickable or not. It answers "which row am I
-                    // reading" across a table too wide to track by eye, which is a
-                    // reading aid rather than a click affordance — `cursor-pointer`
-                    // above is the separate question of whether the row does anything
-                    // when you click it.
-                    //
-                    // Held back while the row is selected: the hover token is a wash
-                    // OVER whatever the row sits on rather than a shade of it, so on a
-                    // selected row it would cover the selection instead of deepening
-                    // it, and the pointer would appear to clear the one row state that
-                    // has to stay readable under it.
-                    !row.getIsSelected() && "hover:bg-table-row-hover",
-                    // Last, so twMerge drops the stripe from a selected row: a row gets
-                    // one background, and selection is the one that means something.
-                    row.getIsSelected() && "bg-accent-muted",
-                    // The caller's, last of all, so a row tint or `opacity-60` wins.
-                    rowClassName?.(row.original),
-                  )}
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
+              table.getRowModel().rows.map((row, index) => {
+                const canExpand = row.getCanExpand();
+                const isExpanded = canExpand && row.getIsExpanded();
+                const rowDetailId = `${detailId}-${row.id}`;
+                return (
+                  <Fragment key={row.id}>
+                    <tr
                       className={cn(
-                        "px-3 py-2 text-text-secondary",
-                        cell.column.columnDef.meta?.align &&
-                          alignClasses[cell.column.columnDef.meta.align].cell,
-                        cell.column.columnDef.meta?.className,
+                        "border-b border-border-subtle transition-colors last:border-0",
+                        // Zebra, keyed to the row's index within the CURRENT page, so the
+                        // banding starts the same way on every page instead of depending on
+                        // whether the pages before it held an odd number of rows.
+                        //
+                        // A plain `bg-*` and not the `even:` variant on purpose: a plain
+                        // class is one specificity step below `hover:bg-*`, so the hover
+                        // wins whatever order Tailwind emits the two in. `even:` and
+                        // `hover:` are both class-plus-pseudo-class and TIE, which would
+                        // leave "does hovering a striped row look any different" decided by
+                        // the generated stylesheet's ordering.
+                        index % 2 === 1 && "bg-table-stripe",
+                        onRowClick && "cursor-pointer",
+                        // Hover on EVERY row, clickable or not. It answers "which row am I
+                        // reading" across a table too wide to track by eye, which is a
+                        // reading aid rather than a click affordance — `cursor-pointer`
+                        // above is the separate question of whether the row does anything
+                        // when you click it.
+                        //
+                        // Held back while the row is selected: the hover token is a wash
+                        // OVER whatever the row sits on rather than a shade of it, so on a
+                        // selected row it would cover the selection instead of deepening
+                        // it, and the pointer would appear to clear the one row state that
+                        // has to stay readable under it.
+                        !row.getIsSelected() && "hover:bg-table-row-hover",
+                        // Last, so twMerge drops the stripe from a selected row: a row gets
+                        // one background, and selection is the one that means something.
+                        row.getIsSelected() && "bg-accent-muted",
+                        // The caller's, last of all, so a row tint or `opacity-60` wins.
+                        rowClassName?.(row.original),
                       )}
+                      onClick={() => {
+                        if (expandOnRowClick && canExpand) row.toggleExpanded();
+                        onRowClick?.(row.original);
+                      }}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
+                      {expandable && (
+                        <td className="w-10 px-1 py-1">
+                          {canExpand && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Show details"
+                              aria-expanded={isExpanded}
+                              aria-controls={isExpanded ? rowDetailId : undefined}
+                              onClick={(e) => {
+                                // The toggle is its own action, never a row click.
+                                e.stopPropagation();
+                                row.toggleExpanded();
+                              }}
+                            >
+                              <ChevronExpand
+                                size={14}
+                                aria-hidden="true"
+                                className={cn("transition-transform", isExpanded && "rotate-90")}
+                              />
+                            </Button>
+                          )}
+                        </td>
+                      )}
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-3 py-2 text-text-secondary",
+                            cell.column.columnDef.meta?.align &&
+                              alignClasses[cell.column.columnDef.meta.align].cell,
+                            cell.column.columnDef.meta?.className,
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                    {isExpanded && (
+                      <tr
+                        id={rowDetailId}
+                        className="border-b border-border-subtle bg-surface-raised last:border-0"
+                      >
+                        <td colSpan={colCount} className="px-4 py-3 text-text-secondary">
+                          {renderExpanded?.(row.original)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-8 text-center text-text-muted">
+                <td colSpan={colCount} className="px-3 py-8 text-center text-text-muted">
                   {emptyMessage}
                 </td>
               </tr>

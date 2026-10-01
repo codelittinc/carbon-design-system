@@ -214,6 +214,32 @@ interface TooltipPayloadItem {
   payload?: Record<string, unknown>;
 }
 
+/** One plotted series at the hovered category, as a custom tooltip sees it. */
+export interface ChartTooltipEntry {
+  /** The series `key`. */
+  key: string;
+  /** The series `label`. */
+  label: string;
+  value: number;
+  color: string;
+  /** The whole data row for the hovered category. */
+  datum: ChartDatum;
+}
+
+export interface ChartTooltipContext {
+  /** The hovered category, as in the data (before any `labelFormatter`). */
+  label: string | number;
+  /** The visible series, in plot order. */
+  payload: ChartTooltipEntry[];
+}
+
+/**
+ * A custom tooltip body for `LineChart` and `BarChart`. It renders inside the
+ * standard tooltip shell, replacing the heading and rows. Return `null` to show
+ * no tooltip for that category.
+ */
+export type ChartTooltipRenderer = (ctx: ChartTooltipContext) => React.ReactNode;
+
 export interface ChartTooltipContentProps {
   active?: boolean;
   payload?: TooltipPayloadItem[];
@@ -221,6 +247,22 @@ export interface ChartTooltipContentProps {
   valueFormatter?: ChartValueFormatter;
   /** Rewrites the tooltip heading — e.g. a short week key into a full date. */
   labelFormatter?: (label: string | number) => string;
+  /** Replaces the body. See `ChartTooltipRenderer`. */
+  render?: ChartTooltipRenderer;
+}
+
+/** The tooltip surface every chart tooltip, custom or not, is drawn on. */
+function ChartTooltipShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg">
+      {children}
+    </div>
+  );
+}
+
+/** A custom body in the shell, or no tooltip at all when the body is empty. */
+function inShell(body: React.ReactNode): React.ReactElement | null {
+  return body == null || body === false ? null : <ChartTooltipShell>{body}</ChartTooltipShell>;
 }
 
 /**
@@ -233,11 +275,26 @@ export function ChartTooltipContent({
   label,
   valueFormatter = formatChartValue,
   labelFormatter,
+  render,
 }: ChartTooltipContentProps) {
   if (!active || !payload?.length) return null;
 
+  if (render) {
+    const ctx: ChartTooltipContext = {
+      label: label ?? "",
+      payload: payload.map((item) => ({
+        key: String(item.dataKey ?? item.name ?? ""),
+        label: String(item.name ?? item.dataKey ?? ""),
+        value: Number(item.value),
+        color: item.color ?? "",
+        datum: (item.payload ?? {}) as ChartDatum,
+      })),
+    };
+    return inShell(render(ctx));
+  }
+
   return (
-    <div className="rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg">
+    <ChartTooltipShell>
       {label != null && label !== "" && (
         <p className="mb-1.5 text-xs font-medium text-text-primary">
           {labelFormatter ? labelFormatter(label) : label}
@@ -258,8 +315,39 @@ export function ChartTooltipContent({
           </li>
         ))}
       </ul>
-    </div>
+    </ChartTooltipShell>
   );
+}
+
+/** The hovered slice of a `DonutChart`, as a custom tooltip sees it. */
+export interface DonutTooltipContext<TDatum = { label: string; value: number; color?: string }> {
+  /** The slice's data row — the folded "Other" slice gets a synthetic one. */
+  datum: TDatum;
+  value: number;
+  color: string;
+}
+
+interface SliceTooltipContentProps<TDatum> {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  render: (ctx: DonutTooltipContext<TDatum>) => React.ReactNode;
+}
+
+/** Custom tooltip body for a pie slice, in the standard shell. */
+export function ChartSliceTooltipContent<TDatum>({
+  active,
+  payload,
+  render,
+}: SliceTooltipContentProps<TDatum>): React.ReactElement | null {
+  const item = payload?.[0];
+  if (!active || !item) return null;
+  const datum = item.payload as TDatum & { color?: string };
+  const ctx: DonutTooltipContext<TDatum> = {
+    datum,
+    value: Number(item.value),
+    color: datum.color ?? item.color ?? "",
+  };
+  return inShell(render(ctx));
 }
 
 /* ───────────────────────── Screen-reader table ────────────────────────── */
