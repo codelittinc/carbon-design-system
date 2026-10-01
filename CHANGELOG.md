@@ -14,9 +14,9 @@ uses it as the GitHub Release notes.
 
 The palette opened on every ⌘K / Ctrl+K anywhere on the page. Inside a
 `RichTextEditor`, ⌘K is the link shortcut, so one press opened the link row
-and the palette over it: focus moved to the palette, the editor lost its
-selection, and the link row's Escape capture stopped Escape from closing the
-palette. The palette now skips a press whose default was already prevented,
+and the palette over it: focus moved to the palette, so the address went into
+the search box, and the editor lost its selection, so the link could not be
+applied. The palette now skips a press whose default was already prevented,
 which the editor's shortcut does. An unhandled ⌘K opens it as before. No
 props changed.
 

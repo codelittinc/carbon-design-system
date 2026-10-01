@@ -385,8 +385,8 @@ describe("RichTextEditor — the link row", () => {
 
   it("keeps Cmd+K from also opening a CommandPalette on the page", () => {
     // The palette binds ⌘K on document. Opening it over the link row put focus
-    // in the palette, lost the selection, and the row's Escape capture stopped
-    // Escape from closing the palette.
+    // in the palette, so the address went into the search box and the
+    // editor's selection was lost.
     const onOpenChange = vi.fn();
     render(
       <>
