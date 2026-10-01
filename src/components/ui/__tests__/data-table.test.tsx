@@ -255,4 +255,51 @@ describe("DataTable", () => {
       expect(nameColumnOrder()).toEqual(["row20", "row21"]);
     });
   });
+
+  describe("paginate={false}", () => {
+    const many = (n: number): Row[] =>
+      Array.from({ length: n }, (_, i) => ({ name: `Person ${i + 1}`, age: 20 + i }));
+
+    it("renders every row it is given, with no pager", () => {
+      render(<DataTable columns={columns} data={many(30)} pageSize={5} paginate={false} />);
+      expect(bodyRows()).toHaveLength(30);
+      expect(screen.queryByText(/\d+ \/ \d+/)).not.toBeInTheDocument();
+    });
+
+    it("keeps rendering every row when the list grows after mount", () => {
+      const { rerender } = render(
+        <DataTable columns={columns} data={many(1)} paginate={false} />,
+      );
+      rerender(<DataTable columns={columns} data={many(40)} paginate={false} />);
+      expect(bodyRows()).toHaveLength(40);
+    });
+  });
+
+  describe("getRowId", () => {
+    // A cell that holds its own state, like an inline rename box.
+    function Note({ initial }: { initial: string }) {
+      const [value] = useState(initial);
+      return <span data-testid="note">{value}</span>;
+    }
+    const noteColumns: ColumnDef<Row, unknown>[] = [
+      { id: "note", header: "Note", cell: ({ row }) => <Note initial={row.original.name} /> },
+    ];
+    const notes = () => screen.getAllByTestId("note").map((n) => n.textContent);
+
+    it("keeps a row's own state with that row when the list re-sorts", () => {
+      const { rerender } = render(
+        <DataTable columns={noteColumns} data={data} getRowId={(r) => r.name} />,
+      );
+      rerender(
+        <DataTable columns={noteColumns} data={[...data].reverse()} getRowId={(r) => r.name} />,
+      );
+      expect(notes()).toEqual(["Bob", "Alice", "Charlie"]);
+    });
+
+    it("without it, the state stays with the index (the case it fixes)", () => {
+      const { rerender } = render(<DataTable columns={noteColumns} data={data} />);
+      rerender(<DataTable columns={noteColumns} data={[...data].reverse()} />);
+      expect(notes()).toEqual(["Charlie", "Alice", "Bob"]);
+    });
+  });
 });

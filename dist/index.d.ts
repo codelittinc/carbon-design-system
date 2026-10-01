@@ -471,6 +471,19 @@ interface DataTableProps<TData, TValue> {
     data: TData[];
     onRowClick?: (row: TData) => void;
     pageSize?: number;
+    /**
+     * `false` turns the table's own paging off and renders every row it is given.
+     * For a list the server already pages: hand it one page of rows and put a
+     * `Pagination` under it. Otherwise `pageSize`, which is read once on mount,
+     * would cut a page the server sent and add a second pager inside the real one.
+     */
+    paginate?: boolean;
+    /**
+     * A stable id per row, used as its React key. Without it rows are keyed by
+     * index, so a cell that holds its own state (an inline rename, an open menu)
+     * moves to a different row when the list re-sorts or gains a row.
+     */
+    getRowId?: (row: TData) => string;
     enableSelection?: boolean;
     emptyMessage?: string;
     /**
@@ -489,7 +502,7 @@ interface DataTableProps<TData, TValue> {
      */
     resetPageOn?: unknown;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
+declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;

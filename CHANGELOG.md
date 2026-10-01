@@ -35,6 +35,17 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
   with one Tab stop and arrow-key movement. `name` submits the value with a
   form.
 
+### `DataTable`: `paginate={false}` and `getRowId`
+
+- **`paginate={false}`** turns the table's own paging off, so it renders every
+  row it is given and draws no pager. Use it for lists the server already
+  pages: pass one page of rows and put a `Pagination` under the table.
+  `pageSize` is read once, on mount, so passing the current row count as
+  `pageSize` freezes the table at the first render's size.
+- **`getRowId`** gives each row a stable id, used as its React key. Without it
+  rows are keyed by index, so state inside a cell (an inline rename box, an
+  open menu) moves to a different row when the list re-sorts or gains a row.
+
 ### `toast` can be called without `useToast()`
 
 `toast.success(title)`, `toast.error(title)`, `toast.info(title)` and
