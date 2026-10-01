@@ -62,6 +62,132 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement>, VariantProps
 }
 declare function Badge({ className, variant, ...props }: BadgeProps): react.JSX.Element;
 
+interface TagProps extends VariantProps<typeof badgeVariants> {
+    children: React.ReactNode;
+    /** Shows a remove button when given. */
+    onRemove?: () => void;
+    /** Accessible name for the remove button. Defaults to "Remove". */
+    removeLabel?: string;
+    disabled?: boolean;
+    className?: string;
+}
+/**
+ * A `Badge` that can be removed — a chosen value in a multi-value field, an
+ * applied filter. Shares Badge's variants, so the two sit together.
+ */
+declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): react.JSX.Element;
+
+declare const cardVariants: (props?: ({
+    padding?: "none" | "sm" | "lg" | "md" | null | undefined;
+    hoverable?: boolean | null | undefined;
+} & class_variance_authority_types.ClassProp) | undefined) => string;
+interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
+    /**
+     * Merge the card's styles onto the single child instead of rendering a
+     * `<div>` — for a card that is itself a link (`<Card asChild><a …/></Card>`).
+     */
+    asChild?: boolean;
+}
+/**
+ * A bordered surface that groups related content. `padding` picks a step on the
+ * spacing scale; `hoverable` adds a hover state for cards that are clickable.
+ */
+declare const Card: react.ForwardRefExoticComponent<CardProps & react.RefAttributes<HTMLDivElement>>;
+
+declare const alertVariants: (props?: ({
+    variant?: "success" | "warning" | "error" | "info" | null | undefined;
+} & class_variance_authority_types.ClassProp) | undefined) => string;
+interface AlertProps extends VariantProps<typeof alertVariants> {
+    /** Optional bold first line. */
+    title?: React.ReactNode;
+    children?: React.ReactNode;
+    /** Shows a dismiss button when given. */
+    onDismiss?: () => void;
+    className?: string;
+}
+/**
+ * An inline, persistent message about the surrounding content — a form that
+ * failed to save, a section that could not load. For a transient confirmation
+ * use `toast`.
+ */
+declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): react.JSX.Element;
+
+declare const sizeClasses: {
+    readonly sm: "h-4 w-4 border-2";
+    readonly md: "h-6 w-6 border-2";
+    readonly lg: "h-10 w-10 border-[3px]";
+};
+interface SpinnerProps {
+    size?: keyof typeof sizeClasses;
+    /**
+     * Text shown under the spinner. Also its accessible name; without one the
+     * spinner is announced as "Loading".
+     */
+    label?: string;
+    className?: string;
+}
+/**
+ * An indeterminate loading indicator, for work whose length is unknown. Prefer
+ * `Skeleton` when the shape of the content that is coming is known.
+ */
+declare function Spinner({ size, label, className }: SpinnerProps): react.JSX.Element;
+
+interface LabelProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
+    /** Appends a required marker. */
+    required?: boolean;
+}
+/**
+ * A form control's label, styled to match `FormField`. Use it on its own when
+ * the control's layout does not fit `FormField`'s label-above-control stack.
+ */
+declare const Label: react.ForwardRefExoticComponent<LabelProps & react.RefAttributes<HTMLLabelElement>>;
+
+interface PaginationProps {
+    /** Current page, 1-based. */
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    /** With `pageSize`, shows "Showing 11–20 of 57". */
+    totalItems?: number;
+    pageSize?: number;
+    className?: string;
+}
+/**
+ * Page controls for a list split into pages. Renders nothing when there is only
+ * one page.
+ */
+declare function Pagination({ page, totalPages, onPageChange, totalItems, pageSize, className, }: PaginationProps): react.JSX.Element | null;
+
+interface MultiSelectOption {
+    value: string;
+    label: string;
+    sublabel?: string;
+    disabled?: boolean;
+}
+interface MultiSelectProps {
+    value: string[];
+    onChange: (value: string[]) => void;
+    options: MultiSelectOption[];
+    placeholder?: string;
+    /** Shown in the list when the search matches nothing. */
+    emptyMessage?: React.ReactNode;
+    disabled?: boolean;
+    /** Put on the search input, so an external `<label htmlFor>` names it. */
+    id?: string;
+    ariaLabel?: string;
+    className?: string;
+}
+/**
+ * A searchable list that toggles several values on and off. The list stays open
+ * while choosing, so picking five people is five clicks, not five round trips.
+ *
+ * It shows no chips of its own: what is selected usually deserves more than a
+ * chip (a status, a warning), so render the selection beside it — `Tag` with
+ * `onRemove` is the usual fit. Backspace in an empty search removes the last
+ * value.
+ */
+declare function MultiSelect({ value, onChange, options, placeholder, emptyMessage, disabled, id, ariaLabel, className, }: MultiSelectProps): react.JSX.Element;
+
 interface StatusBadgeProps {
     status: string;
     className?: string;
@@ -261,16 +387,35 @@ declare const PopoverContent: react.ForwardRefExoticComponent<Omit<PopoverPrimit
 
 declare const ScrollArea: react.ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
+type ToastVariant = "default" | "success" | "error" | "info" | "warning";
 interface Toast {
     id: string;
     title: string;
     description?: string;
-    variant?: "default" | "success" | "error";
+    variant?: ToastVariant;
 }
+type ToastInput = Omit<Toast, "id">;
 interface ToastContextValue {
-    toast: (t: Omit<Toast, "id">) => void;
+    toast: (t: ToastInput) => void;
 }
 declare function useToast(): ToastContextValue;
+type ToastOptions = Pick<ToastInput, "description">;
+/**
+ * Fire a toast without `useToast()`. Shows in whichever `ToastProvider` is
+ * mounted; with none mounted it is a no-op, the same as `useToast()` outside a
+ * provider.
+ *
+ * ```ts
+ * toast.success("Saved");
+ * toast.error("Couldn't save", { description: res.error });
+ * ```
+ */
+declare const toast: ((t: ToastInput) => void) & {
+    success: (title: string, options?: ToastOptions) => void;
+    error: (title: string, options?: ToastOptions) => void;
+    info: (title: string, options?: ToastOptions) => void;
+    warning: (title: string, options?: ToastOptions) => void;
+};
 declare function ToastProvider({ children }: {
     children: React.ReactNode;
 }): react.JSX.Element;
@@ -1202,4 +1347,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, badgeVariants, buttonVariants, capSeries, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
