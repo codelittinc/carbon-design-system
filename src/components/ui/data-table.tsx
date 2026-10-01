@@ -22,6 +22,19 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   onRowClick?: (row: TData) => void;
   pageSize?: number;
+  /**
+   * `false` turns the table's own paging off and renders every row it is given.
+   * For a list the server already pages: hand it one page of rows and put a
+   * `Pagination` under it. Otherwise `pageSize`, which is read once on mount,
+   * would cut a page the server sent and add a second pager inside the real one.
+   */
+  paginate?: boolean;
+  /**
+   * A stable id per row, used as its React key. Without it rows are keyed by
+   * index, so a cell that holds its own state (an inline rename, an open menu)
+   * moves to a different row when the list re-sorts or gains a row.
+   */
+  getRowId?: (row: TData) => string;
   enableSelection?: boolean;
   emptyMessage?: string;
   /**
@@ -49,6 +62,8 @@ export function DataTable<TData, TValue>({
   data,
   onRowClick,
   pageSize = 25,
+  paginate = true,
+  getRowId,
   enableSelection = false,
   emptyMessage = "No results.",
   resetPageOn = UNSET,
@@ -64,7 +79,8 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: paginate ? getPaginationRowModel() : undefined,
+    getRowId: getRowId ? (row) => getRowId(row) : undefined,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
@@ -168,7 +184,7 @@ export function DataTable<TData, TValue>({
         </table>
       </div>
 
-      {table.getPageCount() > 1 && (
+      {paginate && table.getPageCount() > 1 && (
         <div className="flex items-center justify-between px-1 pt-3">
           <span className="text-xs text-text-muted">
             {table.getFilteredRowModel().rows.length} row(s)

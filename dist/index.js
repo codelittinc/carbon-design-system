@@ -1776,6 +1776,8 @@ function DataTable({
   data,
   onRowClick,
   pageSize = 25,
+  paginate = true,
+  getRowId,
   enableSelection = false,
   emptyMessage = "No results.",
   resetPageOn = UNSET
@@ -1790,7 +1792,8 @@ function DataTable({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: paginate ? getPaginationRowModel() : void 0,
+    getRowId: getRowId ? (row) => getRowId(row) : void 0,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
@@ -1863,7 +1866,7 @@ function DataTable({
         row.id
       )) : /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: columns.length, className: "px-3 py-8 text-center text-text-muted", children: emptyMessage }) }) })
     ] }) }),
-    table.getPageCount() > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-1 pt-3", children: [
+    paginate && table.getPageCount() > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-1 pt-3", children: [
       /* @__PURE__ */ jsxs("span", { className: "text-xs text-text-muted", children: [
         table.getFilteredRowModel().rows.length,
         " row(s)"
