@@ -8,6 +8,18 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.1] - 2026-10-01
+
+### Package exports resolve from `require` too
+
+`.` and `/utils` were exported under the `import` condition only, so anything
+that resolves with `require` failed with `ERR_PACKAGE_PATH_NOT_EXPORTED`. That
+includes a test runner loading CommonJS (`tsx --test`, Jest), and a server
+script importing `sanitizeRichText` or `normalizeLinkHref` from `/utils`. Both
+entries now also have a `default` condition pointing at the same ESM files,
+which Node 22.12 and later load through `require`. Bundlers keep using `import`.
+No code change.
+
 ## [1.15.0] - 2026-10-01
 
 ### `RichTextEditor` is rebuilt on TipTap, with opt-in capabilities
