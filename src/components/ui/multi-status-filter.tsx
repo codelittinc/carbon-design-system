@@ -112,7 +112,7 @@ export function MultiStatusFilter({
                   className={cn(
                     "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
                     checked
-                      ? "border-accent bg-accent text-carbon-950"
+                      ? "border-accent bg-accent text-accent-foreground"
                       : "border-border bg-surface-raised",
                   )}
                 >
