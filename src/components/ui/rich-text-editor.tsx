@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useState, useSyncExternalStore } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import type { RichTextEditorHandle, RichTextEditorProps } from "./rich-text-editor-impl";
 import { loadRichTextEditor, loadedRichTextEditor, subscribeRichTextEditor } from "./rich-text-editor-loader";
@@ -31,13 +31,25 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     const Impl = useSyncExternalStore(subscribeRichTextEditor, loadedRichTextEditor, () => null);
     const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
 
+    // The handle exists from the first render, as it always has, and does
+    // nothing until the editor has loaded and mounted.
+    const inner = useRef<RichTextEditorHandle>(null);
+    useImperativeHandle(
+      ref,
+      () => ({
+        insert: (html: string) => inner.current?.insert(html),
+        focus: () => inner.current?.focus(),
+      }),
+      [],
+    );
+
     useEffect(() => {
       if (Impl) return;
       loadRichTextEditor().catch((cause: unknown) => setFailure({ cause }));
     }, [Impl]);
 
     if (failure) throw failure.cause;
-    if (Impl) return <Impl ref={ref} {...props} />;
+    if (Impl) return <Impl ref={inner} {...props} />;
 
     return (
       <div

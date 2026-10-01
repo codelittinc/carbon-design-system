@@ -44,7 +44,8 @@ that `sanitizeRichText(html)` keeps byte for byte. The differences:
   nothing, and the app shows its own error. An upload that finishes after the
   editor is disabled (a save started) inserts nothing. Images come in through
   the button only: images in pasted or dropped HTML are removed, so a pasted
-  web page or email cannot fetch from its servers.
+  web page or email cannot fetch from its servers. Images the editor already
+  held are kept, so dragging an image or cutting and pasting it moves it.
 - **`linkPanel`:** a popover to add, edit and remove links, with optional text
   to show, an inline error, and URL normalisation (`example.com` →
   `https://example.com`, `ana@example.com` → `mailto:`).
@@ -64,8 +65,9 @@ them, change the editor's `key`.
 the first time one renders, not when the package is imported, so pages
 without an editor download none of it. Until it arrives the editor draws the
 same bordered box with an empty toolbar strip; the server render and hydration
-always draw that box. If loading fails, the editor throws to the nearest error
-boundary.
+always draw that box. A `ref` handle exists from the first render and does
+nothing until the editor has loaded. If loading fails, the editor throws to the
+nearest error boundary.
 
 ### Sanitizer options to match
 
@@ -89,7 +91,8 @@ boundary.
 `normalizeLinkHref`, `isAllowedEditorHref` and `linkHrefErrorMessage` are
 exported from the root and from the server-safe `/utils` entry, so a server can
 check an href the same way the link panel does. `isAllowedEditorHref` reads a
-scheme with a dot in it (`foo.bar:`) as a scheme, as a browser does.
+scheme with a dot in it (`foo.bar:`) as a scheme, as a browser does, while a
+host and port (`example.com:8080`) still autolinks.
 
 ### Dependencies
 

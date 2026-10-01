@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useEffect, createContext, useCallback, Children, useRef, useId, useContext, useMemo } from 'react';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useId, useContext, useMemo } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -337,6 +337,7 @@ function isRichTextEmpty(html) {
 var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
 var SCHEME = /^[a-z][a-z0-9+-]*:/i;
 var ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+var HOST_PORT = /^[a-z0-9-]+(\.[a-z0-9-]+)+:\d+(?:[/?#]|$)/i;
 function parses(url) {
   try {
     return new URL(url);
@@ -371,7 +372,7 @@ function isAllowedEditorHref(url) {
   const s = (url ?? "").replace(INVISIBLE, "");
   if (s === "") return true;
   if (/^(https?|mailto):/i.test(s)) return true;
-  return !ANY_SCHEME.test(s);
+  return !ANY_SCHEME.test(s) || HOST_PORT.test(s);
 }
 function orList(items) {
   if (items.length <= 1) return items.join("");
@@ -1058,12 +1059,21 @@ var RichTextEditor = forwardRef(
   function RichTextEditor2(props, ref) {
     const Impl = useSyncExternalStore(subscribeRichTextEditor, loadedRichTextEditor, () => null);
     const [failure, setFailure] = useState(null);
+    const inner = useRef(null);
+    useImperativeHandle(
+      ref,
+      () => ({
+        insert: (html) => inner.current?.insert(html),
+        focus: () => inner.current?.focus()
+      }),
+      []
+    );
     useEffect(() => {
       if (Impl) return;
       loadRichTextEditor().catch((cause) => setFailure({ cause }));
     }, [Impl]);
     if (failure) throw failure.cause;
-    if (Impl) return /* @__PURE__ */ jsx(Impl, { ref, ...props });
+    if (Impl) return /* @__PURE__ */ jsx(Impl, { ref: inner, ...props });
     return /* @__PURE__ */ jsxs(
       "div",
       {

@@ -252,6 +252,29 @@ describe("RichTextEditor — image upload", () => {
     expect(onChange.mock.lastCall?.[0]).not.toContain("<img");
   });
 
+  it("keeps an image this editor already held, as a drag or a cut and paste moves it", () => {
+    const src = "https://cdn.example.com/1.png";
+    render(<Harness formatting="extended" uploadImage={async () => null} initial={`<p>a</p><img src="${src}" alt=""><p>b</p>`} />);
+    const tiptap = editorOf(editor());
+    // Cut: the image leaves the document, then comes back through the clipboard.
+    edit(() => {
+      tiptap.commands.setContent("<p>a</p><p>b</p>", { emitUpdate: false });
+    });
+    expect(editor().querySelector("img")).toBeNull();
+    paste(editor(), { "text/html": `<img src="${src}" alt="">` });
+    expect(editor().querySelector("img")?.getAttribute("src")).toBe(src);
+  });
+
+  it("refills a quote left holding nothing once its pasted image is removed", () => {
+    render(<Harness formatting="extended" uploadImage={async () => null} initial="<p>x</p>" />);
+    paste(editor(), {
+      "text/html": '<p>before</p><blockquote><img src="https://tracker.example.com/p.gif"></blockquote><p>after</p>',
+    });
+    const doc = editorOf(editor()).state.doc;
+    expect(() => doc.check()).not.toThrow();
+    expect(editor().querySelector("img")).toBeNull();
+  });
+
   it("inserts nothing for a paste that was only an image", () => {
     const onChange = vi.fn();
     render(<Harness formatting="extended" uploadImage={async () => null} initial="<p>x</p>" onChange={onChange} />);

@@ -304,6 +304,7 @@ function isRichTextEmpty(html) {
 var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
 var SCHEME = /^[a-z][a-z0-9+-]*:/i;
 var ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+var HOST_PORT = /^[a-z0-9-]+(\.[a-z0-9-]+)+:\d+(?:[/?#]|$)/i;
 function parses(url) {
   try {
     return new URL(url);
@@ -338,7 +339,7 @@ function isAllowedEditorHref(url) {
   const s = (url ?? "").replace(INVISIBLE, "");
   if (s === "") return true;
   if (/^(https?|mailto):/i.test(s)) return true;
-  return !ANY_SCHEME.test(s);
+  return !ANY_SCHEME.test(s) || HOST_PORT.test(s);
 }
 function orList(items) {
   if (items.length <= 1) return items.join("");
@@ -1279,13 +1280,26 @@ function onlyFiles(data) {
   if (!data || data.files.length === 0) return false;
   return !data.getData("text/plain") && !data.getData("text/html");
 }
-function withoutImages(fragment) {
+function withoutImages(fragment, known) {
   const kept = [];
   fragment.forEach((node) => {
-    if (node.type.name === "image") return;
-    kept.push(node.isLeaf ? node : node.copy(withoutImages(node.content)));
+    if (node.type.name === "image") {
+      if (known.has(node.attrs.src)) kept.push(node);
+      return;
+    }
+    if (node.isLeaf) {
+      kept.push(node);
+      return;
+    }
+    const content = withoutImages(node.content, known);
+    if (content === node.content || node.type.validContent(content) || !node.type.validContent(node.content)) {
+      kept.push(node.copy(content));
+      return;
+    }
+    const filled = node.type.createAndFill(node.attrs, content, node.marks);
+    if (filled) kept.push(filled);
   });
-  return Fragment$1.fromArray(kept);
+  return kept.length === fragment.childCount && kept.every((node, i) => node === fragment.child(i)) ? fragment : Fragment$1.fromArray(kept);
 }
 function pastePlainText(view, text) {
   const { schema, selection } = view.state;
@@ -1326,6 +1340,10 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
   const uploadImageRef = useRef(uploadImage);
   uploadImageRef.current = uploadImage;
   const openLinkRef = useRef(() => setLinkOpen(true));
+  const knownImages = useRef(/* @__PURE__ */ new Set());
+  const rememberImages = (doc) => doc.descendants((node) => {
+    if (node.type.name === "image" && node.attrs.src) knownImages.current.add(node.attrs.src);
+  });
   const [extensions] = useState(
     () => buildExtensions({
       formatting: capabilities.formatting,
@@ -1358,8 +1376,10 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
       },
       handleDrop: (_view, event) => (event.dataTransfer?.files.length ?? 0) > 0,
       transformPastedHTML: dropPlaceholderBreaks,
-      transformPasted: (slice) => {
-        const content = withoutImages(slice.content);
+      transformPasted: (slice, view) => {
+        rememberImages(view.state.doc);
+        const content = withoutImages(slice.content, knownImages.current);
+        if (content === slice.content) return slice;
         return content.size === 0 ? Slice.empty : new Slice(content, slice.openStart, slice.openEnd);
       },
       handleDOMEvents: {
@@ -1382,6 +1402,14 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
     enableInputRules: extended,
     enablePasteRules: extended,
     editorProps,
+    // Every transaction, not only edits (`setContent` from the sync effect does
+    // not emit an update), and the document before it too: a cut removes the
+    // image the paste then brings back.
+    onTransaction: ({ transaction }) => {
+      if (!transaction.docChanged) return;
+      rememberImages(transaction.before);
+      rememberImages(transaction.doc);
+    },
     onUpdate: ({ editor: updated }) => {
       const out = fromEditorHtml(updated.getHTML());
       if (out === lastEmitted.current) return;

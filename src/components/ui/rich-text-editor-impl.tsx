@@ -135,19 +135,44 @@ function onlyFiles(data: DataTransfer | null): boolean {
 }
 
 /**
- * A pasted or dropped slice without its images. Images come in through the
- * Insert image button only: an `<img>` in HTML copied from a web page or an
- * email points at somebody else's server, and rendering it would fetch it (a
- * tracking pixel, say) the moment it was pasted. ProseMirror parses the
- * clipboard in an inert document, so nothing is fetched before this runs.
+ * A pasted or dropped slice without the images that came from outside. Images
+ * come in through the Insert image button only: an `<img>` in HTML copied from
+ * a web page or an email points at somebody else's server, and rendering it
+ * would fetch it (a tracking pixel, say) the moment it was pasted. ProseMirror
+ * parses the clipboard in an inert document, so nothing is fetched before this
+ * runs.
+ *
+ * `known` is every image src this editor has held. ProseMirror runs the same
+ * hook when an image is dragged to a new spot or cut and pasted back, and those
+ * images have to survive the move.
+ *
+ * A container left without the content its schema requires (a quote that held
+ * only an image) is refilled with an empty paragraph, or dropped if it cannot
+ * be. Nodes at the slice's open edges are left alone: they may be partial by
+ * design.
  */
-function withoutImages(fragment: PMFragment): PMFragment {
+function withoutImages(fragment: PMFragment, known: ReadonlySet<string>): PMFragment {
   const kept: PMNode[] = [];
   fragment.forEach((node) => {
-    if (node.type.name === "image") return;
-    kept.push(node.isLeaf ? node : node.copy(withoutImages(node.content)));
+    if (node.type.name === "image") {
+      if (known.has(node.attrs.src as string)) kept.push(node);
+      return;
+    }
+    if (node.isLeaf) {
+      kept.push(node);
+      return;
+    }
+    const content = withoutImages(node.content, known);
+    if (content === node.content || node.type.validContent(content) || !node.type.validContent(node.content)) {
+      kept.push(node.copy(content));
+      return;
+    }
+    const filled = node.type.createAndFill(node.attrs, content, node.marks);
+    if (filled) kept.push(filled);
   });
-  return PMFragment.fromArray(kept);
+  return kept.length === fragment.childCount && kept.every((node, i) => node === fragment.child(i))
+    ? fragment
+    : PMFragment.fromArray(kept);
 }
 
 /**
@@ -245,6 +270,12 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
   const uploadImageRef = useRef(uploadImage);
   uploadImageRef.current = uploadImage;
   const openLinkRef = useRef(() => setLinkOpen(true));
+  /** Every image src this editor has held, so moving one keeps it (see `withoutImages`). */
+  const knownImages = useRef(new Set<string>());
+  const rememberImages = (doc: PMNode) =>
+    doc.descendants((node) => {
+      if (node.type.name === "image" && node.attrs.src) knownImages.current.add(node.attrs.src as string);
+    });
 
   const [extensions] = useState(() =>
     buildExtensions({
@@ -280,8 +311,10 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
       },
       handleDrop: (_view: EditorView, event: DragEvent) => (event.dataTransfer?.files.length ?? 0) > 0,
       transformPastedHTML: dropPlaceholderBreaks,
-      transformPasted: (slice: Slice) => {
-        const content = withoutImages(slice.content);
+      transformPasted: (slice: Slice, view: EditorView) => {
+        rememberImages(view.state.doc);
+        const content = withoutImages(slice.content, knownImages.current);
+        if (content === slice.content) return slice;
         return content.size === 0 ? Slice.empty : new Slice(content, slice.openStart, slice.openEnd);
       },
       handleDOMEvents: {
@@ -305,6 +338,14 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
     enableInputRules: extended,
     enablePasteRules: extended,
     editorProps,
+    // Every transaction, not only edits (`setContent` from the sync effect does
+    // not emit an update), and the document before it too: a cut removes the
+    // image the paste then brings back.
+    onTransaction: ({ transaction }) => {
+      if (!transaction.docChanged) return;
+      rememberImages(transaction.before);
+      rememberImages(transaction.doc);
+    },
     onUpdate: ({ editor: updated }) => {
       const out = fromEditorHtml(updated.getHTML());
       if (out === lastEmitted.current) return;

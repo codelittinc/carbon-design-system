@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { createRef, useState } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { isRichTextEmpty } from "@/lib/rich-text";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
-import { RichTextEditor } from "../rich-text-editor";
+import { RichTextEditor, type RichTextEditorHandle } from "../rich-text-editor";
 import { Harness, edit, editorOf, paste, press, surface as editor, typeChars } from "./rich-text-editor.helpers";
 
 /**
@@ -576,6 +576,20 @@ describe("RichTextEditor — server render", () => {
 describe("RichTextEditor — loading TipTap", () => {
   // The test setup loads the editor once for every file. A fresh module
   // registry gives this test the state an app is in before the chunk arrives.
+  it("gives a ref handle that does nothing until the editor has loaded", async () => {
+    vi.resetModules();
+    const fresh = await import("../rich-text-editor");
+    const ref = createRef<RichTextEditorHandle>();
+    render(<fresh.RichTextEditor ref={ref} value="" onChange={() => {}} ariaLabel="Early" />);
+    expect(ref.current).not.toBeNull();
+    expect(() => ref.current!.insert("<p>too soon</p>")).not.toThrow();
+    expect(() => ref.current!.focus()).not.toThrow();
+
+    await screen.findByRole("textbox", { name: "Early" });
+    act(() => ref.current!.insert("<p>now</p>"));
+    expect(screen.getByRole("textbox", { name: "Early" })).toHaveTextContent("now");
+  });
+
   it("draws the loading box, then the editor, without calling onChange", async () => {
     vi.resetModules();
     const fresh = await import("../rich-text-editor");

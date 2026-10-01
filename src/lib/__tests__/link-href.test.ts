@@ -94,6 +94,12 @@ describe("isAllowedEditorHref", () => {
     expect(isAllowedEditorHref("web+app.x:thing")).toBe(false);
   });
 
+  it("still reads a dotted host with a port as a host, for autolink", () => {
+    expect(isAllowedEditorHref("example.com:8080")).toBe(true);
+    expect(isAllowedEditorHref("example.com:8080/path?q=1")).toBe(true);
+    expect(isAllowedEditorHref("foo.bar:8080evil")).toBe(false);
+  });
+
     it("keeps web and email links", () => {
     expect(isAllowedEditorHref("https://example.com")).toBe(true);
     expect(isAllowedEditorHref("HTTP://example.com")).toBe(true);

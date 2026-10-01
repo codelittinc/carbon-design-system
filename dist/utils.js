@@ -314,6 +314,7 @@ function isRichTextEmpty(html) {
 var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
 var SCHEME = /^[a-z][a-z0-9+-]*:/i;
 var ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+var HOST_PORT = /^[a-z0-9-]+(\.[a-z0-9-]+)+:\d+(?:[/?#]|$)/i;
 function parses(url) {
   try {
     return new URL(url);
@@ -348,7 +349,7 @@ function isAllowedEditorHref(url) {
   const s = (url ?? "").replace(INVISIBLE, "");
   if (s === "") return true;
   if (/^(https?|mailto):/i.test(s)) return true;
-  return !ANY_SCHEME.test(s);
+  return !ANY_SCHEME.test(s) || HOST_PORT.test(s);
 }
 function orList(items) {
   if (items.length <= 1) return items.join("");
