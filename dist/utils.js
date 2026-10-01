@@ -285,12 +285,14 @@ function sanitizeRichText(html, options) {
     }
     if (canonical === "li" && stack.at(-1)?.name === "li") closeThrough("li");
     if (canonical === "p" && stack.some((tag) => tag.name === "p")) closeThrough("p");
+    if (CLOSES_PARAGRAPH.has(canonical) && stack.some((tag) => tag.name === "p")) closeThrough("p");
     out.push(`<${canonical}>`);
     stack.push({ name: canonical });
   }
   for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
   return collapseEmpty(out.join(""), empty);
 }
+var CLOSES_PARAGRAPH = /* @__PURE__ */ new Set(["blockquote", "pre", "h1", "h2", "h3"]);
 function collapseEmpty(html, empty) {
   let previous;
   let current = html;
@@ -302,14 +304,16 @@ function collapseEmpty(html, empty) {
 }
 function isRichTextEmpty(html) {
   if (!html) return true;
-  if (/<img\b/i.test(html)) return false;
-  const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
+  const stored = sanitizeRichText(html, { formatting: "extended", images: true });
+  if (/<img\b/.test(stored)) return false;
+  const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
 
 // src/lib/link-href.ts
 var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
 var SCHEME = /^[a-z][a-z0-9+-]*:/i;
+var ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 function parses(url) {
   try {
     return new URL(url);
@@ -344,7 +348,7 @@ function isAllowedEditorHref(url) {
   const s = (url ?? "").replace(INVISIBLE, "");
   if (s === "") return true;
   if (/^(https?|mailto):/i.test(s)) return true;
-  return !SCHEME.test(s);
+  return !ANY_SCHEME.test(s);
 }
 function orList(items) {
   if (items.length <= 1) return items.join("");

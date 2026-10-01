@@ -5,7 +5,7 @@ import { Link } from "@tiptap/extension-link";
 import { ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { StarterKit } from "@tiptap/starter-kit";
 import { isAllowedEditorHref } from "@/lib/link-href";
-import type { RichTextFormatting } from "@/lib/rich-text";
+import { safeImageSrc, type RichTextFormatting } from "@/lib/rich-text";
 
 /**
  * The editor's schema, derived from its props.
@@ -73,15 +73,36 @@ const CarbonLink = Link.extend({
 });
 
 /**
+ * The `src` an image in the editor gets: resolved against the page, so an
+ * upload that returns `/api/files/1` is stored as an absolute URL, then held to
+ * the sanitizer's own image rule (http and https only). Anything the sanitizer
+ * would drop on save is refused here instead, so an image never shows in the
+ * editor and then vanishes from the saved note. `null` when it is refused.
+ */
+export function editorImageSrc(raw: string): string | null {
+  const base = typeof window === "undefined" ? undefined : window.location.href;
+  try {
+    return safeImageSrc(new URL(raw.trim(), base).href);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Only `src` and `alt`; width, height and title are dropped as every sanitizer
- * drops them. A `src` with a scheme other than http(s) is not parsed: TipTap's
- * own rule refuses only `data:`. A relative `src` is kept, because an app's
- * `uploadImage` may return one; restricting it further is the sanitizer's job.
+ * drops them. `src` goes through `editorImageSrc`, and an image whose `src` it
+ * refuses is not parsed at all.
  * No `![alt](src)` typing rule: images come in through the button only.
  */
 const CarbonImage = Image.extend({
   addAttributes() {
-    return { src: { default: null }, alt: { default: null } };
+    return {
+      src: {
+        default: null,
+        parseHTML: (element: HTMLElement) => editorImageSrc(element.getAttribute("src") ?? ""),
+      },
+      alt: { default: null },
+    };
   },
   addInputRules() {
     return [];
@@ -90,10 +111,8 @@ const CarbonImage = Image.extend({
     return [
       {
         tag: "img[src]",
-        getAttrs: (element: HTMLElement) => {
-          const src = element.getAttribute("src") ?? "";
-          return isAllowedEditorHref(src) && !/^\s*mailto:/i.test(src) ? null : false;
-        },
+        getAttrs: (element: HTMLElement) =>
+          editorImageSrc(element.getAttribute("src") ?? "") === null ? false : null,
       },
     ];
   },

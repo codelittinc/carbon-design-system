@@ -3,6 +3,7 @@
 import { forwardRef, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import { ImagePlus, LoaderCircle } from "lucide-react";
+import { editorImageSrc } from "./rich-text-editor-extensions";
 import { ToolbarButton } from "./rich-text-toolbar-button";
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -23,6 +24,11 @@ export interface RichTextImageButtonProps extends React.ButtonHTMLAttributes<HTM
  * The app owns failure. A `null` or a rejection inserts nothing and resets the
  * button; the rejection is caught here so it never escapes as an unhandled
  * one, and the app shows its own message.
+ *
+ * A relative URL is made absolute (`editorImageSrc`). One the sanitizer would
+ * drop on save, such as a `data:` or `blob:` URL, inserts nothing and says so in
+ * the status region. An upload that finishes after the editor was disabled (a
+ * save started) inserts nothing either: the value being saved is already sent.
  */
 export const RichTextImageButton = forwardRef<HTMLButtonElement, RichTextImageButtonProps>(
   ({ editor, uploadImage, onStatus, apple, disabled, ...props }, ref) => {
@@ -44,10 +50,13 @@ export const RichTextImageButton = forwardRef<HTMLButtonElement, RichTextImageBu
       setUploading(true);
       onStatus("Uploading image…");
       try {
-        const src = await uploadImage.current?.(file);
-        if (src && !editor.isDestroyed) {
+        const uploaded = await uploadImage.current?.(file);
+        const src = uploaded ? editorImageSrc(uploaded) : null;
+        if (src && !editor.isDestroyed && editor.isEditable) {
           editor.chain().focus().setImage({ src, alt: file.name }).run();
           onStatus("Image inserted.");
+        } else if (uploaded && !src) {
+          onStatus("The uploaded image's address can't be saved, so it wasn't inserted.");
         } else {
           onStatus("");
         }

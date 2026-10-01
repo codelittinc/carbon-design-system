@@ -89,7 +89,12 @@ describe("isAllowedEditorHref", () => {
     }
   });
 
-  it("keeps web and email links", () => {
+  it("drops a scheme with a dot in it, as a browser reads one", () => {
+    expect(isAllowedEditorHref("foo.bar:payload")).toBe(false);
+    expect(isAllowedEditorHref("web+app.x:thing")).toBe(false);
+  });
+
+    it("keeps web and email links", () => {
     expect(isAllowedEditorHref("https://example.com")).toBe(true);
     expect(isAllowedEditorHref("HTTP://example.com")).toBe(true);
     expect(isAllowedEditorHref("mailto:ana@example.com")).toBe(true);

@@ -156,13 +156,52 @@ describe("RichTextEditor — image upload", () => {
 
   it("inserts the URL the upload resolves to, at the caret", async () => {
     const onChange = vi.fn();
-    const uploadImage = vi.fn(async () => "/api/files/1");
+    const uploadImage = vi.fn(async () => "https://cdn.example.com/1.png");
     render(<Harness initial="<p>before</p>" uploadImage={uploadImage} onChange={onChange} />);
 
     const f = file();
     pick(f);
     expect(uploadImage).toHaveBeenCalledWith(f);
-    await waitFor(() => expect(onChange.mock.lastCall?.[0]).toContain('<img src="/api/files/1"'));
+    await waitFor(() => expect(onChange.mock.lastCall?.[0]).toContain('<img src="https://cdn.example.com/1.png"'));
+  });
+
+  it("makes a relative upload URL absolute, so the image survives the save", async () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => "/api/files/1"} onChange={onChange} />);
+    pick(file());
+
+    const absolute = new URL("/api/files/1", window.location.href).href;
+    await waitFor(() => expect(onChange.mock.lastCall?.[0]).toContain(`<img src="${absolute}"`));
+    const out = onChange.mock.lastCall![0] as string;
+    expect(sanitizeRichText(out, { images: true })).toContain(`src="${absolute}"`);
+  });
+
+  it.each(["data:image/png;base64,AAAA", "blob:https://app.example.com/1", "javascript:alert(1)"])(
+    "inserts nothing, and says why, when the upload resolves to %s",
+    async (url) => {
+      const onChange = vi.fn();
+      render(<Harness uploadImage={async () => url} onChange={onChange} />);
+      pick(file());
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("can't be saved"));
+      expect(onChange).not.toHaveBeenCalled();
+    },
+  );
+
+  it("inserts nothing when the upload finishes after the editor was disabled", async () => {
+    let resolve!: (url: string | null) => void;
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <Harness uploadImage={() => new Promise((r) => (resolve = r))} onChange={onChange} />,
+    );
+    pick(file());
+    await screen.findByRole("button", { name: "Uploading image…" });
+
+    // A save starts: the form disables the editor and sends what it has.
+    rerender(<Harness uploadImage={() => new Promise((r) => (resolve = r))} onChange={onChange} disabled />);
+    await act(async () => resolve("https://cdn.example.com/1.png"));
+
+    expect(editor().querySelector("img")).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("shows the upload in progress, and is disabled while it runs", async () => {
@@ -196,9 +235,28 @@ describe("RichTextEditor — image upload", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("keeps a relative src from stored content, since an app's upload may return one", () => {
+  it("reads a relative src in stored content as absolute, as the save will need", () => {
     render(<Harness uploadImage={async () => null} initial='<p>a</p><img src="/api/files/9" alt="">' />);
-    expect(editor().querySelector("img")?.getAttribute("src")).toBe("/api/files/9");
+    expect(editor().querySelector("img")?.getAttribute("src")).toBe(new URL("/api/files/9", window.location.href).href);
+  });
+
+  it("drops images from pasted HTML, so a pasted page cannot fetch from its servers", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" uploadImage={async () => null} onChange={onChange} />);
+    paste(editor(), {
+      "text/html": '<p>Hello</p><img src="https://tracker.example.com/pixel.gif" alt=""><p>there</p>',
+      "text/plain": "Hello\nthere",
+    });
+    expect(editor().querySelector("img")).toBeNull();
+    expect(onChange.mock.lastCall?.[0]).toContain("Hello");
+    expect(onChange.mock.lastCall?.[0]).not.toContain("<img");
+  });
+
+  it("inserts nothing for a paste that was only an image", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" uploadImage={async () => null} initial="<p>x</p>" onChange={onChange} />);
+    paste(editor(), { "text/html": '<img src="https://tracker.example.com/pixel.gif" alt="">' });
+    expect(editor().querySelector("img")).toBeNull();
   });
 });
 
