@@ -386,4 +386,78 @@ describe("DataTable", () => {
     });
   });
 
+  describe("expandable rows", () => {
+    const detail = (row: Row) => <p>{row.name} is {row.age}</p>;
+
+    it("adds a toggle per row that shows the detail in a full-width row underneath", () => {
+      render(<DataTable columns={columns} data={data} renderExpanded={detail} />);
+      const toggles = screen.getAllByRole("button", { name: "Show details" });
+      expect(toggles).toHaveLength(3);
+      expect(toggles[1]).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByText("Alice is 25")).not.toBeInTheDocument();
+
+      fireEvent.click(toggles[1]);
+      expect(toggles[1]).toHaveAttribute("aria-expanded", "true");
+      const cell = screen.getByText("Alice is 25").closest("td")!;
+      // Spans the data columns plus the toggle column.
+      expect(cell).toHaveAttribute("colspan", "3");
+      expect(cell.closest("tr")).toHaveClass("bg-surface-raised");
+      expect(toggles[1]).toHaveAttribute("aria-controls", cell.closest("tr")!.id);
+
+      fireEvent.click(toggles[1]);
+      expect(screen.queryByText("Alice is 25")).not.toBeInTheDocument();
+    });
+
+    it("does not fire onRowClick from the toggle", () => {
+      const onRowClick = vi.fn();
+      render(<DataTable columns={columns} data={data} renderExpanded={detail} onRowClick={onRowClick} />);
+      fireEvent.click(screen.getAllByRole("button", { name: "Show details" })[0]);
+      expect(onRowClick).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByText("Alice"));
+      expect(onRowClick).toHaveBeenCalledWith(data[1]);
+      // Without expandOnRowClick a row click leaves the row closed.
+      expect(screen.queryByText("Alice is 25")).not.toBeInTheDocument();
+    });
+
+    it("toggles from anywhere on the row with expandOnRowClick", () => {
+      render(<DataTable columns={columns} data={data} renderExpanded={detail} expandOnRowClick />);
+      fireEvent.click(screen.getByText("Bob"));
+      expect(screen.getByText("Bob is 35")).toBeInTheDocument();
+    });
+
+    it("gives a toggle only to rows getRowCanExpand allows", () => {
+      render(
+        <DataTable
+          columns={columns}
+          data={data}
+          renderExpanded={detail}
+          getRowCanExpand={(row) => row.age > 26}
+        />,
+      );
+      expect(screen.getAllByRole("button", { name: "Show details" })).toHaveLength(2);
+      // The toggle column is still there, so the columns line up.
+      expect(within(bodyRows()[1]).getAllByRole("cell")).toHaveLength(3);
+    });
+
+    it("keeps rows open across a refetch when keyed by getRowId", () => {
+      const { rerender } = render(
+        <DataTable columns={columns} data={data} renderExpanded={detail} getRowId={(r) => r.name} />,
+      );
+      fireEvent.click(screen.getAllByRole("button", { name: "Show details" })[2]);
+      rerender(
+        <DataTable
+          columns={columns}
+          data={[{ name: "Zed", age: 1 }, ...data.map((r) => ({ ...r }))]}
+          renderExpanded={detail}
+          getRowId={(r) => r.name}
+        />,
+      );
+      expect(screen.getByText("Bob is 35")).toBeInTheDocument();
+    });
+
+    it("adds no column without renderExpanded", () => {
+      render(<DataTable columns={columns} data={data} />);
+      expect(screen.getAllByRole("columnheader")).toHaveLength(2);
+    });
+  });
 });

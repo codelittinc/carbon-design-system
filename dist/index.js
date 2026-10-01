@@ -2,8 +2,8 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useContext, useCallback, Children, useId, useMemo, Fragment as Fragment$1 } from 'react';
-import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useContext, useCallback, Children, useId, Fragment, useMemo } from 'react';
+import { jsx, jsxs, Fragment as Fragment$1 } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { Check, ChevronDown, X, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
@@ -1978,8 +1978,15 @@ function DataTable({
   rowClassName,
   sorting: controlledSorting,
   onSortingChange,
-  manualSorting = false
+  manualSorting = false,
+  renderExpanded,
+  getRowCanExpand,
+  expandOnRowClick = false
 }) {
+  const [expanded, setExpanded] = useState({});
+  const expandable = renderExpanded !== void 0;
+  const detailId = useId();
+  const colCount = columns.length + (expandable ? 1 : 0);
   const [internalSorting, setInternalSorting] = useState([]);
   const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState([]);
@@ -2000,13 +2007,17 @@ function DataTable({
     getRowId: getRowId ? (row) => getRowId(row) : void 0,
     manualSorting,
     onSortingChange: handleSortingChange,
+    getRowCanExpand: expandable ? (row) => getRowCanExpand ? getRowCanExpand(row.original) : true : () => false,
+    onExpandedChange: setExpanded,
+    // Hold rows open across a refetch; `getRowId` keeps them the same rows.
+    autoResetExpanded: false,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: enableSelection,
     // Hand the reset over to the effect below only when the caller opted in, so the
     // default stays exactly TanStack's.
     autoResetPageIndex: !driven,
-    state: { sorting, columnFilters, rowSelection },
+    state: { sorting, columnFilters, rowSelection, expanded },
     initialState: { pagination: { pageSize } }
   });
   const seen = useRef(resetPageOn);
@@ -2017,88 +2028,133 @@ function DataTable({
   }, [driven, resetPageOn, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: headerGroup.headers.map((header) => {
-        const meta = header.column.columnDef.meta;
-        const align = alignClasses[meta?.align ?? "left"];
-        const sorted = header.column.getIsSorted();
-        const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
-        return /* @__PURE__ */ jsx(
-          "th",
-          {
-            "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
-            className: cn(
-              "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
-              align.header,
-              header.column.getCanSort() && "cursor-pointer select-none",
-              meta?.headerClassName
-            ),
-            onClick: header.column.getToggleSortingHandler(),
-            children: /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1", align.content), children: [
-              header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext()),
-              header.column.getCanSort() && /* @__PURE__ */ jsx(
-                SortIcon,
-                {
-                  size: 12,
-                  "aria-hidden": "true",
-                  className: sorted ? "text-text-secondary" : "text-text-faint"
-                }
-              )
-            ] })
-          },
-          header.id
-        );
-      }) }, headerGroup.id)) }),
-      /* @__PURE__ */ jsx("tbody", { children: table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => /* @__PURE__ */ jsx(
-        "tr",
-        {
-          className: cn(
-            "border-b border-border-subtle transition-colors last:border-0",
-            // Zebra, keyed to the row's index within the CURRENT page, so the
-            // banding starts the same way on every page instead of depending on
-            // whether the pages before it held an odd number of rows.
-            //
-            // A plain `bg-*` and not the `even:` variant on purpose: a plain
-            // class is one specificity step below `hover:bg-*`, so the hover
-            // wins whatever order Tailwind emits the two in. `even:` and
-            // `hover:` are both class-plus-pseudo-class and TIE, which would
-            // leave "does hovering a striped row look any different" decided by
-            // the generated stylesheet's ordering.
-            index % 2 === 1 && "bg-table-stripe",
-            onRowClick && "cursor-pointer",
-            // Hover on EVERY row, clickable or not. It answers "which row am I
-            // reading" across a table too wide to track by eye, which is a
-            // reading aid rather than a click affordance — `cursor-pointer`
-            // above is the separate question of whether the row does anything
-            // when you click it.
-            //
-            // Held back while the row is selected: the hover token is a wash
-            // OVER whatever the row sits on rather than a shade of it, so on a
-            // selected row it would cover the selection instead of deepening
-            // it, and the pointer would appear to clear the one row state that
-            // has to stay readable under it.
-            !row.getIsSelected() && "hover:bg-table-row-hover",
-            // Last, so twMerge drops the stripe from a selected row: a row gets
-            // one background, and selection is the one that means something.
-            row.getIsSelected() && "bg-accent-muted",
-            // The caller's, last of all, so a row tint or `opacity-60` wins.
-            rowClassName?.(row.original)
-          ),
-          onClick: () => onRowClick?.(row.original),
-          children: row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx(
-            "td",
+      /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
+        expandable && /* @__PURE__ */ jsx("th", { className: "w-10 px-1 py-2", children: /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Details" }) }),
+        headerGroup.headers.map((header) => {
+          const meta = header.column.columnDef.meta;
+          const align = alignClasses[meta?.align ?? "left"];
+          const sorted = header.column.getIsSorted();
+          const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+          return /* @__PURE__ */ jsx(
+            "th",
+            {
+              "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
+              className: cn(
+                "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
+                align.header,
+                header.column.getCanSort() && "cursor-pointer select-none",
+                meta?.headerClassName
+              ),
+              onClick: header.column.getToggleSortingHandler(),
+              children: /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1", align.content), children: [
+                header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext()),
+                header.column.getCanSort() && /* @__PURE__ */ jsx(
+                  SortIcon,
+                  {
+                    size: 12,
+                    "aria-hidden": "true",
+                    className: sorted ? "text-text-secondary" : "text-text-faint"
+                  }
+                )
+              ] })
+            },
+            header.id
+          );
+        })
+      ] }, headerGroup.id)) }),
+      /* @__PURE__ */ jsx("tbody", { children: table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => {
+        const canExpand = row.getCanExpand();
+        const isExpanded = canExpand && row.getIsExpanded();
+        const rowDetailId = `${detailId}-${row.id}`;
+        return /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsxs(
+            "tr",
             {
               className: cn(
-                "px-3 py-2 text-text-secondary",
-                cell.column.columnDef.meta?.align && alignClasses[cell.column.columnDef.meta.align].cell,
-                cell.column.columnDef.meta?.className
+                "border-b border-border-subtle transition-colors last:border-0",
+                // Zebra, keyed to the row's index within the CURRENT page, so the
+                // banding starts the same way on every page instead of depending on
+                // whether the pages before it held an odd number of rows.
+                //
+                // A plain `bg-*` and not the `even:` variant on purpose: a plain
+                // class is one specificity step below `hover:bg-*`, so the hover
+                // wins whatever order Tailwind emits the two in. `even:` and
+                // `hover:` are both class-plus-pseudo-class and TIE, which would
+                // leave "does hovering a striped row look any different" decided by
+                // the generated stylesheet's ordering.
+                index % 2 === 1 && "bg-table-stripe",
+                onRowClick && "cursor-pointer",
+                // Hover on EVERY row, clickable or not. It answers "which row am I
+                // reading" across a table too wide to track by eye, which is a
+                // reading aid rather than a click affordance — `cursor-pointer`
+                // above is the separate question of whether the row does anything
+                // when you click it.
+                //
+                // Held back while the row is selected: the hover token is a wash
+                // OVER whatever the row sits on rather than a shade of it, so on a
+                // selected row it would cover the selection instead of deepening
+                // it, and the pointer would appear to clear the one row state that
+                // has to stay readable under it.
+                !row.getIsSelected() && "hover:bg-table-row-hover",
+                // Last, so twMerge drops the stripe from a selected row: a row gets
+                // one background, and selection is the one that means something.
+                row.getIsSelected() && "bg-accent-muted",
+                // The caller's, last of all, so a row tint or `opacity-60` wins.
+                rowClassName?.(row.original)
               ),
-              children: flexRender(cell.column.columnDef.cell, cell.getContext())
-            },
-            cell.id
-          ))
-        },
-        row.id
-      )) : /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: columns.length, className: "px-3 py-8 text-center text-text-muted", children: emptyMessage }) }) })
+              onClick: () => {
+                if (expandOnRowClick && canExpand) row.toggleExpanded();
+                onRowClick?.(row.original);
+              },
+              children: [
+                expandable && /* @__PURE__ */ jsx("td", { className: "w-10 px-1 py-1", children: canExpand && /* @__PURE__ */ jsx(
+                  Button,
+                  {
+                    type: "button",
+                    variant: "ghost",
+                    size: "icon",
+                    "aria-label": "Show details",
+                    "aria-expanded": isExpanded,
+                    "aria-controls": isExpanded ? rowDetailId : void 0,
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      row.toggleExpanded();
+                    },
+                    children: /* @__PURE__ */ jsx(
+                      ChevronRight,
+                      {
+                        size: 14,
+                        "aria-hidden": "true",
+                        className: cn("transition-transform", isExpanded && "rotate-90")
+                      }
+                    )
+                  }
+                ) }),
+                row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx(
+                  "td",
+                  {
+                    className: cn(
+                      "px-3 py-2 text-text-secondary",
+                      cell.column.columnDef.meta?.align && alignClasses[cell.column.columnDef.meta.align].cell,
+                      cell.column.columnDef.meta?.className
+                    ),
+                    children: flexRender(cell.column.columnDef.cell, cell.getContext())
+                  },
+                  cell.id
+                ))
+              ]
+            }
+          ),
+          isExpanded && /* @__PURE__ */ jsx(
+            "tr",
+            {
+              id: rowDetailId,
+              className: "border-b border-border-subtle bg-surface-raised last:border-0",
+              children: /* @__PURE__ */ jsx("td", { colSpan: colCount, className: "px-4 py-3 text-text-secondary", children: renderExpanded?.(row.original) })
+            }
+          )
+        ] }, row.id);
+      }) : /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: colCount, className: "px-3 py-8 text-center text-text-muted", children: emptyMessage }) }) })
     ] }) }),
     paginate && table.getPageCount() > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-1 pt-3", children: [
       /* @__PURE__ */ jsxs("span", { className: "text-xs text-text-muted", children: [
@@ -2737,7 +2793,7 @@ function ChartCard({
 }
 function ChartLegend({ items, onItemClick, className }) {
   return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className), children: items.map((item, i) => {
-    const content = /* @__PURE__ */ jsxs(Fragment, { children: [
+    const content = /* @__PURE__ */ jsxs(Fragment$1, { children: [
       /* @__PURE__ */ jsx(
         "span",
         {
@@ -2760,15 +2816,35 @@ function ChartLegend({ items, onItemClick, className }) {
     ) : /* @__PURE__ */ jsx("span", { className: "flex min-w-0 items-center gap-1.5", children: content }) }, `${item.label}-${i}`);
   }) });
 }
+function ChartTooltipShell({ children }) {
+  return /* @__PURE__ */ jsx("div", { className: "rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg", children });
+}
+function inShell(body) {
+  return body == null || body === false ? null : /* @__PURE__ */ jsx(ChartTooltipShell, { children: body });
+}
 function ChartTooltipContent({
   active,
   payload,
   label,
   valueFormatter = formatChartValue,
-  labelFormatter
+  labelFormatter,
+  render
 }) {
   if (!active || !payload?.length) return null;
-  return /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg", children: [
+  if (render) {
+    const ctx = {
+      label: label ?? "",
+      payload: payload.map((item) => ({
+        key: String(item.dataKey ?? item.name ?? ""),
+        label: String(item.name ?? item.dataKey ?? ""),
+        value: Number(item.value),
+        color: item.color ?? "",
+        datum: item.payload ?? {}
+      }))
+    };
+    return inShell(render(ctx));
+  }
+  return /* @__PURE__ */ jsxs(ChartTooltipShell, { children: [
     label != null && label !== "" && /* @__PURE__ */ jsx("p", { className: "mb-1.5 text-xs font-medium text-text-primary", children: labelFormatter ? labelFormatter(label) : label }),
     /* @__PURE__ */ jsx("ul", { className: "space-y-1", children: payload.map((item, i) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-xs", children: [
       /* @__PURE__ */ jsx(
@@ -2783,6 +2859,21 @@ function ChartTooltipContent({
       /* @__PURE__ */ jsx("span", { className: "ml-auto font-[family-name:var(--font-mono)] text-text-primary", children: typeof item.value === "number" ? valueFormatter(item.value) : item.value ?? "\u2014" })
     ] }, i)) })
   ] });
+}
+function ChartSliceTooltipContent({
+  active,
+  payload,
+  render
+}) {
+  const item = payload?.[0];
+  if (!active || !item) return null;
+  const datum = item.payload;
+  const ctx = {
+    datum,
+    value: Number(item.value),
+    color: datum.color ?? item.color ?? ""
+  };
+  return inShell(render(ctx));
 }
 function ChartDataTable({
   caption,
@@ -2849,6 +2940,7 @@ function BarChart({
   valueFormatter = formatChartValue,
   tickFormatter,
   labelFormatter,
+  tooltipContent,
   categoryLabel = "Category",
   tableCaption,
   onBarClick,
@@ -2953,10 +3045,10 @@ function BarChart({
               vertical: isHorizontal
             }
           ),
-          isHorizontal ? /* @__PURE__ */ jsxs(Fragment, { children: [
+          isHorizontal ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
             valueAxis,
             categoryAxis
-          ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+          ] }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
             /* @__PURE__ */ jsx(
               XAxis,
               {
@@ -2986,7 +3078,8 @@ function BarChart({
                 ChartTooltipContent,
                 {
                   valueFormatter,
-                  labelFormatter
+                  labelFormatter,
+                  render: tooltipContent
                 }
               )
             }
@@ -3068,6 +3161,7 @@ function LineChart({
   valueFormatter = formatChartValue,
   tickFormatter,
   labelFormatter,
+  tooltipContent,
   categoryLabel = "Period",
   tableCaption,
   loading,
@@ -3137,7 +3231,8 @@ function LineChart({
                 ChartTooltipContent,
                 {
                   valueFormatter,
-                  labelFormatter
+                  labelFormatter,
+                  render: tooltipContent
                 }
               )
             }
@@ -3220,6 +3315,7 @@ function DonutChart({
   categoryLabel = "Category",
   tableCaption,
   onSliceClick,
+  tooltipContent,
   loading,
   emptyTitle,
   emptyDescription,
@@ -3269,7 +3365,12 @@ function DonutChart({
               style: { height, width: height, maxWidth: "100%" },
               children: [
                 /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(PieChart, { children: [
-                  /* @__PURE__ */ jsx(Tooltip$1, { content: /* @__PURE__ */ jsx(ChartTooltipContent, { valueFormatter }) }),
+                  /* @__PURE__ */ jsx(
+                    Tooltip$1,
+                    {
+                      content: tooltipContent ? /* @__PURE__ */ jsx(ChartSliceTooltipContent, { render: tooltipContent }) : /* @__PURE__ */ jsx(ChartTooltipContent, { valueFormatter })
+                    }
+                  ),
                   /* @__PURE__ */ jsx(
                     Pie,
                     {
@@ -3651,7 +3752,7 @@ function EventCalendar({
                         children: cell.date.getUTCDate()
                       }
                     ),
-                    visible.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso))),
+                    visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso))),
                     overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
                       /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
                         Button,
@@ -3672,7 +3773,7 @@ function EventCalendar({
                           className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
                           children: [
                             /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(cell.iso, items.length) }),
-                            items.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso)))
+                            items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso)))
                           ]
                         }
                       )
@@ -4021,7 +4122,7 @@ function DayDetailPanel({
   ] }) });
 }
 function ContractName({ contract }) {
-  return /* @__PURE__ */ jsxs(Fragment, { children: [
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
     /* @__PURE__ */ jsx("div", { className: "truncate text-sm font-medium text-text-primary", children: contract.projectName }),
     /* @__PURE__ */ jsxs("div", { className: "truncate text-xs text-text-muted", children: [
       contract.customerName,
@@ -4377,7 +4478,7 @@ function TimesheetTable({
         className: "mb-0",
         title,
         description: userFullName,
-        actions: /* @__PURE__ */ jsxs(Fragment, { children: [
+        actions: /* @__PURE__ */ jsxs(Fragment$1, { children: [
           /* @__PURE__ */ jsx(
             SegmentedControl,
             {
@@ -4387,7 +4488,7 @@ function TimesheetTable({
               onChange: (v) => handleViewModeChange(v)
             }
           ),
-          showRevert ? /* @__PURE__ */ jsxs(Fragment, { children: [
+          showRevert ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
             /* @__PURE__ */ jsx("span", { role: "status", className: "text-sm font-medium text-success-text", children: "Saved" }),
             /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: handleRevert, children: "Revert" })
           ] }) : isDirty || saving ? /* @__PURE__ */ jsx(Button, { type: "button", onClick: performAutoSave, disabled: saving || !isDirty, children: saving ? "Saving..." : "Save" }) : null
@@ -4408,7 +4509,7 @@ function TimesheetTable({
         /* @__PURE__ */ jsx(ChevronRight, { size: 14, "aria-hidden": "true" })
       ] })
     ] }) }),
-    loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+    loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
       /* @__PURE__ */ jsx(
         HoursSummary,
         {
@@ -4522,7 +4623,7 @@ function TimesheetTable({
           }),
           /* @__PURE__ */ jsx("td", { className: "px-2 py-3 text-center font-bold tabular-nums text-text-primary", children: grandTotal > 0 ? grandTotal : "\u2013" })
         ] }) })
-      ] }) }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+      ] }) }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
         /* @__PURE__ */ jsx(
           MonthlyCalendarGrid,
           {
@@ -5366,4 +5467,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedChip, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StatusLegend, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, linkHrefErrorMessage, monthLabel, monthOfKey, normalizeLinkHref, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedChip, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StatusLegend, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, linkHrefErrorMessage, monthLabel, monthOfKey, normalizeLinkHref, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
