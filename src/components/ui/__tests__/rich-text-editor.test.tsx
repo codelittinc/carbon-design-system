@@ -5,6 +5,7 @@ import { hydrateRoot } from "react-dom/client";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { isRichTextEmpty } from "@/lib/rich-text";
+import { CommandPalette } from "../command-palette";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
 import { RichTextEditor, type RichTextEditorHandle } from "../rich-text-editor";
 import { Harness, edit, editorOf, paste, press, surface as editor, typeChars } from "./rich-text-editor.helpers";
@@ -380,6 +381,24 @@ describe("RichTextEditor — the link row", () => {
     render(<Harness />);
     press(editor(), "k", { ctrl: true });
     expect(screen.getByRole("textbox", { name: "Link address" })).toBeInTheDocument();
+  });
+
+  it("keeps Cmd+K from also opening a CommandPalette on the page", () => {
+    // The palette binds ⌘K on document. Opening it over the link row put focus
+    // in the palette, lost the selection, and the row's Escape capture stopped
+    // Escape from closing the palette.
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <Harness />
+        <CommandPalette open={false} onOpenChange={onOpenChange}>
+          {null}
+        </CommandPalette>
+      </>,
+    );
+    press(editor(), "k", { ctrl: true });
+    expect(screen.getByRole("textbox", { name: "Link address" })).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it("closes when the editor is disabled, as when a save starts", async () => {

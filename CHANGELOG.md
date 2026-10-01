@@ -8,6 +8,18 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.2] - 2026-10-01
+
+### `CommandPalette` leaves a ⌘K the focused control already handled
+
+The palette opened on every ⌘K / Ctrl+K anywhere on the page. Inside a
+`RichTextEditor`, ⌘K is the link shortcut, so one press opened the link row
+and the palette over it: focus moved to the palette, the editor lost its
+selection, and the link row's Escape capture stopped Escape from closing the
+palette. The palette now skips a press whose default was already prevented,
+which the editor's shortcut does. An unhandled ⌘K opens it as before. No
+props changed.
+
 ## [1.15.1] - 2026-10-01
 
 ### Package exports resolve from `require` too

@@ -1816,6 +1816,7 @@ function CommandPalette({
 }) {
   useEffect(() => {
     function handleKeyDown(e) {
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         onOpenChange(!open);
