@@ -31,6 +31,7 @@ export * from "./components/ui/spinner";
 export * from "./components/ui/label";
 export * from "./components/ui/pagination";
 export * from "./components/ui/multi-select";
+export * from "./components/ui/segmented-control";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";

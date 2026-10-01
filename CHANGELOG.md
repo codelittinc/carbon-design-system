@@ -10,7 +10,7 @@ uses it as the GitHub Release notes.
 
 ## [1.14.0] - 2026-10-01
 
-### New components: Card, Alert, Spinner, Label, Tag, Pagination, MultiSelect
+### New components: Card, Alert, Spinner, Label, Tag, Pagination, MultiSelect, SegmentedControl
 
 Added while moving Hirelitt off the Backstage design system, which had these and
 Carbon did not. Each is built on the semantic tokens, so it works in both themes.
@@ -31,6 +31,9 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
 - **`MultiSelect`**: a searchable list that toggles several values, staying
   open while you pick. It renders no chips of its own; show the selection
   beside it with `Tag`.
+- **`SegmentedControl`**: pick one of a few options, all visible. A radio group
+  with one Tab stop and arrow-key movement. `name` submits the value with a
+  form.
 
 ### `toast` can be called without `useToast()`
 

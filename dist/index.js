@@ -781,6 +781,88 @@ function MultiSelect({
     )
   ] });
 }
+var sizeClasses2 = {
+  sm: "h-6 px-2.5 text-xs",
+  md: "h-7 px-3 text-sm"
+};
+var NEXT_KEYS = ["ArrowRight", "ArrowDown"];
+var PREVIOUS_KEYS = ["ArrowLeft", "ArrowUp"];
+function SegmentedControl({
+  options,
+  value,
+  onChange,
+  name,
+  id,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
+  "aria-required": ariaRequired,
+  error = false,
+  disabled = false,
+  size = "md",
+  className
+}) {
+  const refs = useRef([]);
+  const selectedIndex = options.findIndex((o) => o.value === value);
+  const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
+  function select(next) {
+    if (next !== value) onChange(next);
+  }
+  function onKeyDown(e, index) {
+    const step = NEXT_KEYS.includes(e.key) ? 1 : PREVIOUS_KEYS.includes(e.key) ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const nextIndex = (index + step + options.length) % options.length;
+    select(options[nextIndex].value);
+    refs.current[nextIndex]?.focus();
+  }
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      id,
+      role: "radiogroup",
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
+      "aria-required": ariaRequired,
+      "aria-invalid": error || void 0,
+      "aria-disabled": disabled || void 0,
+      className: cn(
+        "inline-flex gap-0.5 rounded-md border bg-surface-raised p-0.5",
+        error ? "border-error" : "border-border",
+        className
+      ),
+      children: [
+        options.map((option, index) => {
+          const selected = index === selectedIndex;
+          return /* @__PURE__ */ jsx(
+            "button",
+            {
+              ref: (el) => {
+                refs.current[index] = el;
+              },
+              type: "button",
+              role: "radio",
+              "aria-checked": selected,
+              tabIndex: index === tabbableIndex ? 0 : -1,
+              disabled,
+              onClick: () => select(option.value),
+              onKeyDown: (e) => onKeyDown(e, index),
+              className: cn(
+                "flex-1 whitespace-nowrap rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+                sizeClasses2[size],
+                selected ? "bg-accent text-accent-foreground" : "text-text-secondary hover:bg-surface-overlay hover:text-text-primary"
+              ),
+              children: option.label
+            },
+            option.value
+          );
+        }),
+        name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: value ?? "", disabled })
+      ]
+    }
+  );
+}
 var STATUS_MAP = {
   OPEN: "success",
   ACTIVE: "success",
@@ -3922,4 +4004,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, isRichTextEmpty, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartTooltipContent, Checkbox, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, isPostalAddressDraftComplete, isRichTextEmpty, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
