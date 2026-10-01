@@ -40,7 +40,20 @@ export { formatMoney, formatDate, formatPeriodLabel } from "./lib/format";
  */
 export {
   RICH_TEXT_TAGS,
+  RICH_TEXT_EXTENDED_TAGS,
+  RICH_TEXT_IMAGE_TAGS,
   isRichTextEmpty,
+  richTextTags,
   safeHref,
   sanitizeRichText,
+  type RichTextFormatting,
+  type RichTextSanitizeOptions,
 } from "./lib/rich-text";
+export {
+  isAllowedEditorHref,
+  linkHrefErrorMessage,
+  normalizeLinkHref,
+  type LinkHrefOptions,
+  type LinkHrefReason,
+  type LinkHrefResult,
+} from "./lib/link-href";

@@ -33,3 +33,18 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   } as typeof ResizeObserver;
 }
+
+/**
+ * ProseMirror (under RichTextEditor) measures the caret to scroll it into view
+ * and to map coordinates, and jsdom does no layout at all. Zero-sized rects are
+ * enough for it to carry on; what the editor does with real geometry is checked
+ * in Storybook.
+ */
+const zeroRect = () => new DOMRect(0, 0, 0, 0);
+const noRects = () => [] as unknown as DOMRectList;
+const range = window.Range.prototype as unknown as Record<string, unknown>;
+range.getBoundingClientRect ??= zeroRect;
+range.getClientRects ??= noRects;
+proto.getClientRects ??= noRects;
+const doc = document as unknown as Record<string, unknown>;
+doc.elementFromPoint ??= () => null;

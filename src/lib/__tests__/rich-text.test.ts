@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  RICH_TEXT_EXTENDED_TAGS,
+  RICH_TEXT_IMAGE_TAGS,
   RICH_TEXT_TAGS,
   isRichTextEmpty,
+  richTextTags,
   safeHref,
   sanitizeRichText,
+  type RichTextSanitizeOptions,
 } from "../rich-text";
 
 /**
@@ -446,3 +450,103 @@ describe("isRichTextEmpty", () => {
     expect(isRichTextEmpty("text with no tags")).toBe(false);
   });
 });
+
+describe("sanitizeRichText options", () => {
+  const EXTENDED = { formatting: "extended" } as const;
+  const IMAGES = { images: true } as const;
+
+  // A document using every tag any editor configuration can make, plus the
+  // ones none of them make.
+  const EVERYTHING =
+    "<h1>One</h1><h2>Two</h2><h3>Three</h3><h4>Four</h4>" +
+    "<p><strong>b</strong> <em>i</em> <s>s</s> <code>c</code> <a href=\"https://x.com\">l</a></p>" +
+    "<blockquote><p>q</p></blockquote><pre><code>x = 1</code></pre>" +
+    "<ul><li>u</li></ul><ol><li>o</li></ol>" +
+    "<img src=\"https://x.com/a.png\" alt=\"A\" width=\"10\" onerror=\"alert(1)\"><hr><table><tr><td>t</td></tr></table>";
+
+  const tagsOf = (html: string) =>
+    new Set([...html.matchAll(/<([a-z0-9]+)\b/g)].map((m) => m[1]));
+
+  it.each<[string, RichTextSanitizeOptions | undefined]>([
+    ["no options", undefined],
+    ["{}", {}],
+    ["extended", EXTENDED],
+    ["images", IMAGES],
+    ["extended + images", { ...EXTENDED, ...IMAGES }],
+  ])("keeps only the tags of its configuration (%s)", (_name, options) => {
+    const allowed = new Set(richTextTags(options));
+    for (const tag of tagsOf(sanitizeRichText(EVERYTHING, options))) {
+      expect(allowed.has(tag), tag).toBe(true);
+    }
+  });
+
+  it("with no options is byte-for-byte the basic sanitizer", () => {
+    expect(sanitizeRichText(EVERYTHING, {})).toBe(sanitizeRichText(EVERYTHING));
+    expect(sanitizeRichText(EVERYTHING, { formatting: "basic" })).toBe(sanitizeRichText(EVERYTHING));
+    expect(tagsOf(sanitizeRichText(EVERYTHING)).has("h1")).toBe(false);
+  });
+
+  it("extended keeps headings 1–3, quotes, inline code and code blocks", () => {
+    const out = sanitizeRichText(EVERYTHING, EXTENDED);
+    expect(out).toContain("<h1>One</h1>");
+    expect(out).toContain("<h3>Three</h3>");
+    expect(out).toContain("<blockquote>");
+    expect(out).toContain("<code>c</code>");
+    expect(out).toContain("<pre><code>x = 1</code></pre>");
+  });
+
+  it("extended folds h4–h6 to a paragraph rather than leaving their text loose", () => {
+    expect(sanitizeRichText("<h4>Four</h4><h6>Six</h6>", EXTENDED)).toBe("<p>Four</p><p>Six</p>");
+  });
+
+  it("never keeps <hr>, in any configuration", () => {
+    expect(sanitizeRichText("<p>a</p><hr><p>b</p>", { ...EXTENDED, ...IMAGES })).not.toContain("<hr");
+  });
+
+  it("images keeps an http(s) src and alt, and nothing else on the tag", () => {
+    expect(sanitizeRichText('<img src="https://x.com/a.png" alt="A" width="10" onerror="alert(1)">', IMAGES)).toBe(
+      '<img src="https://x.com/a.png" alt="A" />',
+    );
+  });
+
+  it.each(["javascript:alert(1)", "data:image/png;base64,AAAA", "/relative/a.png", "mailto:a@b.c", ""])(
+    "images drops an image whose src is not http(s): %s",
+    (src) => {
+      expect(sanitizeRichText(`<p>a</p><img src="${src}" alt="A">`, IMAGES)).not.toContain("<img");
+    },
+  );
+
+  it("without images, drops <img> entirely", () => {
+    expect(sanitizeRichText('<p>a</p><img src="https://x.com/a.png">')).not.toContain("<img");
+  });
+
+  it("escapes the alt text rather than copying it", () => {
+    expect(sanitizeRichText('<img src="https://x.com/a.png" alt="&quot; onerror=&quot;x">', IMAGES)).toBe(
+      '<img src="https://x.com/a.png" alt="&quot; onerror=&quot;x" />',
+    );
+  });
+
+  it.each<[string, RichTextSanitizeOptions]>([
+    ["extended", EXTENDED],
+    ["images", IMAGES],
+    ["both", { ...EXTENDED, ...IMAGES }],
+  ])("is idempotent with options (%s)", (_name, options) => {
+    const once = sanitizeRichText(EVERYTHING, options);
+    expect(sanitizeRichText(once, options)).toBe(once);
+  });
+
+  it("drops a {{target}} link but keeps its text: apps with link targets sanitize those themselves", () => {
+    expect(sanitizeRichText('<p><a href="{{booking_link}}">Book</a></p>', EXTENDED)).toBe("<p>Book</p>");
+  });
+
+  it("exposes each configuration's tags", () => {
+    expect(richTextTags()).toEqual([...RICH_TEXT_TAGS]);
+    expect(richTextTags(EXTENDED)).toEqual([...RICH_TEXT_EXTENDED_TAGS]);
+    expect(richTextTags({ ...EXTENDED, ...IMAGES })).toEqual([...RICH_TEXT_EXTENDED_TAGS, ...RICH_TEXT_IMAGE_TAGS]);
+  });
+
+  it("counts an image as content, so an image-only note is not saved as empty", () => {
+    expect(isRichTextEmpty('<p><img src="https://x.com/a.png" alt=""></p>')).toBe(false);
+  });
+});
+
