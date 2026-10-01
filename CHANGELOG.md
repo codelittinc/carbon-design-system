@@ -8,6 +8,42 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.14.0] - 2026-10-01
+
+### New components: Card, Alert, Spinner, Label, Tag, Pagination, MultiSelect
+
+Added while moving Hirelitt off the Backstage design system, which had these and
+Carbon did not. Each is built on the semantic tokens, so it works in both themes.
+
+- **`Card`**: a bordered `surface` panel. `padding` (`none` · `sm` · `md` ·
+  `lg`), `hoverable` for clickable cards, and `asChild` to render it as a link.
+- **`Alert`**: an inline, persistent message (`error` · `success` · `info` ·
+  `warning`) with an optional `title` and `onDismiss`. Errors are
+  `role="alert"`, the other variants are `role="status"`.
+- **`Spinner`**: an indeterminate loading indicator (`sm` · `md` · `lg`) with
+  an optional `label`, which is also its accessible name.
+- **`Label`**: a form label styled to match `FormField`, with a `required`
+  marker. For controls whose layout does not fit `FormField`.
+- **`Tag`**: a `Badge` that can be removed. Same variants as Badge, plus
+  `onRemove` and `removeLabel`.
+- **`Pagination`**: previous/next and page buttons, collapsing to seven slots
+  around the current page, with an optional "Showing 11–20 of 57".
+- **`MultiSelect`**: a searchable list that toggles several values, staying
+  open while you pick. It renders no chips of its own; show the selection
+  beside it with `Tag`.
+
+### `toast` can be called without `useToast()`
+
+`toast.success(title)`, `toast.error(title)`, `toast.info(title)` and
+`toast.warning(title)`, each with an optional `{ description }`, plus
+`toast({ title, variant })`. They show in whichever `ToastProvider` is
+mounted, so they work in code that is not a component or cannot call a hook.
+`useToast()` is unchanged.
+
+The toast list also gained `info` and `warning` variants, and
+an accessible region. An error toast is `role="alert"` and every other toast
+is `role="status"`. The dismiss button now has a name.
+
 ## [1.13.0] - 2026-10-01
 
 ### Button and MultiStatusFilter: white on the accent fill in light mode

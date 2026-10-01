@@ -24,6 +24,13 @@ export {
 export * from "./components/ui/address-autocomplete";
 export * from "./components/ui/button";
 export * from "./components/ui/badge";
+export * from "./components/ui/tag";
+export * from "./components/ui/card";
+export * from "./components/ui/alert";
+export * from "./components/ui/spinner";
+export * from "./components/ui/label";
+export * from "./components/ui/pagination";
+export * from "./components/ui/multi-select";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";

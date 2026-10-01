@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ToastProvider, useToast } from "../toast";
+import { ToastProvider, toast, useToast } from "../toast";
 
 function ToastTrigger({
   title = "Saved",
@@ -95,5 +95,48 @@ describe("ToastProvider / useToast", () => {
       vi.advanceTimersByTime(4000);
     });
     expect(screen.queryByText("Fades away")).not.toBeInTheDocument();
+  });
+});
+
+describe("imperative toast", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows in the mounted provider without useToast", () => {
+    render(<ToastProvider>app</ToastProvider>);
+    act(() => toast.success("Saved", { description: "All good" }));
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByText("All good")).toBeInTheDocument();
+    expect(screen.getByRole("status").className).toContain("bg-success-soft");
+  });
+
+  it("announces errors as alerts", () => {
+    render(<ToastProvider>app</ToastProvider>);
+    act(() => toast.error("Nope"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nope");
+  });
+
+  it("has info and warning variants", () => {
+    render(<ToastProvider>app</ToastProvider>);
+    act(() => {
+      toast.info("FYI");
+      toast.warning("Careful");
+    });
+    expect(screen.getByText("FYI").closest("[role=status]")?.className).toContain("bg-info-soft");
+    expect(screen.getByText("Careful").closest("[role=status]")?.className).toContain(
+      "bg-accent-muted",
+    );
+  });
+
+  it("is a no-op once the provider unmounts", () => {
+    const { unmount } = render(<ToastProvider>app</ToastProvider>);
+    unmount();
+    expect(() => act(() => toast.success("Gone"))).not.toThrow();
+    expect(screen.queryByText("Gone")).not.toBeInTheDocument();
   });
 });
