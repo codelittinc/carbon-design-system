@@ -35,6 +35,30 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
   with one Tab stop and arrow-key movement. `name` submits the value with a
   form.
 
+### Theme: the base styles are in cascade layers, so utilities win
+
+`theme.css` set its base reset and helper classes outside any cascade layer.
+Unlayered CSS beats every layered rule whatever the specificity, and
+Tailwind's utilities are layered, so:
+
+- **`* { border-color: var(--color-border) }` overrode every border colour
+  utility.** `border-error`, `border-accent`, `border-success-border` and
+  arbitrary `border-*` colours all rendered as the default border. This hit
+  these components too: a checked `Checkbox`'s accent border, error borders on
+  inputs, toast borders and the `SegmentedControl` error state.
+- **`.tabular-nums` forced 13px**, overriding `text-xs`, `text-2xl` and other
+  size utilities on the same element. `.focus-ring` and `.transition-default`
+  likewise beat utilities set beside them.
+
+The reset (`*`, `html`, `body`, scrollbars) is now in `@layer base`. The
+helper classes (`.tabular-nums`, `.focus-ring`, `.transition-default`) are now
+in `@layer components`. The defaults are unchanged; a utility on the same
+element now wins.
+
+**Visible change for consumers:** an element that sets `tabular-nums` together
+with a text size utility now gets that size instead of 13px. Without a size
+utility it is still 13px.
+
 ### `DataTable`: `paginate={false}` and `getRowId`
 
 - **`paginate={false}`** turns the table's own paging off, so it renders every
