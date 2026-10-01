@@ -9,7 +9,7 @@
  *
  * ## Why sanitizing is the consumer's job and not the editor's
  *
- * `RichTextEditor` emits `innerHTML` verbatim. It does not sanitize, on purpose:
+ * `RichTextEditor` emits its document's HTML as is. It does not sanitize, on purpose:
  * the editor is a client, and a client is never the trust boundary. Whatever it
  * emits reaches your server as a string in a form post, and a string in a form
  * post can say anything at all regardless of what the editor would have done.
@@ -36,8 +36,9 @@
  * This does the opposite. It parses the input into tokens and then **emits
  * fresh markup from scratch**, writing only tags from ALLOWED and only
  * attributes it composes itself. No attribute from the input is ever copied to
- * the output: the single exception is `<a href>`, whose value must survive
- * `safeHref` before it is re-escaped. Every text run is escaped. The output tree
+ * the output: the exceptions are `<a href>`, whose value must survive
+ * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
+ * same check, http and https only) and `alt`. Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,
@@ -78,8 +79,99 @@ const TAG_ALIASES: Record<string, string> = {
 /** The canonical tag set, for consumers writing CSS or a `prose` allow-list. */
 export const RICH_TEXT_TAGS = ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a"] as const;
 
+/**
+ * What `RichTextEditor` can produce with `formatting="extended"`: the default
+ * set plus three heading levels, quotes, inline code and code blocks.
+ */
+export const RICH_TEXT_EXTENDED_TAGS = [
+  ...RICH_TEXT_TAGS,
+  "h1",
+  "h2",
+  "h3",
+  "blockquote",
+  "code",
+  "pre",
+] as const;
+
+/** What `RichTextEditor` adds when it is given `uploadImage`. */
+export const RICH_TEXT_IMAGE_TAGS = ["img"] as const;
+
+/**
+ * Which editor configuration a call is sanitizing for. `basic` (the default) is
+ * `RichTextEditor` with no opt-ins; `extended` matches `formatting="extended"`.
+ */
+export type RichTextFormatting = "basic" | "extended";
+
+/**
+ * Match the sanitizer to the editor that wrote the markup. With no options, or
+ * `{}`, `sanitizeRichText` is exactly what it always was.
+ */
+export interface RichTextSanitizeOptions {
+  /** `extended` also keeps h1–h3, blockquote, code and pre. Default `basic`. */
+  formatting?: RichTextFormatting;
+  /** Keeps `<img>`, with an http(s) `src` and an `alt` and nothing else. */
+  images?: boolean;
+}
+
+/**
+ * The tags one editor configuration can produce, for CSS or an app's own
+ * allow-list. `richTextTags()` is `RICH_TEXT_TAGS`.
+ */
+export function richTextTags(options: RichTextSanitizeOptions = {}): readonly string[] {
+  return [
+    ...(options.formatting === "extended" ? RICH_TEXT_EXTENDED_TAGS : RICH_TEXT_TAGS),
+    ...(options.images ? RICH_TEXT_IMAGE_TAGS : []),
+  ];
+}
+
+/**
+ * The extended spellings. `h4`–`h6` fold to a paragraph rather than being
+ * unwrapped: the editor never makes them, and unwrapped their text would sit
+ * loose between blocks.
+ */
+const EXTENDED_ALIASES: Record<string, string> = {
+  h1: "h1",
+  h2: "h2",
+  h3: "h3",
+  h4: "p",
+  h5: "p",
+  h6: "p",
+  blockquote: "blockquote",
+  code: "code",
+  pre: "pre",
+};
+
 /** Emitted self-closing and never pushed onto the open-tag stack. */
-const VOID_TAGS = new Set(["br"]);
+const VOID_TAGS = new Set(["br", "img"]);
+
+/** The alias table and the collapsible tags for one set of options. */
+interface Grammar {
+  aliases: Record<string, string>;
+  empty: RegExp;
+}
+
+function grammarFor(options: RichTextSanitizeOptions | undefined): Grammar {
+  const extended = options?.formatting === "extended";
+  if (!extended && !options?.images) return DEFAULT_GRAMMAR;
+  const aliases = {
+    ...TAG_ALIASES,
+    ...(extended ? EXTENDED_ALIASES : {}),
+    ...(options?.images ? { img: "img" } : {}),
+  };
+  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag));
+  return { aliases, empty: emptyElement(collapsible) };
+}
+
+/** An element of one of these tags with nothing inside it. */
+function emptyElement(tags: readonly string[]): RegExp {
+  return new RegExp(`<(${tags.join("|")})\\b[^>]*><\\/\\1>`, "g");
+}
+
+/** No options: the tables this sanitizer has always used. */
+const DEFAULT_GRAMMAR: Grammar = {
+  aliases: TAG_ALIASES,
+  empty: emptyElement(RICH_TEXT_TAGS.filter((tag) => !VOID_TAGS.has(tag))),
+};
 
 /**
  * Elements whose *content* is dropped along with the tag, rather than kept as
@@ -204,6 +296,16 @@ export function safeHref(raw: string): string | null {
   return cleaned.replace(/ /g, "%20");
 }
 
+/**
+ * `safeHref`, narrowed to http and https. An image is fetched the moment the
+ * markup renders, so `mailto:` means nothing here, and `data:` and relative
+ * paths are refused for the same reasons as in a link.
+ */
+function safeImageSrc(raw: string): string | null {
+  const src = safeHref(raw);
+  return src !== null && /^https?:/i.test(src) ? src : null;
+}
+
 interface OpenTag {
   /** The canonical name that was emitted. */
   name: string;
@@ -294,10 +396,25 @@ function skipContent(html: string, from: number, name: string): number {
  * Safe to call on anything, including a string that has already been through it
  * — `sanitizeRichText(sanitizeRichText(x)) === sanitizeRichText(x)`, which is
  * what makes the sanitize-on-write-and-on-read rule above cheap. There is a test
- * pinning that.
+ * pinning that, for every set of options.
+ *
+ * Pass the options that match the editor's configuration, so nothing the editor
+ * can produce is lost on save: `{ formatting: "extended" }` for an extended
+ * editor, `images: true` for one with `uploadImage`.
+ *
+ * A link target that is not a URL (`RichTextEditor`'s `linkPanel.targets`, such
+ * as `{{booking_link}}`) fails `safeHref`, so its anchor is dropped and its text
+ * kept. That is deliberate: such an href only means something to the app that
+ * fills it in, so an app that turns link targets on sanitizes that markup with
+ * its own allow-list.
  */
-export function sanitizeRichText(html: string | null | undefined): string {
+export function sanitizeRichText(
+  html: string | null | undefined,
+  options?: RichTextSanitizeOptions,
+): string {
   if (!html) return "";
+
+  const { aliases, empty } = grammarFor(options);
 
   const out: string[] = [];
   const stack: OpenTag[] = [];
@@ -353,7 +470,7 @@ export function sanitizeRichText(html: string | null | undefined): string {
       const gt = html.indexOf(">", j);
       i = gt === -1 ? html.length : gt + 1;
 
-      const canonical = TAG_ALIASES[raw];
+      const canonical = aliases[raw];
       if (canonical && !VOID_TAGS.has(canonical)) closeThrough(canonical);
       continue;
     }
@@ -378,11 +495,22 @@ export function sanitizeRichText(html: string | null | undefined): string {
       continue;
     }
 
-    const canonical = TAG_ALIASES[raw];
+    const canonical = aliases[raw];
     // Not allow-listed: the tag goes, its children stay. `<span>`, `<font>` and
     // `<table>` all reach here, and deleting the words inside them would lose
     // the note rather than clean it.
     if (!canonical) continue;
+
+    if (canonical === "img") {
+      // Without a usable src there is no image, and an `<img>` with nothing to
+      // load is not worth keeping. `alt` is the only other attribute, and like
+      // href it is re-escaped rather than copied.
+      const src = safeImageSrc(attrs.src ?? "");
+      if (src === null) continue;
+      const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      continue;
+    }
 
     if (VOID_TAGS.has(canonical)) {
       out.push(`<${canonical} />`);
@@ -424,7 +552,7 @@ export function sanitizeRichText(html: string | null | undefined): string {
   // makes the output well-formed regardless of what came in.
   for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
 
-  return collapseEmpty(out.join(""));
+  return collapseEmpty(out.join(""), empty);
 }
 
 /**
@@ -434,8 +562,7 @@ export function sanitizeRichText(html: string | null | undefined): string {
  * it empty, and an empty paragraph is a blank line somebody did not type. Run to
  * a fixed point, because emptying an inner element can empty its parent.
  */
-function collapseEmpty(html: string): string {
-  const empty = /<(p|strong|em|u|s|ul|ol|li|a)\b[^>]*><\/\1>/g;
+function collapseEmpty(html: string, empty: RegExp): string {
   let previous: string;
   let current = html;
   do {
@@ -457,6 +584,9 @@ function collapseEmpty(html: string): string {
  */
 export function isRichTextEmpty(html: string | null | undefined): boolean {
   if (!html) return true;
+  // An image is content with no text, so a note that is only a screenshot is
+  // not empty.
+  if (/<img\b/i.test(html)) return false;
   const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }

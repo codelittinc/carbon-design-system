@@ -48,7 +48,52 @@ var TAG_ALIASES = {
   a: "a"
 };
 var RICH_TEXT_TAGS = ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a"];
-var VOID_TAGS = /* @__PURE__ */ new Set(["br"]);
+var RICH_TEXT_EXTENDED_TAGS = [
+  ...RICH_TEXT_TAGS,
+  "h1",
+  "h2",
+  "h3",
+  "blockquote",
+  "code",
+  "pre"
+];
+var RICH_TEXT_IMAGE_TAGS = ["img"];
+function richTextTags(options = {}) {
+  return [
+    ...options.formatting === "extended" ? RICH_TEXT_EXTENDED_TAGS : RICH_TEXT_TAGS,
+    ...options.images ? RICH_TEXT_IMAGE_TAGS : []
+  ];
+}
+var EXTENDED_ALIASES = {
+  h1: "h1",
+  h2: "h2",
+  h3: "h3",
+  h4: "p",
+  h5: "p",
+  h6: "p",
+  blockquote: "blockquote",
+  code: "code",
+  pre: "pre"
+};
+var VOID_TAGS = /* @__PURE__ */ new Set(["br", "img"]);
+function grammarFor(options) {
+  const extended = options?.formatting === "extended";
+  if (!extended && !options?.images) return DEFAULT_GRAMMAR;
+  const aliases = {
+    ...TAG_ALIASES,
+    ...extended ? EXTENDED_ALIASES : {},
+    ...options?.images ? { img: "img" } : {}
+  };
+  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag));
+  return { aliases, empty: emptyElement(collapsible) };
+}
+function emptyElement(tags) {
+  return new RegExp(`<(${tags.join("|")})\\b[^>]*><\\/\\1>`, "g");
+}
+var DEFAULT_GRAMMAR = {
+  aliases: TAG_ALIASES,
+  empty: emptyElement(RICH_TEXT_TAGS.filter((tag) => !VOID_TAGS.has(tag)))
+};
 var DROP_CONTENT = /* @__PURE__ */ new Set([
   "script",
   "style",
@@ -101,6 +146,10 @@ function safeHref(raw) {
   if (!SAFE_SCHEMES.includes(scheme)) return null;
   return cleaned.replace(/ /g, "%20");
 }
+function safeImageSrc(raw) {
+  const src = safeHref(raw);
+  return src !== null && /^https?:/i.test(src) ? src : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -150,8 +199,9 @@ function skipContent(html, from, name) {
   const gt = html.indexOf(">", from + match.index);
   return gt === -1 ? html.length : gt + 1;
 }
-function sanitizeRichText(html) {
+function sanitizeRichText(html, options) {
   if (!html) return "";
+  const { aliases, empty } = grammarFor(options);
   const out = [];
   const stack = [];
   let i = 0;
@@ -194,7 +244,7 @@ function sanitizeRichText(html) {
       const raw2 = html.slice(nameStart, j2).toLowerCase();
       const gt = html.indexOf(">", j2);
       i = gt === -1 ? html.length : gt + 1;
-      const canonical2 = TAG_ALIASES[raw2];
+      const canonical2 = aliases[raw2];
       if (canonical2 && !VOID_TAGS.has(canonical2)) closeThrough(canonical2);
       continue;
     }
@@ -212,8 +262,15 @@ function sanitizeRichText(html) {
       i = skipContent(html, end, raw);
       continue;
     }
-    const canonical = TAG_ALIASES[raw];
+    const canonical = aliases[raw];
     if (!canonical) continue;
+    if (canonical === "img") {
+      const src = safeImageSrc(attrs.src ?? "");
+      if (src === null) continue;
+      const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      continue;
+    }
     if (VOID_TAGS.has(canonical)) {
       out.push(`<${canonical} />`);
       continue;
@@ -232,10 +289,9 @@ function sanitizeRichText(html) {
     stack.push({ name: canonical });
   }
   for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
-  return collapseEmpty(out.join(""));
+  return collapseEmpty(out.join(""), empty);
 }
-function collapseEmpty(html) {
-  const empty = /<(p|strong|em|u|s|ul|ol|li|a)\b[^>]*><\/\1>/g;
+function collapseEmpty(html, empty) {
   let previous;
   let current = html;
   do {
@@ -246,8 +302,64 @@ function collapseEmpty(html) {
 }
 function isRichTextEmpty(html) {
   if (!html) return true;
+  if (/<img\b/i.test(html)) return false;
   const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
 
-export { RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isRichTextEmpty, safeHref, sanitizeRichText };
+// src/lib/link-href.ts
+var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
+var SCHEME = /^[a-z][a-z0-9+-]*:/i;
+function parses(url) {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+}
+function normalizeLinkHref(input, { targets = [] } = {}) {
+  const s = input.trim();
+  if (s === "") return { ok: false, reason: "empty" };
+  if (s.includes("{{") || s.includes("}}")) {
+    const name = TARGET_ONLY.exec(s)?.[1].toLowerCase();
+    const canonical = name === void 0 ? void 0 : `{{${name}}}`;
+    if (canonical !== void 0 && targets.includes(canonical)) {
+      return { ok: true, href: canonical };
+    }
+    return { ok: false, reason: targets.length > 0 ? "placeholder" : "scheme" };
+  }
+  if (/\s/.test(s)) return { ok: false, reason: "scheme" };
+  if (/^mailto:./i.test(s)) return { ok: true, href: s };
+  if (/^https?:\/\//i.test(s)) {
+    return parses(s)?.hostname ? { ok: true, href: s } : { ok: false, reason: "scheme" };
+  }
+  if (SCHEME.test(s)) return { ok: false, reason: "scheme" };
+  if (/^[^@/]+@[^@/]+\.[^@/]+$/.test(s)) return { ok: true, href: `mailto:${s}` };
+  if (s.startsWith("/")) return { ok: false, reason: "scheme" };
+  const href = `https://${s}`;
+  return parses(href)?.hostname.includes(".") ? { ok: true, href } : { ok: false, reason: "scheme" };
+}
+var INVISIBLE = /[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g;
+function isAllowedEditorHref(url) {
+  const s = (url ?? "").replace(INVISIBLE, "");
+  if (s === "") return true;
+  if (/^(https?|mailto):/i.test(s)) return true;
+  return !SCHEME.test(s);
+}
+function orList(items) {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} or ${items[items.length - 1]}`;
+}
+function linkHrefErrorMessage(reason, { targets = [] } = {}) {
+  if (reason === "empty") return "Enter a URL.";
+  if (targets.length === 0) {
+    return "Use a web address, including https://, or an email link (mailto:\u2026).";
+  }
+  const list = orList(targets);
+  if (reason === "placeholder") {
+    return `Only ${list} can be used as a link. Use it on its own, or enter a web address.`;
+  }
+  return `Use a web address, including https://, an email link (mailto:\u2026) or ${list}.`;
+}
+
+export { RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };

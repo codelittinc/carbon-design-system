@@ -1,4 +1,5 @@
-export { RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isRichTextEmpty, safeHref, sanitizeRichText } from './utils.js';
+import { RichTextFormatting } from './utils.js';
+export { LinkHrefOptions, LinkHrefReason, LinkHrefResult, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText } from './utils.js';
 import * as react from 'react';
 import { ReactNode } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
@@ -227,16 +228,53 @@ declare const Input: react.ForwardRefExoticComponent<react.InputHTMLAttributes<H
 
 declare const Textarea: react.ForwardRefExoticComponent<react.TextareaHTMLAttributes<HTMLTextAreaElement> & react.RefAttributes<HTMLTextAreaElement>>;
 
+/** A toolbar button that inserts a fixed snippet at the caret. */
+interface RichTextInsertAction {
+    /** The button's text, and its accessible name. */
+    label: string;
+    /** Shown in a tooltip, e.g. what the snippet expands to. */
+    title?: string;
+    /** Reduced to this editor's schema on insert, the same way a paste is. */
+    html: string;
+}
+/**
+ * An href the full link panel accepts that is not a URL, such as
+ * `{{booking_link}}`, for markup an app fills in later. App-supplied: Carbon
+ * knows nothing about what it means.
+ */
+interface RichTextLinkTarget {
+    /** The canonical form stored, matching `/^\{\{[a-z0-9_]+\}\}$/`. */
+    href: string;
+    /** The quick-fill button reads `Use ${name}`. */
+    name: string;
+    /** Help text under the quick-fill button. */
+    description?: string;
+}
+interface RichTextLinkPanelOptions {
+    targets?: readonly RichTextLinkTarget[];
+}
+/** What `ref` on a `RichTextEditor` gives you. */
+interface RichTextEditorHandle {
+    /**
+     * Focus the editor, put the caret back where it last was, and insert `html`
+     * there, reduced to this editor's schema. Does nothing before the editor
+     * exists (the first client render) or after it is gone.
+     */
+    insert(html: string): void;
+    focus(): void;
+}
 interface RichTextEditorProps {
     /** The current HTML. See the note on `onChange` about what may be fed back. */
     value: string;
     /**
-     * Called with the editor's raw `innerHTML` on every edit.
+     * Called with the editor's HTML on every edit by the person using it — never
+     * on mount, and never when `value` replaces the content. `""` when the
+     * editor is empty.
      *
      * **Store this through `sanitizeRichText`, but do not sanitize it here.** The
      * value handed back through `value` has to be the same string this emitted, or
-     * the sync effect treats it as an external change, rewrites the DOM, and drops
-     * the caret to the start of the field on every keystroke. Sanitize where the
+     * the sync effect treats it as an external change, replaces the content, and
+     * drops the caret to the start of the field on every keystroke. Sanitize where the
      * value is *stored* and again where it is *rendered* — see src/lib/rich-text.ts.
      */
     onChange: (html: string) => void;
@@ -244,14 +282,41 @@ interface RichTextEditorProps {
     disabled?: boolean;
     /** Applied to the editable surface, e.g. `min-h-40` to make the box taller. */
     className?: string;
+    /** Lands on the editable surface, so a `<label for>` names it and a form can focus it. */
     id?: string;
     ariaLabel?: string;
+    ariaLabelledBy?: string;
+    ariaDescribedBy?: string;
     /** Marks the surface invalid for assistive tech and draws the error border. */
     invalid?: boolean;
+    /**
+     * `extended` adds headings 1–3, strikethrough, quotes, inline code and code
+     * blocks, Markdown-style typing shortcuts, and HTML paste reduced to those.
+     * `basic` (the default) pastes plain text. Sanitize with the same
+     * `formatting`.
+     */
+    formatting?: RichTextFormatting;
+    /**
+     * Adds an Insert image button. The picked file is passed here and the URL it
+     * resolves to is inserted at the caret; `null` or a rejection inserts
+     * nothing, and the app shows its own error. Sanitize with `images: true`.
+     */
+    uploadImage?: (file: File) => Promise<string | null>;
+    /**
+     * The full link panel instead of the inline link row: a "Text to show" field,
+     * an inline error, URL normalisation (`normalizeLinkHref`), autolink as you
+     * type, and optional link `targets`.
+     */
+    linkPanel?: boolean | RichTextLinkPanelOptions;
+    /** A toolbar button for each, inserting its HTML at the caret. */
+    insertActions?: readonly RichTextInsertAction[];
+    /** Read a `value` with no tags in it as plain text: blank lines are paragraphs, newlines line breaks. */
+    acceptPlainText?: boolean;
 }
 /**
- * A WYSIWYG editor for a paragraph or two of prose: bold, italic, two kinds of
- * list, and links.
+ * A WYSIWYG editor for a paragraph or two of prose. With no opt-ins: bold,
+ * italic, two kinds of list, and links. Each prop under "new, all optional"
+ * switches on one more capability for that editor only.
  *
  * ## It emits HTML and does not sanitize it
  *
@@ -261,28 +326,26 @@ interface RichTextEditorProps {
  * made safe. `sanitizeRichText` in `@codelittinc/carbon-design-system/utils` is,
  * and it is a separate server-safe entry precisely so the *server* can call it.
  * The full contract is documented there. The one thing to carry over here: the
- * toolbar produces exactly the tags that sanitizer allows, so nothing a user
- * types through this UI is lost on the way to the database.
+ * editor's schema produces exactly the tags `sanitizeRichText` allows for the
+ * same `formatting` and `images` options, so nothing a user types through this
+ * UI is lost on the way to the database.
  *
- * ## Why `document.execCommand`
+ * ## Built on TipTap
  *
- * It is deprecated and it is still the only formatting API every browser
- * implements. The alternative is a document model of one's own — a Tiptap or a
- * Lexical — which is the right answer for a real document editor and several
- * hundred kilobytes to let somebody bold a word in a notes field. When this
- * component starts needing tables, images or collaborative editing, that is the
- * signal to replace it wholesale rather than to grow it.
+ * The schema is derived from the props once, at mount (see
+ * rich-text-editor-extensions.ts), and that is what keeps the output inside the
+ * tag set: a button, a shortcut, a Markdown rule or a paste has nothing to make
+ * any other tag with. `formatting`, whether `uploadImage` and `linkPanel` are
+ * set, and the link targets are therefore read once; to change them, change the
+ * editor's `key`. The `uploadImage` and `onChange` functions themselves may
+ * change on every render.
  *
- * Two consequences worth knowing. `styleWithCSS` is turned off before every
- * command, because the default in some browsers is to emit
- * `<span style="font-weight:bold">` rather than `<b>` — and a style attribute is
- * stripped by the sanitizer, so the formatting would survive the click and
- * vanish on save. And pasted content is inserted as plain text on purpose:
- * pasting from Word or a web page otherwise carries in a document's worth of
- * markup that the sanitizer then reduces to unstyled prose anyway, with the
- * paragraph breaks in surprising places.
+ * The default editor pastes plain text on purpose: pasting from Word or a web
+ * page otherwise carries in a document's worth of markup that the sanitizer then
+ * reduces to unstyled prose anyway, with the paragraph breaks in surprising
+ * places.
  */
-declare function RichTextEditor({ value, onChange, placeholder, disabled, className, id, ariaLabel, invalid, }: RichTextEditorProps): react.JSX.Element;
+declare const RichTextEditor: react.ForwardRefExoticComponent<RichTextEditorProps & react.RefAttributes<RichTextEditorHandle>>;
 
 declare const Checkbox: react.ForwardRefExoticComponent<Omit<CheckboxPrimitive.CheckboxProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
@@ -1389,4 +1452,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
