@@ -3,6 +3,7 @@
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
+import { Button } from "./button";
 
 const alertVariants = cva("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm", {
   variants: {
@@ -52,14 +53,17 @@ export function Alert({ variant, title, children, onDismiss, className }: AlertP
         {children && <div className={cn(title && "mt-0.5")}>{children}</div>}
       </div>
       {onDismiss && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="shrink-0 opacity-70 transition-opacity hover:opacity-100"
+          // The alert's own colour, so it reads on every variant's tint.
+          className="-mr-1 -mt-0.5 h-6 w-6 text-current opacity-70 hover:bg-transparent hover:text-current hover:opacity-100"
         >
           <X size={14} />
-        </button>
+        </Button>
       )}
     </div>
   );
