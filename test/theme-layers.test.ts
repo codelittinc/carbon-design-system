@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(resolve(__dirname, "../../../styles/theme.css"), "utf8");
+// In test/ rather than src/**/__tests__/ because it needs Node APIs, which the
+// typecheck (src only, no @types/node) does not cover. See dist-client-boundary.
+const css = readFileSync(resolve(__dirname, "../src/styles/theme.css"), "utf8");
 
 /** The top-level statements of a stylesheet: their prelude, comments removed. */
 function topLevelPreludes(source: string): string[] {
