@@ -15,15 +15,36 @@ export { formatMoney, formatDate, formatPeriodLabel } from "./lib/format";
 // server component must import them from — see src/utils.ts.
 export {
   RICH_TEXT_TAGS,
+  RICH_TEXT_EXTENDED_TAGS,
+  RICH_TEXT_IMAGE_TAGS,
   isRichTextEmpty,
+  richTextTags,
   safeHref,
   sanitizeRichText,
+  type RichTextFormatting,
+  type RichTextSanitizeOptions,
 } from "./lib/rich-text";
+export {
+  isAllowedEditorHref,
+  linkHrefErrorMessage,
+  normalizeLinkHref,
+  type LinkHrefOptions,
+  type LinkHrefReason,
+  type LinkHrefResult,
+} from "./lib/link-href";
 
 // ── Components ──
 export * from "./components/ui/address-autocomplete";
 export * from "./components/ui/button";
 export * from "./components/ui/badge";
+export * from "./components/ui/tag";
+export * from "./components/ui/card";
+export * from "./components/ui/alert";
+export * from "./components/ui/spinner";
+export * from "./components/ui/label";
+export * from "./components/ui/pagination";
+export * from "./components/ui/multi-select";
+export * from "./components/ui/segmented-control";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";

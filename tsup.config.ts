@@ -9,6 +9,10 @@ import { join } from "node:path";
  *   - index → the full barrel (@codelittinc/carbon-design-system)
  *   - utils → pure helpers only (@codelittinc/carbon-design-system/utils)
  *
+ * Plus one file that is not an entry point: rich-text-editor-impl.js, the
+ * TipTap editor, which index.js reaches only through a dynamic import. See
+ * `lazyEditor` below.
+ *
  * tsup automatically treats everything in `dependencies` / `peerDependencies`
  * as external, so React and the UI libs are not bundled — the consumer supplies
  * them. The `@/` path alias resolves via tsconfig.json.
@@ -22,16 +26,37 @@ const DIRECTIVE = '"use client";';
  * the directive has to cover them. `utils` must NOT be, which is the reason it
  * is a separate entry — see the comment in src/utils.ts.
  */
-const CLIENT_ENTRIES = new Set(["index.js"]);
+const CLIENT_ENTRIES = new Set(["index.js", "rich-text-editor-impl.js"]);
+
+/**
+ * Keeps TipTap out of index.js. The editor is built as its own file, and the
+ * loader's `import("./rich-text-editor-impl")` is left as a dynamic import of
+ * that file instead of being inlined, which is what esbuild does to a dynamic
+ * import when `splitting` is off. An app's bundler then puts TipTap in a chunk
+ * of its own, fetched when an editor first renders. `splitting` itself stays
+ * off: it would hoist code shared by index and utils into chunks, and utils has
+ * to stay free of "use client".
+ */
+const lazyEditor = {
+  name: "lazy-rich-text-editor",
+  setup(build: { onResolve: (options: { filter: RegExp }, callback: (args: { kind: string }) => unknown) => void }) {
+    build.onResolve({ filter: /^\.\/rich-text-editor-impl$/ }, (args) =>
+      args.kind === "dynamic-import" ? { path: "./rich-text-editor-impl.js", external: true } : undefined,
+    );
+  },
+};
 const SERVER_SAFE_ENTRIES = new Set(["utils.js"]);
 
 export default defineConfig({
   entry: {
     index: "src/index.ts",
     utils: "src/utils.ts",
+    "rich-text-editor-impl": "src/components/ui/rich-text-editor-impl.tsx",
   },
   format: ["esm"],
-  dts: true,
+  // The editor file is reached only through index.js, whose types cover it.
+  dts: { entry: { index: "src/index.ts", utils: "src/utils.ts" } },
+  esbuildPlugins: [lazyEditor],
   clean: true,
   sourcemap: false,
   splitting: false,

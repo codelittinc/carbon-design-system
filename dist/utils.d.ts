@@ -17,7 +17,7 @@ declare function formatPeriodLabel(month: number, year: number): string;
  *
  * ## Why sanitizing is the consumer's job and not the editor's
  *
- * `RichTextEditor` emits `innerHTML` verbatim. It does not sanitize, on purpose:
+ * `RichTextEditor` emits its document's HTML as is. It does not sanitize, on purpose:
  * the editor is a client, and a client is never the trust boundary. Whatever it
  * emits reaches your server as a string in a form post, and a string in a form
  * post can say anything at all regardless of what the editor would have done.
@@ -44,8 +44,9 @@ declare function formatPeriodLabel(month: number, year: number): string;
  * This does the opposite. It parses the input into tokens and then **emits
  * fresh markup from scratch**, writing only tags from ALLOWED and only
  * attributes it composes itself. No attribute from the input is ever copied to
- * the output: the single exception is `<a href>`, whose value must survive
- * `safeHref` before it is re-escaped. Every text run is escaped. The output tree
+ * the output: the exceptions are `<a href>`, whose value must survive
+ * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
+ * same check, http and https only) and `alt`. Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,
@@ -54,6 +55,33 @@ declare function formatPeriodLabel(month: number, year: number): string;
  */
 /** The canonical tag set, for consumers writing CSS or a `prose` allow-list. */
 declare const RICH_TEXT_TAGS: readonly ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a"];
+/**
+ * What `RichTextEditor` can produce with `formatting="extended"`: the default
+ * set plus three heading levels, quotes, inline code and code blocks.
+ */
+declare const RICH_TEXT_EXTENDED_TAGS: readonly ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a", "h1", "h2", "h3", "blockquote", "code", "pre"];
+/** What `RichTextEditor` adds when it is given `uploadImage`. */
+declare const RICH_TEXT_IMAGE_TAGS: readonly ["img"];
+/**
+ * Which editor configuration a call is sanitizing for. `basic` (the default) is
+ * `RichTextEditor` with no opt-ins; `extended` matches `formatting="extended"`.
+ */
+type RichTextFormatting = "basic" | "extended";
+/**
+ * Match the sanitizer to the editor that wrote the markup. With no options, or
+ * `{}`, `sanitizeRichText` is exactly what it always was.
+ */
+interface RichTextSanitizeOptions {
+    /** `extended` also keeps h1–h3, blockquote, code and pre. Default `basic`. */
+    formatting?: RichTextFormatting;
+    /** Keeps `<img>`, with an http(s) `src` and an `alt` and nothing else. */
+    images?: boolean;
+}
+/**
+ * The tags one editor configuration can produce, for CSS or an app's own
+ * allow-list. `richTextTags()` is `RICH_TEXT_TAGS`.
+ */
+declare function richTextTags(options?: RichTextSanitizeOptions): readonly string[];
 /**
  * The decoded, control-character-free URL if it uses a safe scheme, else null.
  *
@@ -80,9 +108,19 @@ declare function safeHref(raw: string): string | null;
  * Safe to call on anything, including a string that has already been through it
  * — `sanitizeRichText(sanitizeRichText(x)) === sanitizeRichText(x)`, which is
  * what makes the sanitize-on-write-and-on-read rule above cheap. There is a test
- * pinning that.
+ * pinning that, for every set of options.
+ *
+ * Pass the options that match the editor's configuration, so nothing the editor
+ * can produce is lost on save: `{ formatting: "extended" }` for an extended
+ * editor, `images: true` for one with `uploadImage`.
+ *
+ * A link target that is not a URL (`RichTextEditor`'s `linkPanel.targets`, such
+ * as `{{booking_link}}`) fails `safeHref`, so its anchor is dropped and its text
+ * kept. That is deliberate: such an href only means something to the app that
+ * fills it in, so an app that turns link targets on sanitizes that markup with
+ * its own allow-list.
  */
-declare function sanitizeRichText(html: string | null | undefined): string;
+declare function sanitizeRichText(html: string | null | undefined, options?: RichTextSanitizeOptions): string;
 /**
  * Whether this rich text has anything in it.
  *
@@ -95,4 +133,62 @@ declare function sanitizeRichText(html: string | null | undefined): string;
  */
 declare function isRichTextEmpty(html: string | null | undefined): boolean;
 
-export { RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isRichTextEmpty, safeHref, sanitizeRichText };
+/**
+ * What `RichTextEditor`'s link UI accepts as an href.
+ *
+ * Pure functions with no React and no browser globals, exported from the
+ * server-safe `/utils` entry as well as the root, so an app can check an href
+ * the same way on its server.
+ *
+ * Two different questions, kept apart on purpose.
+ *
+ * `normalizeLinkHref` answers "may the person TYPE this into the full link
+ * panel?", and is where an app's extra link targets apply. It is for usability
+ * only: the app's sanitizer remains the boundary.
+ *
+ * `isAllowedEditorHref` answers "may the editor keep this href?" for parse,
+ * paste, autolink and setLink alike, and is the same in every editor. It cannot
+ * depend on the targets an editor declares: an app can load markup that already
+ * holds `<a href="{{booking_link}}">` into an editor that does not let anyone
+ * type it, and dropping the href there would hide the target from whatever
+ * fills it in later.
+ */
+type LinkHrefReason = "empty" | "scheme" | "placeholder";
+type LinkHrefResult = {
+    ok: true;
+    href: string;
+} | {
+    ok: false;
+    reason: LinkHrefReason;
+};
+interface LinkHrefOptions {
+    /**
+     * Hrefs that are not URLs but may be typed as one, in canonical form, e.g.
+     * `["{{booking_link}}"]`. Matched case-insensitively and with spaces allowed
+     * inside the braces.
+     */
+    targets?: readonly string[];
+}
+/**
+ * The href to store for what somebody typed, or why it was refused.
+ *
+ * `example.com` and `www.example.com` gain `https://`, `ana@example.com` becomes
+ * a `mailto:` link, and `http(s)://` and `mailto:` are kept exactly as typed.
+ * Every other scheme, relative paths, text with spaces and dot-less hosts
+ * without a scheme are refused, and so is any `{{…}}` that is not one of
+ * `targets`.
+ */
+declare function normalizeLinkHref(input: string, { targets }?: LinkHrefOptions): LinkHrefResult;
+/**
+ * Whether the editor may keep this href at all.
+ *
+ * TipTap's own default allows ftp, tel, sms, cid, xmpp and more. This narrows
+ * any explicit scheme to http, https and mailto, and lets everything without
+ * one through, as TipTap does: that covers link targets, and also autolink,
+ * which passes linkify's raw value ("example.com", not the href) to this check.
+ */
+declare function isAllowedEditorHref(url: string | undefined): boolean;
+/** The message the link panel shows for a refused href. */
+declare function linkHrefErrorMessage(reason: LinkHrefReason, { targets }?: LinkHrefOptions): string;
+
+export { type LinkHrefOptions, type LinkHrefReason, type LinkHrefResult, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, type RichTextFormatting, type RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };

@@ -1,4 +1,5 @@
-export { RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isRichTextEmpty, safeHref, sanitizeRichText } from './utils.js';
+import { RichTextFormatting } from './utils.js';
+export { LinkHrefOptions, LinkHrefReason, LinkHrefResult, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText } from './utils.js';
 import * as react from 'react';
 import { ReactNode } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
@@ -62,6 +63,161 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement>, VariantProps
 }
 declare function Badge({ className, variant, ...props }: BadgeProps): react.JSX.Element;
 
+interface TagProps extends VariantProps<typeof badgeVariants> {
+    children: React.ReactNode;
+    /** Shows a remove button when given. */
+    onRemove?: () => void;
+    /** Accessible name for the remove button. Defaults to "Remove". */
+    removeLabel?: string;
+    disabled?: boolean;
+    className?: string;
+}
+/**
+ * A `Badge` that can be removed — a chosen value in a multi-value field, an
+ * applied filter. Shares Badge's variants, so the two sit together.
+ */
+declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): react.JSX.Element;
+
+declare const cardVariants: (props?: ({
+    padding?: "none" | "sm" | "lg" | "md" | null | undefined;
+    hoverable?: boolean | null | undefined;
+} & class_variance_authority_types.ClassProp) | undefined) => string;
+interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
+    /**
+     * Merge the card's styles onto the single child instead of rendering a
+     * `<div>` — for a card that is itself a link (`<Card asChild><a …/></Card>`).
+     */
+    asChild?: boolean;
+}
+/**
+ * A bordered surface that groups related content. `padding` picks a step on the
+ * spacing scale; `hoverable` adds a hover state for cards that are clickable.
+ */
+declare const Card: react.ForwardRefExoticComponent<CardProps & react.RefAttributes<HTMLDivElement>>;
+
+declare const alertVariants: (props?: ({
+    variant?: "success" | "warning" | "error" | "info" | null | undefined;
+} & class_variance_authority_types.ClassProp) | undefined) => string;
+interface AlertProps extends VariantProps<typeof alertVariants> {
+    /** Optional bold first line. */
+    title?: React.ReactNode;
+    children?: React.ReactNode;
+    /** Shows a dismiss button when given. */
+    onDismiss?: () => void;
+    className?: string;
+}
+/**
+ * An inline, persistent message about the surrounding content — a form that
+ * failed to save, a section that could not load. For a transient confirmation
+ * use `toast`.
+ */
+declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): react.JSX.Element;
+
+declare const sizeClasses: {
+    readonly sm: "h-4 w-4 border-2";
+    readonly md: "h-6 w-6 border-2";
+    readonly lg: "h-10 w-10 border-[3px]";
+};
+interface SpinnerProps {
+    size?: keyof typeof sizeClasses;
+    /**
+     * Text shown under the spinner. Also its accessible name; without one the
+     * spinner is announced as "Loading".
+     */
+    label?: string;
+    className?: string;
+}
+/**
+ * An indeterminate loading indicator, for work whose length is unknown. Prefer
+ * `Skeleton` when the shape of the content that is coming is known.
+ */
+declare function Spinner({ size, label, className }: SpinnerProps): react.JSX.Element;
+
+interface LabelProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
+    /** Appends a required marker. */
+    required?: boolean;
+}
+/**
+ * A form control's label, styled to match `FormField`. Use it on its own when
+ * the control's layout does not fit `FormField`'s label-above-control stack.
+ */
+declare const Label: react.ForwardRefExoticComponent<LabelProps & react.RefAttributes<HTMLLabelElement>>;
+
+interface PaginationProps {
+    /** Current page, 1-based. */
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    /** With `pageSize`, shows "Showing 11–20 of 57". */
+    totalItems?: number;
+    pageSize?: number;
+    className?: string;
+}
+/**
+ * Page controls for a list split into pages. Renders nothing when there is only
+ * one page.
+ */
+declare function Pagination({ page, totalPages, onPageChange, totalItems, pageSize, className, }: PaginationProps): react.JSX.Element | null;
+
+interface MultiSelectOption {
+    value: string;
+    label: string;
+    sublabel?: string;
+    disabled?: boolean;
+}
+interface MultiSelectProps {
+    value: string[];
+    onChange: (value: string[]) => void;
+    options: MultiSelectOption[];
+    placeholder?: string;
+    /** Shown in the list when the search matches nothing. */
+    emptyMessage?: React.ReactNode;
+    disabled?: boolean;
+    /** Put on the search input, so an external `<label htmlFor>` names it. */
+    id?: string;
+    ariaLabel?: string;
+    className?: string;
+}
+/**
+ * A searchable list that toggles several values on and off. The list stays open
+ * while choosing, so picking five people is five clicks, not five round trips.
+ *
+ * It shows no chips of its own: what is selected usually deserves more than a
+ * chip (a status, a warning), so render the selection beside it — `Tag` with
+ * `onRemove` is the usual fit. Backspace in an empty search removes the last
+ * value.
+ */
+declare function MultiSelect({ value, onChange, options, placeholder, emptyMessage, disabled, id, ariaLabel, className, }: MultiSelectProps): react.JSX.Element;
+
+interface SegmentedControlOption {
+    value: string;
+    label: string;
+}
+interface SegmentedControlProps {
+    options: SegmentedControlOption[];
+    /** `null` when nothing is chosen yet. */
+    value: string | null;
+    onChange: (value: string) => void;
+    /** Submits the value with a surrounding form, via a hidden input. */
+    name?: string;
+    id?: string;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
+    "aria-describedby"?: string;
+    "aria-required"?: boolean;
+    /** Marks the group invalid and draws an error border. */
+    error?: boolean;
+    disabled?: boolean;
+    size?: "sm" | "md";
+    className?: string;
+}
+/**
+ * A choice of one from a few options, all of them visible. It is a radio group:
+ * one Tab stop, and the arrow keys move the choice. Use `Tabs` when the options
+ * switch what is shown, and `Select` when there are more than about four.
+ */
+declare function SegmentedControl({ options, value, onChange, name, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, "aria-describedby": ariaDescribedBy, "aria-required": ariaRequired, error, disabled, size, className, }: SegmentedControlProps): react.JSX.Element;
+
 interface StatusBadgeProps {
     status: string;
     className?: string;
@@ -72,16 +228,53 @@ declare const Input: react.ForwardRefExoticComponent<react.InputHTMLAttributes<H
 
 declare const Textarea: react.ForwardRefExoticComponent<react.TextareaHTMLAttributes<HTMLTextAreaElement> & react.RefAttributes<HTMLTextAreaElement>>;
 
+/** A toolbar button that inserts a fixed snippet at the caret. */
+interface RichTextInsertAction {
+    /** The button's text, and its accessible name. */
+    label: string;
+    /** Shown in a tooltip, e.g. what the snippet expands to. */
+    title?: string;
+    /** Reduced to this editor's schema on insert, the same way a paste is. */
+    html: string;
+}
+/**
+ * An href the full link panel accepts that is not a URL, such as
+ * `{{booking_link}}`, for markup an app fills in later. App-supplied: Carbon
+ * knows nothing about what it means.
+ */
+interface RichTextLinkTarget {
+    /** The canonical form stored, matching `/^\{\{[a-z0-9_]+\}\}$/`. */
+    href: string;
+    /** The quick-fill button reads `Use ${name}`. */
+    name: string;
+    /** Help text under the quick-fill button. */
+    description?: string;
+}
+interface RichTextLinkPanelOptions {
+    targets?: readonly RichTextLinkTarget[];
+}
+/** What `ref` on a `RichTextEditor` gives you. */
+interface RichTextEditorHandle {
+    /**
+     * Focus the editor, put the caret back where it last was, and insert `html`
+     * there, reduced to this editor's schema. Does nothing before the editor
+     * exists (the first client render) or after it is gone.
+     */
+    insert(html: string): void;
+    focus(): void;
+}
 interface RichTextEditorProps {
     /** The current HTML. See the note on `onChange` about what may be fed back. */
     value: string;
     /**
-     * Called with the editor's raw `innerHTML` on every edit.
+     * Called with the editor's HTML on every edit by the person using it — never
+     * on mount, and never when `value` replaces the content. `""` when the
+     * editor is empty.
      *
      * **Store this through `sanitizeRichText`, but do not sanitize it here.** The
      * value handed back through `value` has to be the same string this emitted, or
-     * the sync effect treats it as an external change, rewrites the DOM, and drops
-     * the caret to the start of the field on every keystroke. Sanitize where the
+     * the sync effect treats it as an external change, replaces the content, and
+     * drops the caret to the start of the field on every keystroke. Sanitize where the
      * value is *stored* and again where it is *rendered* — see src/lib/rich-text.ts.
      */
     onChange: (html: string) => void;
@@ -89,45 +282,53 @@ interface RichTextEditorProps {
     disabled?: boolean;
     /** Applied to the editable surface, e.g. `min-h-40` to make the box taller. */
     className?: string;
+    /** Lands on the editable surface, so a `<label for>` names it and a form can focus it. */
     id?: string;
     ariaLabel?: string;
+    ariaLabelledBy?: string;
+    ariaDescribedBy?: string;
     /** Marks the surface invalid for assistive tech and draws the error border. */
     invalid?: boolean;
+    /**
+     * `extended` adds headings 1–3, strikethrough, quotes, inline code and code
+     * blocks, Markdown-style typing shortcuts, and HTML paste reduced to those.
+     * `basic` (the default) pastes plain text. Sanitize with the same
+     * `formatting`.
+     */
+    formatting?: RichTextFormatting;
+    /**
+     * Adds an Insert image button. The picked file is passed here and the URL it
+     * resolves to is inserted at the caret; `null` or a rejection inserts
+     * nothing, and the app shows its own error. A relative URL is made absolute
+     * against the page; one `sanitizeRichText` would drop (`data:`, `blob:`)
+     * inserts nothing. Sanitize with `images: true`.
+     */
+    uploadImage?: (file: File) => Promise<string | null>;
+    /**
+     * The full link panel instead of the inline link row: a "Text to show" field,
+     * an inline error, URL normalisation (`normalizeLinkHref`), autolink as you
+     * type, and optional link `targets`.
+     */
+    linkPanel?: boolean | RichTextLinkPanelOptions;
+    /** A toolbar button for each, inserting its HTML at the caret. */
+    insertActions?: readonly RichTextInsertAction[];
+    /** Read a `value` with no tags in it as plain text: blank lines are paragraphs, newlines line breaks. */
+    acceptPlainText?: boolean;
 }
+
 /**
- * A WYSIWYG editor for a paragraph or two of prose: bold, italic, two kinds of
- * list, and links.
+ * A WYSIWYG editor for a paragraph or two of prose. The full contract — what it
+ * emits, how to sanitize it, each opt-in — is on the props and in
+ * rich-text-editor-impl.tsx.
  *
- * ## It emits HTML and does not sanitize it
- *
- * This is a client. Whatever it produces reaches a server as a string in a form
- * post, and that string can say anything regardless of what this component would
- * have done — so this component is not, and cannot be, the place the markup is
- * made safe. `sanitizeRichText` in `@codelittinc/carbon-design-system/utils` is,
- * and it is a separate server-safe entry precisely so the *server* can call it.
- * The full contract is documented there. The one thing to carry over here: the
- * toolbar produces exactly the tags that sanitizer allows, so nothing a user
- * types through this UI is lost on the way to the database.
- *
- * ## Why `document.execCommand`
- *
- * It is deprecated and it is still the only formatting API every browser
- * implements. The alternative is a document model of one's own — a Tiptap or a
- * Lexical — which is the right answer for a real document editor and several
- * hundred kilobytes to let somebody bold a word in a notes field. When this
- * component starts needing tables, images or collaborative editing, that is the
- * signal to replace it wholesale rather than to grow it.
- *
- * Two consequences worth knowing. `styleWithCSS` is turned off before every
- * command, because the default in some browsers is to emit
- * `<span style="font-weight:bold">` rather than `<b>` — and a style attribute is
- * stripped by the sanitizer, so the formatting would survive the click and
- * vanish on save. And pasted content is inserted as plain text on purpose:
- * pasting from Word or a web page otherwise carries in a document's worth of
- * markup that the sanitizer then reduces to unstyled prose anyway, with the
- * paragraph breaks in surprising places.
+ * TipTap is loaded the first time an editor renders, not when the package is
+ * imported (see rich-text-editor-loader.ts). Until it arrives this draws the
+ * same bordered box with an empty toolbar strip, so the page does not jump. The
+ * server render and hydration always draw that box, so they agree whether or
+ * not the editor has already loaded in this tab. A failed load throws to the
+ * nearest error boundary.
  */
-declare function RichTextEditor({ value, onChange, placeholder, disabled, className, id, ariaLabel, invalid, }: RichTextEditorProps): react.JSX.Element;
+declare const RichTextEditor: react.ForwardRefExoticComponent<RichTextEditorProps & react.RefAttributes<RichTextEditorHandle>>;
 
 declare const Checkbox: react.ForwardRefExoticComponent<Omit<CheckboxPrimitive.CheckboxProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
@@ -261,16 +462,35 @@ declare const PopoverContent: react.ForwardRefExoticComponent<Omit<PopoverPrimit
 
 declare const ScrollArea: react.ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
+type ToastVariant = "default" | "success" | "error" | "info" | "warning";
 interface Toast {
     id: string;
     title: string;
     description?: string;
-    variant?: "default" | "success" | "error";
+    variant?: ToastVariant;
 }
+type ToastInput = Omit<Toast, "id">;
 interface ToastContextValue {
-    toast: (t: Omit<Toast, "id">) => void;
+    toast: (t: ToastInput) => void;
 }
 declare function useToast(): ToastContextValue;
+type ToastOptions = Pick<ToastInput, "description">;
+/**
+ * Fire a toast without `useToast()`. Shows in whichever `ToastProvider` is
+ * mounted; with none mounted it is a no-op, the same as `useToast()` outside a
+ * provider.
+ *
+ * ```ts
+ * toast.success("Saved");
+ * toast.error("Couldn't save", { description: res.error });
+ * ```
+ */
+declare const toast: ((t: ToastInput) => void) & {
+    success: (title: string, options?: ToastOptions) => void;
+    error: (title: string, options?: ToastOptions) => void;
+    info: (title: string, options?: ToastOptions) => void;
+    warning: (title: string, options?: ToastOptions) => void;
+};
 declare function ToastProvider({ children }: {
     children: React.ReactNode;
 }): react.JSX.Element;
@@ -297,6 +517,19 @@ interface DataTableProps<TData, TValue> {
     data: TData[];
     onRowClick?: (row: TData) => void;
     pageSize?: number;
+    /**
+     * `false` turns the table's own paging off and renders every row it is given.
+     * For a list the server already pages: hand it one page of rows and put a
+     * `Pagination` under it. Otherwise `pageSize`, which is read once on mount,
+     * would cut a page the server sent and add a second pager inside the real one.
+     */
+    paginate?: boolean;
+    /**
+     * A stable id per row, used as its React key. Without it rows are keyed by
+     * index, so a cell that holds its own state (an inline rename, an open menu)
+     * moves to a different row when the list re-sorts or gains a row.
+     */
+    getRowId?: (row: TData) => string;
     enableSelection?: boolean;
     emptyMessage?: string;
     /**
@@ -315,7 +548,7 @@ interface DataTableProps<TData, TValue> {
      */
     resetPageOn?: unknown;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
+declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;
@@ -1202,4 +1435,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiStatusFilter, PageHeader, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorProps, ScrollArea, SearchSelect, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, badgeVariants, buttonVariants, capSeries, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };

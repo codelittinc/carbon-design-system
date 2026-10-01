@@ -8,6 +8,175 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.0] - 2026-10-01
+
+### `RichTextEditor` is rebuilt on TipTap, with opt-in capabilities
+
+The editor ran on `document.execCommand`, which is deprecated and differs
+between browsers (bold as `<b>` or as a styled `<span>`, pasted markup let
+through). It now runs on [TipTap](https://tiptap.dev). The schema is derived from
+the props, so the editor can only produce the tags its matching sanitizer keeps.
+
+**Existing usage keeps working.** Every prop it had is unchanged and means the
+same thing. With no new props you get the same five buttons (Bold, Italic,
+Bulleted list, Numbered list, Link), the same inline link row with Cmd/Ctrl+K,
+plain-text paste, and no Markdown typing shortcuts. `onChange` still emits HTML
+that `sanitizeRichText(html)` keeps byte for byte. The differences:
+
+- **Blank lines:** a blank line is emitted as `<p><br></p>`, which the
+  sanitizer keeps, so blank lines no longer disappear on save.
+- **Toolbar focus:** the toolbar is one Tab stop, with the arrow keys, Home and
+  End moving between its buttons (the ARIA toolbar pattern).
+- **Escape in a dialog:** inside a `Dialog`, Escape in the link row closes only
+  the row, and focus goes back to the editor.
+
+**New, all optional:**
+
+- **`formatting="extended"`:** headings 1–3, strikethrough, quotes, inline code
+  and code blocks, Markdown-style typing shortcuts (`## `, `> `, three
+  backticks), and HTML paste reduced to those. There is no horizontal rule, so
+  `---` stays text.
+- **`uploadImage(file) => Promise<url | null>`:** an Insert image button. The
+  URL is inserted at the caret. A relative URL such as `/api/files/1` is made
+  absolute against the page, so it survives `sanitizeRichText(html, { images:
+  true })`; a URL the sanitizer would drop (`data:`, `blob:`) inserts nothing
+  and says so in the editor's status region. `null` or a rejection inserts
+  nothing, and the app shows its own error. An upload that finishes after the
+  editor is disabled (a save started) inserts nothing. Images come in through
+  the button only: images in pasted or dropped HTML are removed, so a pasted
+  web page or email cannot fetch from its servers. Images the editor already
+  held are kept, so dragging an image or cutting and pasting it moves it.
+- **`linkPanel`:** a popover to add, edit and remove links, with optional text
+  to show, an inline error, and URL normalisation (`example.com` →
+  `https://example.com`, `ana@example.com` → `mailto:`).
+- **`linkPanel={{ targets }}`:** hrefs that are not URLs, such as
+  `{{signup_link}}`, for markup the app fills in later. Each has a quick-fill
+  button and help text, worded by the app.
+- **`insertActions`:** a toolbar button per snippet.
+- **`ref`:** a `RichTextEditorHandle` with `insert(html)` and `focus()`, for
+  inserting from outside the editor.
+- **`ariaLabelledBy`, `ariaDescribedBy`:** placed on the editable surface.
+- **`acceptPlainText`:** reads a tag-less `value` as plain text.
+
+Capabilities are read once, at mount, because they are the schema. To change
+them, change the editor's `key`.
+
+**TipTap loads only where an editor renders.** `RichTextEditor` loads TipTap
+the first time one renders, not when the package is imported, so pages
+without an editor download none of it. Until it arrives the editor draws the
+same bordered box with an empty toolbar strip; the server render and hydration
+always draw that box. A `ref` handle exists from the first render and does
+nothing until the editor has loaded. If loading fails, the editor throws to the
+nearest error boundary.
+
+### Sanitizer options to match
+
+- **Options:** `sanitizeRichText(html, { formatting: "extended", images: true })`
+  keeps what an editor with those options can produce. Images keep only an
+  http(s) `src` and `alt`; `h4`–`h6` fold to paragraphs. **With no options the
+  output is byte for byte what it was.**
+- **Tag lists:** `RICH_TEXT_EXTENDED_TAGS`, `RICH_TEXT_IMAGE_TAGS` and
+  `richTextTags(options)` list each configuration's tags.
+- **Image-only content:** `isRichTextEmpty` counts an image as content. It now
+  measures what `sanitizeRichText` would store, so an `<img>` the sanitizer
+  drops, or one inside an HTML comment, does not make a note non-empty.
+- **Quotes inside a `<div>`:** a quote, heading or code block now closes an
+  open paragraph, so `<div><blockquote>…</blockquote></div>` keeps its quote.
+- **Link targets:** `sanitizeRichText` drops non-URL hrefs, keeping their text.
+  An app that turns on link `targets` sanitizes that markup with its own
+  allow-list.
+
+### Link helpers
+
+`normalizeLinkHref`, `isAllowedEditorHref` and `linkHrefErrorMessage` are
+exported from the root and from the server-safe `/utils` entry, so a server can
+check an href the same way the link panel does. `isAllowedEditorHref` reads a
+scheme with a dot in it (`foo.bar:`) as a scheme, as a browser does, while a
+host and port (`example.com:8080`) still autolinks.
+
+### Dependencies
+
+TipTap 3 (`@tiptap/core`, `react`, `pm`, `starter-kit`, `extension-link`,
+`-list`, `-image`, `-code-block`, at `^3.31.3`) is now a dependency, kept
+external to `dist/`. An app that already depends on TipTap should use the same
+`^3.31` range so it installs one copy. The editor is built as its own file,
+`dist/rich-text-editor-impl.js`, which `dist/index.js` reaches only through a
+dynamic import, so an app's bundler puts TipTap in a separate chunk.
+
+## [1.14.0] - 2026-10-01
+
+### New components: Card, Alert, Spinner, Label, Tag, Pagination, MultiSelect, SegmentedControl
+
+Added while moving Hirelitt off the Backstage design system, which had these and
+Carbon did not. Each is built on the semantic tokens, so it works in both themes.
+
+- **`Card`**: a bordered `surface` panel. `padding` (`none` · `sm` · `md` ·
+  `lg`), `hoverable` for clickable cards, and `asChild` to render it as a link.
+- **`Alert`**: an inline, persistent message (`error` · `success` · `info` ·
+  `warning`) with an optional `title` and `onDismiss`. Errors are
+  `role="alert"`, the other variants are `role="status"`.
+- **`Spinner`**: an indeterminate loading indicator (`sm` · `md` · `lg`) with
+  an optional `label`, which is also its accessible name.
+- **`Label`**: a form label styled to match `FormField`, with a `required`
+  marker. For controls whose layout does not fit `FormField`.
+- **`Tag`**: a `Badge` that can be removed. Same variants as Badge, plus
+  `onRemove` and `removeLabel`.
+- **`Pagination`**: previous/next and page buttons, collapsing to seven slots
+  around the current page, with an optional "Showing 11–20 of 57".
+- **`MultiSelect`**: a searchable list that toggles several values, staying
+  open while you pick. It renders no chips of its own; show the selection
+  beside it with `Tag`.
+- **`SegmentedControl`**: pick one of a few options, all visible. A radio group
+  with one Tab stop and arrow-key movement. `name` submits the value with a
+  form.
+
+### Theme: the base styles are in cascade layers, so utilities win
+
+`theme.css` set its base reset and helper classes outside any cascade layer.
+Unlayered CSS beats every layered rule whatever the specificity, and
+Tailwind's utilities are layered, so:
+
+- **`* { border-color: var(--color-border) }` overrode every border colour
+  utility.** `border-error`, `border-accent`, `border-success-border` and
+  arbitrary `border-*` colours all rendered as the default border. This hit
+  these components too: a checked `Checkbox`'s accent border, error borders on
+  inputs, toast borders and the `SegmentedControl` error state.
+- **`.tabular-nums` forced 13px**, overriding `text-xs`, `text-2xl` and other
+  size utilities on the same element. `.focus-ring` and `.transition-default`
+  likewise beat utilities set beside them.
+
+The reset (`*`, `html`, `body`, scrollbars) is now in `@layer base`. The
+helper classes (`.tabular-nums`, `.focus-ring`, `.transition-default`) are now
+in `@layer components`. The defaults are unchanged; a utility on the same
+element now wins.
+
+**Visible change for consumers:** an element that sets `tabular-nums` together
+with a text size utility now gets that size instead of 13px. Without a size
+utility it is still 13px.
+
+### `DataTable`: `paginate={false}` and `getRowId`
+
+- **`paginate={false}`** turns the table's own paging off, so it renders every
+  row it is given and draws no pager. Use it for lists the server already
+  pages: pass one page of rows and put a `Pagination` under the table.
+  `pageSize` is read once, on mount, so passing the current row count as
+  `pageSize` freezes the table at the first render's size.
+- **`getRowId`** gives each row a stable id, used as its React key. Without it
+  rows are keyed by index, so state inside a cell (an inline rename box, an
+  open menu) moves to a different row when the list re-sorts or gains a row.
+
+### `toast` can be called without `useToast()`
+
+`toast.success(title)`, `toast.error(title)`, `toast.info(title)` and
+`toast.warning(title)`, each with an optional `{ description }`, plus
+`toast({ title, variant })`. They show in whichever `ToastProvider` is
+mounted, so they work in code that is not a component or cannot call a hook.
+`useToast()` is unchanged.
+
+The toast list also gained `info` and `warning` variants, and
+an accessible region. An error toast is `role="alert"` and every other toast
+is `role="status"`. The dismiss button now has a name.
+
 ## [1.13.2] - 2026-10-01
 
 ### Components built from other design-system components
