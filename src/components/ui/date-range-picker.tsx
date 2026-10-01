@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -22,64 +23,80 @@ interface DateRangePickerProps {
   className?: string;
 }
 
-const selectClass =
-  "h-7 rounded border border-border bg-surface-raised px-1.5 text-xs text-text-primary";
+const MONTH_OPTIONS = MONTH_NAMES.map((label, i) => ({ value: i + 1, label }));
+
+/** Compact trigger sizing; fixed widths so the row doesn't shift as the value changes. */
+const triggerClass = "h-7 gap-1 px-2 text-xs";
+
+function NumberSelect({
+  value,
+  onChange,
+  options,
+  label,
+  className,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  options: { value: number; label: string }[];
+  label: string;
+  className: string;
+}) {
+  return (
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger aria-label={label} className={cn(triggerClass, className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={String(o.value)}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /**
  * Month/year range selector: a start month+year, the word "to", and an end
  * month+year. Controlled via a MonthYearRange value, used for report periods.
  */
 export function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps) {
+  const yearOptions = years.map((y) => ({ value: y, label: String(y) }));
   return (
     <div className={cn("flex items-center gap-1.5 text-xs", className)}>
       <div className="flex items-center gap-1">
-        <select
+        <NumberSelect
+          label="Start month"
           value={value.startMonth}
-          onChange={(e) => onChange({ ...value, startMonth: Number(e.target.value) })}
-          className={selectClass}
-        >
-          {MONTH_NAMES.map((m, i) => (
-            <option key={i} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={(startMonth) => onChange({ ...value, startMonth })}
+          options={MONTH_OPTIONS}
+          className="w-16"
+        />
+        <NumberSelect
+          label="Start year"
           value={value.startYear}
-          onChange={(e) => onChange({ ...value, startYear: Number(e.target.value) })}
-          className={selectClass}
-        >
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+          onChange={(startYear) => onChange({ ...value, startYear })}
+          options={yearOptions}
+          className="w-[4.5rem]"
+        />
       </div>
       <span className="text-text-muted">to</span>
       <div className="flex items-center gap-1">
-        <select
+        <NumberSelect
+          label="End month"
           value={value.endMonth}
-          onChange={(e) => onChange({ ...value, endMonth: Number(e.target.value) })}
-          className={selectClass}
-        >
-          {MONTH_NAMES.map((m, i) => (
-            <option key={i} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={(endMonth) => onChange({ ...value, endMonth })}
+          options={MONTH_OPTIONS}
+          className="w-16"
+        />
+        <NumberSelect
+          label="End year"
           value={value.endYear}
-          onChange={(e) => onChange({ ...value, endYear: Number(e.target.value) })}
-          className={selectClass}
-        >
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+          onChange={(endYear) => onChange({ ...value, endYear })}
+          options={yearOptions}
+          className="w-[4.5rem]"
+        />
       </div>
     </div>
   );

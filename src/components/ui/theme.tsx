@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Button } from "./button";
 
 export type Theme = "light" | "dark";
 
@@ -93,15 +94,14 @@ export function ThemeToggle({ className }: { className?: string }) {
   const isDark = theme === "dark";
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-carbon-600",
-        className,
-      )}
+      className={cn("h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised", className)}
     >
       {mounted ? (
         isDark ? (
@@ -112,6 +112,6 @@ export function ThemeToggle({ className }: { className?: string }) {
       ) : (
         <span className="h-4 w-4" />
       )}
-    </button>
+    </Button>
   );
 }

@@ -16,7 +16,7 @@ interface FilterBarProps {
 
 /**
  * Toolbar above a list/table: a search input with a leading icon plus a slot
- * for filter controls. Pass filter <select>s or DS Selects as children.
+ * for filter controls. Pass DS `Select`s (or `MultiStatusFilter`) as children.
  */
 export function FilterBar({
   search,

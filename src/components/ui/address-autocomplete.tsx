@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
+import { Input } from "./input";
 
 let loadPromise: Promise<void> | null = null;
 
@@ -43,6 +44,14 @@ interface AddressAutocompleteProps {
   variant?: "staff" | "public";
 }
 
+/**
+ * Off-token palette for the public (logged-out) surface, layered over `Input`.
+ * Uses `focus-visible:` so tailwind-merge replaces Input's accent ring instead of
+ * stacking a second one; a text input matches `:focus-visible` on any focus.
+ */
+const PUBLIC_CLASS =
+  "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500";
+
 export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address...", className, variant = "staff" }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -71,19 +80,15 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
     return () => { mounted = false; };
   }, [handlePlaceSelect]);
 
-  const baseClass = variant === "public"
-    ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500"
-    : "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
-
   return (
-    <input
+    <Input
       ref={inputRef}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
       placeholder={placeholder}
-      className={cn(baseClass, className)}
+      className={cn(variant === "public" && PUBLIC_CLASS, className)}
     />
   );
 }

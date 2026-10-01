@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DateRangePicker, type MonthYearRange } from "../date-range-picker";
@@ -25,40 +25,50 @@ function Harness(props: { onChange?: (v: MonthYearRange) => void }) {
   );
 }
 
-describe("DateRangePicker", () => {
-  it("renders four selects with 12 month options and one option per year", () => {
-    render(<Harness />);
-    const selects = screen.getAllByRole("combobox");
-    expect(selects).toHaveLength(4);
+function pick(trigger: string, option: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: trigger }));
+  fireEvent.click(screen.getByRole("option", { name: option }));
+}
 
-    const [startMonth, startYear] = selects;
-    expect(within(startMonth).getAllByRole("option")).toHaveLength(12);
-    expect(within(startYear).getAllByRole("option")).toHaveLength(YEARS.length);
-    expect(within(startMonth).getByRole("option", { name: "Jan" })).toBeInTheDocument();
-    expect(within(startYear).getByRole("option", { name: "2025" })).toBeInTheDocument();
+describe("DateRangePicker", () => {
+  it("renders four labelled design-system selects showing the current range", () => {
+    render(<Harness />);
+    expect(screen.getAllByRole("combobox")).toHaveLength(4);
+    expect(screen.getByRole("combobox", { name: "Start month" })).toHaveTextContent("Jan");
+    expect(screen.getByRole("combobox", { name: "Start year" })).toHaveTextContent("2024");
+    expect(screen.getByRole("combobox", { name: "End month" })).toHaveTextContent("Dec");
+    expect(screen.getByRole("combobox", { name: "End year" })).toHaveTextContent("2024");
+    // No native <select> left behind.
+    expect(document.querySelector("select")).toBeNull();
+  });
+
+  it("offers 12 month options and one option per year", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Start month" }));
+    expect(screen.getAllByRole("option")).toHaveLength(12);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Start year" }));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["2023", "2024", "2025"]);
   });
 
   it("changing the start month calls onChange with the merged range", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    const [startMonth] = screen.getAllByRole("combobox");
-    fireEvent.change(startMonth, { target: { value: "3" } });
+    pick("Start month", "Mar");
     expect(onChange).toHaveBeenCalledWith({ ...INITIAL, startMonth: 3 });
   });
 
-  it("changing the end year calls onChange with the merged range", () => {
+  it("changing the end year calls onChange with the merged range, as a number", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    const endYear = screen.getAllByRole("combobox")[3];
-    fireEvent.change(endYear, { target: { value: "2025" } });
+    pick("End year", "2025");
     expect(onChange).toHaveBeenCalledWith({ ...INITIAL, endYear: 2025 });
   });
 
-  it("reflects controlled value updates in the selects", () => {
+  it("reflects controlled value updates in the triggers", () => {
     render(<Harness />);
-    const selects = screen.getAllByRole("combobox") as HTMLSelectElement[];
-    expect(selects[1].value).toBe("2024");
-    fireEvent.change(selects[1], { target: { value: "2023" } });
-    expect(selects[1].value).toBe("2023");
+    pick("Start year", "2023");
+    expect(screen.getByRole("combobox", { name: "Start year" })).toHaveTextContent("2023");
   });
 });

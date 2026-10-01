@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
+import { Badge } from "./badge";
+import { Button } from "./button";
+import { Checkbox } from "./checkbox";
 
 export interface StatusOption {
   value: string;
@@ -66,9 +69,9 @@ export function MultiStatusFilter({
           <span className="text-text-muted">{label}:</span>
           <span className="max-w-[12rem] truncate">{summary}</span>
           {selected.length > 0 && selected.length < options.length && (
-            <span className="rounded-full bg-accent-muted px-1.5 text-xs tabular-nums text-accent-text">
+            <Badge variant="accent" className="px-1.5 py-0 text-xs tabular-nums">
               {selected.length}
-            </span>
+            </Badge>
           )}
           <ChevronDown size={14} className="text-text-muted" />
         </button>
@@ -77,49 +80,37 @@ export function MultiStatusFilter({
         <div className="mb-1 flex items-center justify-between px-1 pb-1">
           <span className="text-xs font-medium text-text-muted">{label}</span>
           <div className="flex gap-2 text-xs">
-            <button
+            <Button
               type="button"
-              className="text-accent-text hover:underline disabled:opacity-40"
+              variant="link"
+              className="h-auto p-0 text-xs font-normal disabled:opacity-40"
               disabled={selected.length === options.length}
               onClick={() => onChange(options.map((o) => o.value))}
             >
               All
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="text-text-muted hover:underline disabled:opacity-40"
+              variant="link"
+              className="h-auto p-0 text-xs font-normal text-text-muted disabled:opacity-40"
               disabled={selected.length === 0}
               onClick={() => onChange([])}
             >
               Clear
-            </button>
+            </Button>
           </div>
         </div>
         <div className="max-h-72 overflow-y-auto">
           {options.map((opt) => {
             const checked = selectedSet.has(opt.value);
             return (
-              <button
+              <label
                 key={opt.value}
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                onClick={() => toggle(opt.value)}
-                className="flex w-full items-center gap-2 rounded px-1 py-1.5 text-left text-sm text-text-primary hover:bg-surface-overlay"
+                className="flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm text-text-primary hover:bg-surface-overlay"
               >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                    checked
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-surface-raised",
-                  )}
-                >
-                  {checked && <Check size={12} strokeWidth={3} />}
-                </span>
+                <Checkbox checked={checked} onCheckedChange={() => toggle(opt.value)} />
                 <span className="flex-1">{opt.label}</span>
-              </button>
+              </label>
             );
           })}
         </div>

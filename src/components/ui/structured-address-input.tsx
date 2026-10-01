@@ -1,6 +1,7 @@
 "use client";
 
 import { AddressAutocomplete } from "./address-combobox";
+import { Input } from "./input";
 import type { PostalAddressDraft } from "./postal-address";
 
 interface StructuredAddressInputProps {
@@ -25,9 +26,10 @@ export function StructuredAddressInput({
   required = false,
 }: StructuredAddressInputProps) {
   const vendor = variant === "vendor";
+  // Layered over `Input`, matching the street field's height for each variant.
   const inputClass = vendor
-    ? "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-    : "h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent";
+    ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+    : "h-9 py-0";
   const labelClass = vendor
     ? "mb-1 block text-xs font-medium text-slate-600"
     : "mb-1 block text-xs font-medium text-text-muted";
@@ -54,7 +56,7 @@ export function StructuredAddressInput({
       </div>
       <label className="sm:col-span-2" htmlFor={`${idPrefix}-line2`}>
         <span className={labelClass}>Apartment or suite</span>
-        <input
+        <Input
           id={`${idPrefix}-line2`}
           className={inputClass}
           value={value.addressLine2}
@@ -64,7 +66,7 @@ export function StructuredAddressInput({
       </label>
       <label className="sm:col-span-3" htmlFor={`${idPrefix}-city`}>
         <span className={labelClass}>City{required ? " *" : ""}</span>
-        <input
+        <Input
           id={`${idPrefix}-city`}
           className={inputClass}
           value={value.city}
@@ -75,7 +77,7 @@ export function StructuredAddressInput({
       </label>
       <label className="sm:col-span-1" htmlFor={`${idPrefix}-state`}>
         <span className={labelClass}>State{required ? " *" : ""}</span>
-        <input
+        <Input
           id={`${idPrefix}-state`}
           className={inputClass}
           value={value.state}
@@ -87,7 +89,7 @@ export function StructuredAddressInput({
       </label>
       <label className="sm:col-span-2" htmlFor={`${idPrefix}-postal`}>
         <span className={labelClass}>ZIP code{required ? " *" : ""}</span>
-        <input
+        <Input
           id={`${idPrefix}-postal`}
           className={inputClass}
           value={value.postalCode}
