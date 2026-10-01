@@ -37,9 +37,15 @@ that `sanitizeRichText(html)` keeps byte for byte. The differences:
   backticks), and HTML paste reduced to those. There is no horizontal rule, so
   `---` stays text.
 - **`uploadImage(file) => Promise<url | null>`:** an Insert image button. The
-  URL is inserted at the caret. `null` or a rejection inserts nothing, and the
-  app shows its own error. Images come in through the button only, not by paste
-  or drop.
+  URL is inserted at the caret. A relative URL such as `/api/files/1` is made
+  absolute against the page, so it survives `sanitizeRichText(html, { images:
+  true })`; a URL the sanitizer would drop (`data:`, `blob:`) inserts nothing
+  and says so in the editor's status region. `null` or a rejection inserts
+  nothing, and the app shows its own error. An upload that finishes after the
+  editor is disabled (a save started) inserts nothing. Images come in through
+  the button only: images in pasted or dropped HTML are removed, so a pasted
+  web page or email cannot fetch from its servers. Images the editor already
+  held are kept, so dragging an image or cutting and pasting it moves it.
 - **`linkPanel`:** a popover to add, edit and remove links, with optional text
   to show, an inline error, and URL normalisation (`example.com` →
   `https://example.com`, `ana@example.com` → `mailto:`).
@@ -55,6 +61,14 @@ that `sanitizeRichText(html)` keeps byte for byte. The differences:
 Capabilities are read once, at mount, because they are the schema. To change
 them, change the editor's `key`.
 
+**TipTap loads only where an editor renders.** `RichTextEditor` loads TipTap
+the first time one renders, not when the package is imported, so pages
+without an editor download none of it. Until it arrives the editor draws the
+same bordered box with an empty toolbar strip; the server render and hydration
+always draw that box. A `ref` handle exists from the first render and does
+nothing until the editor has loaded. If loading fails, the editor throws to the
+nearest error boundary.
+
 ### Sanitizer options to match
 
 - **Options:** `sanitizeRichText(html, { formatting: "extended", images: true })`
@@ -63,7 +77,11 @@ them, change the editor's `key`.
   output is byte for byte what it was.**
 - **Tag lists:** `RICH_TEXT_EXTENDED_TAGS`, `RICH_TEXT_IMAGE_TAGS` and
   `richTextTags(options)` list each configuration's tags.
-- **Image-only content:** `isRichTextEmpty` counts an image as content.
+- **Image-only content:** `isRichTextEmpty` counts an image as content. It now
+  measures what `sanitizeRichText` would store, so an `<img>` the sanitizer
+  drops, or one inside an HTML comment, does not make a note non-empty.
+- **Quotes inside a `<div>`:** a quote, heading or code block now closes an
+  open paragraph, so `<div><blockquote>…</blockquote></div>` keeps its quote.
 - **Link targets:** `sanitizeRichText` drops non-URL hrefs, keeping their text.
   An app that turns on link `targets` sanitizes that markup with its own
   allow-list.
@@ -72,15 +90,18 @@ them, change the editor's `key`.
 
 `normalizeLinkHref`, `isAllowedEditorHref` and `linkHrefErrorMessage` are
 exported from the root and from the server-safe `/utils` entry, so a server can
-check an href the same way the link panel does.
+check an href the same way the link panel does. `isAllowedEditorHref` reads a
+scheme with a dot in it (`foo.bar:`) as a scheme, as a browser does, while a
+host and port (`example.com:8080`) still autolinks.
 
 ### Dependencies
 
 TipTap 3 (`@tiptap/core`, `react`, `pm`, `starter-kit`, `extension-link`,
 `-list`, `-image`, `-code-block`, at `^3.31.3`) is now a dependency, kept
 external to `dist/`. An app that already depends on TipTap should use the same
-`^3.31` range so it installs one copy. Carbon's own bundle grows by about 8 KB
-gzipped.
+`^3.31` range so it installs one copy. The editor is built as its own file,
+`dist/rich-text-editor-impl.js`, which `dist/index.js` reaches only through a
+dynamic import, so an app's bundler puts TipTap in a separate chunk.
 
 ## [1.14.0] - 2026-10-01
 

@@ -548,5 +548,20 @@ describe("sanitizeRichText options", () => {
   it("counts an image as content, so an image-only note is not saved as empty", () => {
     expect(isRichTextEmpty('<p><img src="https://x.com/a.png" alt=""></p>')).toBe(false);
   });
+
+  it("does not count an image the sanitizer would drop", () => {
+    // A required-field check on the raw post, followed by a sanitized save,
+    // must not let these through as "not empty" and then store "".
+    expect(isRichTextEmpty('<img src="javascript:alert(1)">')).toBe(true);
+    expect(isRichTextEmpty("<p><!-- <img src=\"https://x.com/a.png\"> --></p>")).toBe(true);
+    expect(isRichTextEmpty('<img src="/relative/a.png">')).toBe(true);
+  });
+
+  it("keeps a quote inside a div, which folds to a paragraph", () => {
+    expect(sanitizeRichText("<div><blockquote><p>q</p></blockquote></div>", EXTENDED)).toBe(
+      "<blockquote><p>q</p></blockquote>",
+    );
+    expect(sanitizeRichText("<div>a<h2>b</h2>c</div>", EXTENDED)).toBe("<p>a</p><h2>b</h2>c");
+  });
 });
 

@@ -299,7 +299,9 @@ interface RichTextEditorProps {
     /**
      * Adds an Insert image button. The picked file is passed here and the URL it
      * resolves to is inserted at the caret; `null` or a rejection inserts
-     * nothing, and the app shows its own error. Sanitize with `images: true`.
+     * nothing, and the app shows its own error. A relative URL is made absolute
+     * against the page; one `sanitizeRichText` would drop (`data:`, `blob:`)
+     * inserts nothing. Sanitize with `images: true`.
      */
     uploadImage?: (file: File) => Promise<string | null>;
     /**
@@ -313,37 +315,18 @@ interface RichTextEditorProps {
     /** Read a `value` with no tags in it as plain text: blank lines are paragraphs, newlines line breaks. */
     acceptPlainText?: boolean;
 }
+
 /**
- * A WYSIWYG editor for a paragraph or two of prose. With no opt-ins: bold,
- * italic, two kinds of list, and links. Each prop under "new, all optional"
- * switches on one more capability for that editor only.
+ * A WYSIWYG editor for a paragraph or two of prose. The full contract — what it
+ * emits, how to sanitize it, each opt-in — is on the props and in
+ * rich-text-editor-impl.tsx.
  *
- * ## It emits HTML and does not sanitize it
- *
- * This is a client. Whatever it produces reaches a server as a string in a form
- * post, and that string can say anything regardless of what this component would
- * have done — so this component is not, and cannot be, the place the markup is
- * made safe. `sanitizeRichText` in `@codelittinc/carbon-design-system/utils` is,
- * and it is a separate server-safe entry precisely so the *server* can call it.
- * The full contract is documented there. The one thing to carry over here: the
- * editor's schema produces exactly the tags `sanitizeRichText` allows for the
- * same `formatting` and `images` options, so nothing a user types through this
- * UI is lost on the way to the database.
- *
- * ## Built on TipTap
- *
- * The schema is derived from the props once, at mount (see
- * rich-text-editor-extensions.ts), and that is what keeps the output inside the
- * tag set: a button, a shortcut, a Markdown rule or a paste has nothing to make
- * any other tag with. `formatting`, whether `uploadImage` and `linkPanel` are
- * set, and the link targets are therefore read once; to change them, change the
- * editor's `key`. The `uploadImage` and `onChange` functions themselves may
- * change on every render.
- *
- * The default editor pastes plain text on purpose: pasting from Word or a web
- * page otherwise carries in a document's worth of markup that the sanitizer then
- * reduces to unstyled prose anyway, with the paragraph breaks in surprising
- * places.
+ * TipTap is loaded the first time an editor renders, not when the package is
+ * imported (see rich-text-editor-loader.ts). Until it arrives this draws the
+ * same bordered box with an empty toolbar strip, so the page does not jump. The
+ * server render and hydration always draw that box, so they agree whether or
+ * not the editor has already loaded in this tab. A failed load throws to the
+ * nearest error boundary.
  */
 declare const RichTextEditor: react.ForwardRefExoticComponent<RichTextEditorProps & react.RefAttributes<RichTextEditorHandle>>;
 

@@ -301,7 +301,7 @@ export function safeHref(raw: string): string | null {
  * markup renders, so `mailto:` means nothing here, and `data:` and relative
  * paths are refused for the same reasons as in a link.
  */
-function safeImageSrc(raw: string): string | null {
+export function safeImageSrc(raw: string): string | null {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
@@ -543,6 +543,12 @@ export function sanitizeRichText(
     if (canonical === "li" && stack.at(-1)?.name === "li") closeThrough("li");
     // Likewise a paragraph cannot contain a paragraph.
     if (canonical === "p" && stack.some((tag) => tag.name === "p")) closeThrough("p");
+    // Nor a quote, a heading or a code block: a browser closes the open `<p>`
+    // when it meets one. `div` folds to `p`, so without this `<div><blockquote>`
+    // would put the quote inside a paragraph, and the quote's own `<p>` would
+    // then close both and lose it. Lists keep their old handling, so `basic`
+    // output is unchanged.
+    if (CLOSES_PARAGRAPH.has(canonical) && stack.some((tag) => tag.name === "p")) closeThrough("p");
 
     out.push(`<${canonical}>`);
     stack.push({ name: canonical });
@@ -554,6 +560,8 @@ export function sanitizeRichText(
 
   return collapseEmpty(out.join(""), empty);
 }
+
+const CLOSES_PARAGRAPH = new Set(["blockquote", "pre", "h1", "h2", "h3"]);
 
 /**
  * Drop elements left holding nothing.
@@ -584,9 +592,14 @@ function collapseEmpty(html: string, empty: RegExp): string {
  */
 export function isRichTextEmpty(html: string | null | undefined): boolean {
   if (!html) return true;
-  // An image is content with no text, so a note that is only a screenshot is
-  // not empty.
-  if (/<img\b/i.test(html)) return false;
-  const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
+  // Measured on what would be stored, not on the raw string: an `<img>` inside
+  // a comment, one with a `javascript:` src, or the tail of a comment that a
+  // tag-stripping regex leaves behind are all stored as nothing, and a
+  // required-field check on the raw post has to see that. An image the
+  // sanitizer keeps is content with no text, so a screenshot-only note is not
+  // empty.
+  const stored = sanitizeRichText(html, { formatting: "extended", images: true });
+  if (/<img\b/.test(stored)) return false;
+  const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }

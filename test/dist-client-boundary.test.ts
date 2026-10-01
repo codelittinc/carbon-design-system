@@ -43,6 +43,19 @@ describe("committed dist/ client boundary", () => {
     expect(distFile("index.js").startsWith(DIRECTIVE)).toBe(true);
   });
 
+  it("marks the lazily loaded editor as client code", () => {
+    expect(distFile("rich-text-editor-impl.js").startsWith(DIRECTIVE)).toBe(true);
+  });
+
+  it("reaches TipTap from the barrel only through the editor's dynamic import", () => {
+    // TipTap's packages are not side-effect free, so one static import here
+    // would put all of it on every page of every app. See
+    // src/components/ui/rich-text-editor-loader.ts.
+    const index = distFile("index.js");
+    expect(index).not.toMatch(/from ['"]@tiptap\//);
+    expect(index).toContain("import('./rich-text-editor-impl.js')");
+  });
+
   it("leaves the utils entry callable from a server component", () => {
     expect(distFile("utils.js").startsWith(DIRECTIVE)).toBe(false);
   });

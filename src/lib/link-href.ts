@@ -38,6 +38,14 @@ const TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
 // host and port rather than an "example.com" scheme.
 const SCHEME = /^[a-z][a-z0-9+-]*:/i;
 
+// A scheme as a browser reads one, dots allowed. `isAllowedEditorHref` is a
+// safety check, so it has to treat "foo.bar:payload" as the scheme it is.
+const ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+// "example.com:8080/path": a host and port, which TipTap's autolink passes in
+// raw, before it adds https://.
+const HOST_PORT = /^[a-z0-9-]+(\.[a-z0-9-]+)+:\d+(?:[/?#]|$)/i;
+
 function parses(url: string): URL | null {
   try {
     return new URL(url);
@@ -113,7 +121,7 @@ export function isAllowedEditorHref(url: string | undefined): boolean {
   const s = (url ?? "").replace(INVISIBLE, "");
   if (s === "") return true;
   if (/^(https?|mailto):/i.test(s)) return true;
-  return !SCHEME.test(s);
+  return !ANY_SCHEME.test(s) || HOST_PORT.test(s);
 }
 
 /** "A", "A or B", "A, B or C". */
