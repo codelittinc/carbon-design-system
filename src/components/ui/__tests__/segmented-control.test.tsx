@@ -62,4 +62,14 @@ describe("SegmentedControl", () => {
     const data = new FormData(screen.getByTestId("form") as HTMLFormElement);
     expect(data.get("letter")).toBe("b");
   });
+
+  it("keeps every label whole: a segment never shrinks below its text", () => {
+    // jsdom has no layout, so this pins the class that does it. Button lets a
+    // label truncate; a segment must not.
+    render(<Harness />);
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio.className.split(/\s+/)).toContain("min-w-max");
+      expect(radio.className.split(/\s+/)).not.toContain("min-w-0");
+    }
+  });
 });

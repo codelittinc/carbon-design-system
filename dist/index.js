@@ -539,13 +539,15 @@ function Tag({
   return /* @__PURE__ */ jsxs("span", { className: cn(badgeVariants({ variant }), "gap-1 text-xs", className), children: [
     children,
     onRemove && /* @__PURE__ */ jsx(
-      "button",
+      Button,
       {
         type: "button",
+        variant: "ghost",
+        size: "icon",
         onClick: onRemove,
         disabled,
         "aria-label": removeLabel,
-        className: "-mr-0.5 rounded-full opacity-60 transition-opacity hover:opacity-100 disabled:pointer-events-none",
+        className: "-mr-1 h-4 w-4 rounded-full text-current opacity-60 hover:bg-transparent hover:text-current hover:opacity-100",
         children: /* @__PURE__ */ jsx(X, { size: 12 })
       }
     )
@@ -609,12 +611,14 @@ function Alert({ variant, title, children, onDismiss, className }) {
           children && /* @__PURE__ */ jsx("div", { className: cn(title && "mt-0.5"), children })
         ] }),
         onDismiss && /* @__PURE__ */ jsx(
-          "button",
+          Button,
           {
             type: "button",
+            variant: "ghost",
+            size: "icon",
             onClick: onDismiss,
             "aria-label": "Dismiss",
-            className: "shrink-0 opacity-70 transition-opacity hover:opacity-100",
+            className: "-mr-1 -mt-0.5 h-6 w-6 text-current opacity-70 hover:bg-transparent hover:text-current hover:opacity-100",
             children: /* @__PURE__ */ jsx(X, { size: 14 })
           }
         )
@@ -820,7 +824,7 @@ function MultiSelect({
   return /* @__PURE__ */ jsxs("div", { ref: containerRef, className: cn("relative", className), children: [
     /* @__PURE__ */ jsxs("div", { className: "relative", children: [
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           id,
           type: "text",
@@ -841,7 +845,7 @@ function MultiSelect({
           onFocus: () => setOpen(true),
           onClick: () => setOpen(true),
           onKeyDown,
-          className: "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-3 pr-8 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+          className: "pr-8"
         }
       ),
       /* @__PURE__ */ jsx(
@@ -953,12 +957,13 @@ function SegmentedControl({
         options.map((option, index) => {
           const selected = index === selectedIndex;
           return /* @__PURE__ */ jsx(
-            "button",
+            Button,
             {
               ref: (el) => {
                 refs.current[index] = el;
               },
               type: "button",
+              variant: "ghost",
               role: "radio",
               "aria-checked": selected,
               tabIndex: index === tabbableIndex ? 0 : -1,
@@ -966,9 +971,12 @@ function SegmentedControl({
               onClick: () => select(option.value),
               onKeyDown: (e) => onKeyDown(e, index),
               className: cn(
-                "flex-1 whitespace-nowrap rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+                // `min-w-max`: Button lets its label shrink and truncate, and a
+                // segment must always show its whole label instead.
+                "min-w-max flex-1 rounded",
                 sizeClasses2[size],
-                selected ? "bg-accent text-accent-foreground" : "text-text-secondary hover:bg-surface-overlay hover:text-text-primary"
+                // Selected is the solid accent, and stays it on hover.
+                selected && "bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
               ),
               children: option.label
             },

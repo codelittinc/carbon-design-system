@@ -8,6 +8,27 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.3] - 2026-10-01
+
+### Tag, Alert, MultiSelect and SegmentedControl compose the design system's own controls
+
+The same change as 1.13.2, for the components added in 1.14.0. They styled
+raw `<button>`s and an `<input>` by hand; they now use `Button` and `Input`, so
+they pick up those components' focus ring, disabled state and future fixes.
+No props changed.
+
+- **`Tag`**: the remove control is a ghost icon `Button`, still 16px, in the
+  tag's own colour.
+- **`Alert`**: the dismiss control is a ghost icon `Button`, in the alert's
+  own colour.
+- **`MultiSelect`**: the search field is an `Input`.
+- **`SegmentedControl`**: each segment is a ghost `Button`, with
+  `role="radio"`, roving tab stop and arrow keys as before. Segments never
+  truncate their label.
+
+A new test keeps these components, and Card, Label, Pagination and Spinner,
+free of raw form controls.
+
 ## [1.15.2] - 2026-10-01
 
 ### `CommandPalette` leaves a ⌘K the focused control already handled

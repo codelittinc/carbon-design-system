@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Input } from "./input";
 
 export interface MultiSelectOption {
   value: string;
@@ -127,7 +128,7 @@ export function MultiSelect({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative">
-        <input
+        <Input
           id={id}
           type="text"
           role="combobox"
@@ -147,7 +148,8 @@ export function MultiSelect({
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-3 pr-8 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+          // Room for the chevron drawn over the right edge.
+          className="pr-8"
         />
         <ChevronDown
           size={14}

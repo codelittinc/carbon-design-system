@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { cn } from "@/lib/cn";
+import { Button } from "./button";
 
 export interface SegmentedControlOption {
   value: string;
@@ -92,12 +93,13 @@ export function SegmentedControl({
       {options.map((option, index) => {
         const selected = index === selectedIndex;
         return (
-          <button
+          <Button
             key={option.value}
             ref={(el) => {
               refs.current[index] = el;
             }}
             type="button"
+            variant="ghost"
             role="radio"
             aria-checked={selected}
             tabIndex={index === tabbableIndex ? 0 : -1}
@@ -105,15 +107,16 @@ export function SegmentedControl({
             onClick={() => select(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
             className={cn(
-              "flex-1 whitespace-nowrap rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+              // `min-w-max`: Button lets its label shrink and truncate, and a
+              // segment must always show its whole label instead.
+              "min-w-max flex-1 rounded",
               sizeClasses[size],
-              selected
-                ? "bg-accent text-accent-foreground"
-                : "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
+              // Selected is the solid accent, and stays it on hover.
+              selected && "bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
             {option.label}
-          </button>
+          </Button>
         );
       })}
       {name && <input type="hidden" name={name} value={value ?? ""} disabled={disabled} />}

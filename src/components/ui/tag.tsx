@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { badgeVariants } from "./badge";
+import { Button } from "./button";
 import type { VariantProps } from "class-variance-authority";
 
 interface TagProps extends VariantProps<typeof badgeVariants> {
@@ -29,15 +30,19 @@ export function Tag({
     <span className={cn(badgeVariants({ variant }), "gap-1 text-xs", className)}>
       {children}
       {onRemove && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={onRemove}
           disabled={disabled}
           aria-label={removeLabel}
-          className="-mr-0.5 rounded-full opacity-60 transition-opacity hover:opacity-100 disabled:pointer-events-none"
+          // Sized to the badge's line rather than the 32px icon button, and in
+          // the tag's own colour, dimmed until hovered.
+          className="-mr-1 h-4 w-4 rounded-full text-current opacity-60 hover:bg-transparent hover:text-current hover:opacity-100"
         >
           <X size={12} />
-        </button>
+        </Button>
       )}
     </span>
   );
