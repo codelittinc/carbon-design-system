@@ -8,6 +8,17 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.13.1] - 2026-10-01
+
+### Checkbox: white checkmark in light mode
+
+- A checked `Checkbox` now draws its checkmark with `text-accent-foreground`,
+  so it is white on the accent fill in light mode instead of near-black. Dark
+  mode is unchanged (`carbon-950` on amber).
+- With this, everything drawn on a solid accent (`bg-accent`) fill uses
+  `text-accent-foreground`: the `default` Button, `MultiStatusFilter`'s
+  checkmark and `Checkbox`. Use that token for any new content on an accent fill.
+
 ## [1.13.0] - 2026-10-01
 
 ### Button and MultiStatusFilter: white on the accent fill in light mode
