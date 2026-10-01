@@ -8,6 +8,27 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.13.2] - 2026-10-01
+
+### Components built from other design-system components
+
+Several components re-implemented controls the design system already ships.
+They now compose those components, so they pick up their styling and fixes.
+No props changed.
+
+- **`DateRangePicker`** uses `Select` instead of four native `<select>`s. Each
+  trigger has an accessible name: "Start month", "Start year", "End month" and
+  "End year". **If your tests drive it with `fireEvent.change` on a `<select>`,
+  update them to click the trigger (`combobox` role) and then the `option`.**
+- **`MultiStatusFilter`** rows use `Checkbox` instead of a hand-drawn box. The
+  count pill is a `Badge`, and All / Clear are link `Button`s.
+- **`MoneyInput`**, **`AccountCombobox`**, **`AddressAutocomplete`** (both
+  modules) and **`StructuredAddressInput`** render `Input`. The staff fields of
+  `StructuredAddressInput` now show the standard 2px focus ring. The vendor and
+  public palettes look the same as before.
+- **`ThemeToggle`** is an outline icon `Button`. The **toast** dismiss control is
+  a ghost icon `Button` and now has `type="button"` and `aria-label="Dismiss"`.
+
 ## [1.13.1] - 2026-10-01
 
 ### Checkbox: white checkmark in light mode

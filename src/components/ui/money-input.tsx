@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useState } from "react";
 import { cn } from "@/lib/cn";
+import { Input } from "./input";
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
   value: string;
@@ -68,14 +69,11 @@ const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
           $
         </span>
-        <input
+        <Input
           ref={ref}
           type="text"
           inputMode="decimal"
-          className={cn(
-            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
-            className,
-          )}
+          className={cn("pl-7 text-right font-[family-name:var(--font-mono)] tabular-nums", className)}
           value={focused ? value : formatForDisplay(value)}
           onChange={handleChange}
           onFocus={handleFocus}

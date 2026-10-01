@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Button } from "./button";
 
 interface Toast {
   id: string;
@@ -56,12 +57,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <p className="mt-0.5 text-xs text-text-muted">{t.description}</p>
               )}
             </div>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Dismiss"
               onClick={() => removeToast(t.id)}
-              className="text-text-muted hover:text-text-primary"
+              className="-mr-1 -mt-0.5 h-6 w-6 text-text-muted hover:bg-transparent"
             >
               <X size={14} />
-            </button>
+            </Button>
           </div>
         ))}
       </div>

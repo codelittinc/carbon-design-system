@@ -272,6 +272,23 @@ function isRichTextEmpty(html) {
   const text = decodeEntities(html.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
+var Input = forwardRef(
+  ({ className, type, ...props }, ref) => {
+    return /* @__PURE__ */ jsx(
+      "input",
+      {
+        type,
+        className: cn(
+          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        ),
+        ref,
+        ...props
+      }
+    );
+  }
+);
+Input.displayName = "Input";
 var loadPromise = null;
 function getApiKey() {
   const viteEnv = import.meta.env;
@@ -293,6 +310,7 @@ function loadGoogleMaps() {
   });
   return loadPromise;
 }
+var PUBLIC_CLASS = "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500";
 function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address...", className, variant = "staff" }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -319,9 +337,8 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
       mounted = false;
     };
   }, [handlePlaceSelect]);
-  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500" : "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
   return /* @__PURE__ */ jsx(
-    "input",
+    Input,
     {
       ref: inputRef,
       type: "text",
@@ -329,7 +346,7 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
       onChange: (e) => onChange(e.target.value),
       onBlur,
       placeholder,
-      className: cn(baseClass, className)
+      className: cn(variant === "public" && PUBLIC_CLASS, className)
     }
   );
 }
@@ -428,23 +445,6 @@ function StatusBadge({ status, className }) {
   const label = status.replace(/_/g, " ");
   return /* @__PURE__ */ jsx(Badge, { variant, className, children: label });
 }
-var Input = forwardRef(
-  ({ className, type, ...props }, ref) => {
-    return /* @__PURE__ */ jsx(
-      "input",
-      {
-        type,
-        className: cn(
-          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        ),
-        ref,
-        ...props
-      }
-    );
-  }
-);
-Input.displayName = "Input";
 var Textarea = forwardRef(
   ({ className, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -1253,10 +1253,14 @@ function ToastProvider({ children }) {
             t.description && /* @__PURE__ */ jsx("p", { className: "mt-0.5 text-xs text-text-muted", children: t.description })
           ] }),
           /* @__PURE__ */ jsx(
-            "button",
+            Button,
             {
+              type: "button",
+              variant: "ghost",
+              size: "icon",
+              "aria-label": "Dismiss",
               onClick: () => removeToast(t.id),
-              className: "text-text-muted hover:text-text-primary",
+              className: "-mr-1 -mt-0.5 h-6 w-6 text-text-muted hover:bg-transparent",
               children: /* @__PURE__ */ jsx(X, { size: 14 })
             }
           )
@@ -1452,15 +1456,12 @@ var MoneyInput = forwardRef(
     return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
       /* @__PURE__ */ jsx("span", { className: "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted", children: "$" }),
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           ref,
           type: "text",
           inputMode: "decimal",
-          className: cn(
-            "flex h-8 w-full rounded-md border border-border bg-surface-raised py-1 pl-7 pr-3 text-right font-[family-name:var(--font-mono)] text-sm tabular-nums text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
-            className
-          ),
+          className: cn("pl-7 text-right font-[family-name:var(--font-mono)] tabular-nums", className),
           value: focused ? value : formatForDisplay(value),
           onChange: handleChange,
           onFocus: handleFocus,
@@ -2579,47 +2580,65 @@ var MONTH_NAMES = [
   "Nov",
   "Dec"
 ];
-var selectClass = "h-7 rounded border border-border bg-surface-raised px-1.5 text-xs text-text-primary";
+var MONTH_OPTIONS = MONTH_NAMES.map((label, i) => ({ value: i + 1, label }));
+var triggerClass = "h-7 gap-1 px-2 text-xs";
+function NumberSelect({
+  value,
+  onChange,
+  options,
+  label,
+  className
+}) {
+  return /* @__PURE__ */ jsxs(Select, { value: String(value), onValueChange: (v) => onChange(Number(v)), children: [
+    /* @__PURE__ */ jsx(SelectTrigger, { "aria-label": label, className: cn(triggerClass, className), children: /* @__PURE__ */ jsx(SelectValue, {}) }),
+    /* @__PURE__ */ jsx(SelectContent, { children: options.map((o) => /* @__PURE__ */ jsx(SelectItem, { value: String(o.value), children: o.label }, o.value)) })
+  ] });
+}
 function DateRangePicker({ value, onChange, years, className }) {
+  const yearOptions = [.../* @__PURE__ */ new Set([...years, value.startYear, value.endYear])].sort((a, b) => a - b).map((y) => ({ value: y, label: String(y) }));
   return /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1.5 text-xs", className), children: [
     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
       /* @__PURE__ */ jsx(
-        "select",
+        NumberSelect,
         {
+          label: "Start month",
           value: value.startMonth,
-          onChange: (e) => onChange({ ...value, startMonth: Number(e.target.value) }),
-          className: selectClass,
-          children: MONTH_NAMES.map((m, i) => /* @__PURE__ */ jsx("option", { value: i + 1, children: m }, i))
+          onChange: (startMonth) => onChange({ ...value, startMonth }),
+          options: MONTH_OPTIONS,
+          className: "w-16"
         }
       ),
       /* @__PURE__ */ jsx(
-        "select",
+        NumberSelect,
         {
+          label: "Start year",
           value: value.startYear,
-          onChange: (e) => onChange({ ...value, startYear: Number(e.target.value) }),
-          className: selectClass,
-          children: years.map((y) => /* @__PURE__ */ jsx("option", { value: y, children: y }, y))
+          onChange: (startYear) => onChange({ ...value, startYear }),
+          options: yearOptions,
+          className: "w-[4.5rem]"
         }
       )
     ] }),
     /* @__PURE__ */ jsx("span", { className: "text-text-muted", children: "to" }),
     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
       /* @__PURE__ */ jsx(
-        "select",
+        NumberSelect,
         {
+          label: "End month",
           value: value.endMonth,
-          onChange: (e) => onChange({ ...value, endMonth: Number(e.target.value) }),
-          className: selectClass,
-          children: MONTH_NAMES.map((m, i) => /* @__PURE__ */ jsx("option", { value: i + 1, children: m }, i))
+          onChange: (endMonth) => onChange({ ...value, endMonth }),
+          options: MONTH_OPTIONS,
+          className: "w-16"
         }
       ),
       /* @__PURE__ */ jsx(
-        "select",
+        NumberSelect,
         {
+          label: "End year",
           value: value.endYear,
-          onChange: (e) => onChange({ ...value, endYear: Number(e.target.value) }),
-          className: selectClass,
-          children: years.map((y) => /* @__PURE__ */ jsx("option", { value: y, children: y }, y))
+          onChange: (endYear) => onChange({ ...value, endYear }),
+          options: yearOptions,
+          className: "w-[4.5rem]"
         }
       )
     ] })
@@ -2781,16 +2800,15 @@ function ThemeToggle({ className }) {
   useEffect(() => setMounted(true), []);
   const isDark = theme === "dark";
   return /* @__PURE__ */ jsx(
-    "button",
+    Button,
     {
       type: "button",
+      variant: "outline",
+      size: "icon",
       onClick: toggleTheme,
       "aria-label": isDark ? "Switch to light mode" : "Switch to dark mode",
       title: isDark ? "Switch to light mode" : "Switch to dark mode",
-      className: cn(
-        "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-carbon-600",
-        className
-      ),
+      className: cn("h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised", className),
       children: mounted ? isDark ? /* @__PURE__ */ jsx(Sun, { size: 16, className: "text-amber-500", fill: "currentColor" }) : /* @__PURE__ */ jsx(Moon, { size: 16, className: "text-indigo-400", fill: "currentColor" }) : /* @__PURE__ */ jsx("span", { className: "h-4 w-4" })
     }
   );
@@ -2867,16 +2885,12 @@ function AccountCombobox({
     }
   };
   const inputClasses = variant === "inline" ? cn(
-    "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-accent/50",
+    "h-7 rounded border-0 bg-transparent px-1 py-0 text-xs shadow-none focus-visible:ring-1",
     selected ? "text-text-primary" : "text-text-faint"
-  ) : cn(
-    "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50",
-    clearable && selected ? "pr-8" : "",
-    selected ? "text-text-primary" : "text-text-muted"
-  );
+  ) : cn(clearable && selected && "pr-8", selected ? "text-text-primary" : "text-text-muted");
   return /* @__PURE__ */ jsxs("div", { className: cn("relative", className), children: [
     /* @__PURE__ */ jsx(
-      "input",
+      Input,
       {
         id,
         ref: inputRef,
@@ -2980,7 +2994,7 @@ function MultiStatusFilter({
             ":"
           ] }),
           /* @__PURE__ */ jsx("span", { className: "max-w-[12rem] truncate", children: summary }),
-          selected.length > 0 && selected.length < options.length && /* @__PURE__ */ jsx("span", { className: "rounded-full bg-accent-muted px-1.5 text-xs tabular-nums text-accent-text", children: selected.length }),
+          selected.length > 0 && selected.length < options.length && /* @__PURE__ */ jsx(Badge, { variant: "accent", className: "px-1.5 py-0 text-xs tabular-nums", children: selected.length }),
           /* @__PURE__ */ jsx(ChevronDown, { size: 14, className: "text-text-muted" })
         ]
       }
@@ -2990,20 +3004,22 @@ function MultiStatusFilter({
         /* @__PURE__ */ jsx("span", { className: "text-xs font-medium text-text-muted", children: label }),
         /* @__PURE__ */ jsxs("div", { className: "flex gap-2 text-xs", children: [
           /* @__PURE__ */ jsx(
-            "button",
+            Button,
             {
               type: "button",
-              className: "text-accent-text hover:underline disabled:opacity-40",
+              variant: "link",
+              className: "h-auto p-0 text-xs font-normal disabled:opacity-40",
               disabled: selected.length === options.length,
               onClick: () => onChange(options.map((o) => o.value)),
               children: "All"
             }
           ),
           /* @__PURE__ */ jsx(
-            "button",
+            Button,
             {
               type: "button",
-              className: "text-text-muted hover:underline disabled:opacity-40",
+              variant: "link",
+              className: "h-auto p-0 text-xs font-normal text-text-muted disabled:opacity-40",
               disabled: selected.length === 0,
               onClick: () => onChange([]),
               children: "Clear"
@@ -3014,25 +3030,11 @@ function MultiStatusFilter({
       /* @__PURE__ */ jsx("div", { className: "max-h-72 overflow-y-auto", children: options.map((opt) => {
         const checked = selectedSet.has(opt.value);
         return /* @__PURE__ */ jsxs(
-          "button",
+          "label",
           {
-            type: "button",
-            role: "checkbox",
-            "aria-checked": checked,
-            onClick: () => toggle(opt.value),
-            className: "flex w-full items-center gap-2 rounded px-1 py-1.5 text-left text-sm text-text-primary hover:bg-surface-overlay",
+            className: "flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm text-text-primary hover:bg-surface-overlay",
             children: [
-              /* @__PURE__ */ jsx(
-                "span",
-                {
-                  "aria-hidden": "true",
-                  className: cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                    checked ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-raised"
-                  ),
-                  children: checked && /* @__PURE__ */ jsx(Check, { size: 12, strokeWidth: 3 })
-                }
-              ),
+              /* @__PURE__ */ jsx(Checkbox, { checked, onCheckedChange: () => toggle(opt.value) }),
               /* @__PURE__ */ jsx("span", { className: "flex-1", children: opt.label })
             ]
           },
@@ -3286,13 +3288,13 @@ function AddressAutocomplete2({
       setSearchActive(false);
     }
   };
-  const baseClass = variant === "public" ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500" : variant === "vendor" ? "flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
+  const variantClass = variant === "public" ? "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500" : variant === "vendor" ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500" : "h-9 py-0";
   const optionsVisible = searchActive && suggestions.length > 0;
   const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
   const optionClass = variant === "public" ? "border-gray-700 bg-gray-900 text-white" : variant === "vendor" ? "border-slate-200 bg-white text-slate-900" : "border-border bg-surface-raised text-text-primary";
   return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
     /* @__PURE__ */ jsx(
-      "input",
+      Input,
       {
         id: inputId,
         type: "text",
@@ -3324,7 +3326,7 @@ function AddressAutocomplete2({
         role: "combobox",
         required,
         autoComplete,
-        className: cn(baseClass, className)
+        className: cn(variantClass, className)
       }
     ),
     optionsVisible && /* @__PURE__ */ jsxs(
@@ -3423,7 +3425,7 @@ function StructuredAddressInput({
   required = false
 }) {
   const vendor = variant === "vendor";
-  const inputClass = vendor ? "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" : "h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent";
+  const inputClass = vendor ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500" : "h-9 py-0";
   const labelClass = vendor ? "mb-1 block text-xs font-medium text-slate-600" : "mb-1 block text-xs font-medium text-text-muted";
   const update = (field, next) => onChange({ ...value, [field]: next });
   return /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 gap-3 sm:grid-cols-6", children: [
@@ -3450,7 +3452,7 @@ function StructuredAddressInput({
     /* @__PURE__ */ jsxs("label", { className: "sm:col-span-2", htmlFor: `${idPrefix}-line2`, children: [
       /* @__PURE__ */ jsx("span", { className: labelClass, children: "Apartment or suite" }),
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           id: `${idPrefix}-line2`,
           className: inputClass,
@@ -3466,7 +3468,7 @@ function StructuredAddressInput({
         required ? " *" : ""
       ] }),
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           id: `${idPrefix}-city`,
           className: inputClass,
@@ -3483,7 +3485,7 @@ function StructuredAddressInput({
         required ? " *" : ""
       ] }),
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           id: `${idPrefix}-state`,
           className: inputClass,
@@ -3501,7 +3503,7 @@ function StructuredAddressInput({
         required ? " *" : ""
       ] }),
       /* @__PURE__ */ jsx(
-        "input",
+        Input,
         {
           id: `${idPrefix}-postal`,
           className: inputClass,

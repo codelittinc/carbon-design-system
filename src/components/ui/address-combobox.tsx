@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { loadGooglePlacesLibrary } from "@/lib/google-places";
 import { cn } from "@/lib/cn";
+import { Input } from "./input";
 import { parseGooglePlaceAddress, type PostalAddressDraft } from "./postal-address";
 
 const SEARCH_DELAY_MS = 250;
@@ -164,12 +165,14 @@ export function AddressAutocomplete({
     }
   };
 
-  const baseClass =
+  // Layered over `Input`. The off-token variants use `focus-visible:` so
+  // tailwind-merge replaces Input's accent ring rather than stacking a second one.
+  const variantClass =
     variant === "public"
-      ? "flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+      ? "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500"
       : variant === "vendor"
-        ? "flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 caret-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        : "flex h-9 w-full rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50";
+        ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
+        : "h-9 py-0";
   const optionsVisible = searchActive && suggestions.length > 0;
   const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
   const optionClass =
@@ -181,7 +184,7 @@ export function AddressAutocomplete({
 
   return (
     <div className="relative">
-      <input
+      <Input
         id={inputId}
         type="text"
         value={value}
@@ -212,7 +215,7 @@ export function AddressAutocomplete({
         role="combobox"
         required={required}
         autoComplete={autoComplete}
-        className={cn(baseClass, className)}
+        className={cn(variantClass, className)}
       />
 
       {optionsVisible && (

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Input } from "./input";
 
 export interface AccountOption {
   id: string;
@@ -115,21 +116,18 @@ export function AccountCombobox({
     }
   };
 
+  // Layered over `Input`; the inline variant strips it down to sit in a table cell.
   const inputClasses =
     variant === "inline"
       ? cn(
-          "h-7 w-full rounded border-0 bg-transparent px-1 text-xs focus:ring-1 focus:ring-accent/50",
+          "h-7 rounded border-0 bg-transparent px-1 py-0 text-xs shadow-none focus-visible:ring-1",
           selected ? "text-text-primary" : "text-text-faint",
         )
-      : cn(
-          "h-8 w-full rounded-md border border-border bg-surface-raised px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50",
-          clearable && selected ? "pr-8" : "",
-          selected ? "text-text-primary" : "text-text-muted",
-        );
+      : cn(clearable && selected && "pr-8", selected ? "text-text-primary" : "text-text-muted");
 
   return (
     <div className={cn("relative", className)}>
-      <input
+      <Input
         id={id}
         ref={inputRef}
         type="text"
