@@ -3123,26 +3123,51 @@ function applyTheme(theme) {
   classList.remove("light", "dark");
   classList.add(theme);
 }
+function systemTheme() {
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
 var ThemeContext = createContext(null);
-function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState("dark");
+function ThemeProvider({
+  children,
+  initialTheme,
+  persist = true,
+  onThemeChange
+}) {
+  const resolved = initialTheme === "light" || initialTheme === "dark";
+  const [theme, setThemeState] = useState(resolved ? initialTheme : "dark");
+  const onThemeChangeRef = useRef(onThemeChange);
   useEffect(() => {
-    setThemeState(
-      document.documentElement.classList.contains("light") ? "light" : "dark"
-    );
-  }, []);
-  const setTheme = useCallback((next) => {
-    setThemeState(next);
-    applyTheme(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
+    onThemeChangeRef.current = onThemeChange;
+  }, [onThemeChange]);
+  useEffect(() => {
+    if (initialTheme === void 0) {
+      setThemeState(
+        document.documentElement.classList.contains("light") ? "light" : "dark"
+      );
+      return;
     }
+    const start = initialTheme === "system" ? systemTheme() : initialTheme;
+    setThemeState(start);
+    applyTheme(start);
   }, []);
+  const setTheme = useCallback(
+    (next) => {
+      setThemeState(next);
+      applyTheme(next);
+      if (persist) {
+        try {
+          localStorage.setItem(STORAGE_KEY, next);
+        } catch {
+        }
+      }
+      onThemeChangeRef.current?.(next);
+    },
+    [persist]
+  );
   const toggleTheme = useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
-  return /* @__PURE__ */ jsx(ThemeContext.Provider, { value: { theme, setTheme, toggleTheme }, children });
+  return /* @__PURE__ */ jsx(ThemeContext.Provider, { value: { theme, resolved, setTheme, toggleTheme }, children });
 }
 function useTheme() {
   const ctx = useContext(ThemeContext);
@@ -3150,7 +3175,7 @@ function useTheme() {
   return ctx;
 }
 function ThemeToggle({ className }) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolved, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = theme === "dark";
@@ -3164,7 +3189,7 @@ function ThemeToggle({ className }) {
       "aria-label": isDark ? "Switch to light mode" : "Switch to dark mode",
       title: isDark ? "Switch to light mode" : "Switch to dark mode",
       className: cn("h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised", className),
-      children: mounted ? isDark ? /* @__PURE__ */ jsx(Sun, { size: 16, className: "text-amber-500", fill: "currentColor" }) : /* @__PURE__ */ jsx(Moon, { size: 16, className: "text-indigo-400", fill: "currentColor" }) : /* @__PURE__ */ jsx("span", { className: "h-4 w-4" })
+      children: mounted || resolved ? isDark ? /* @__PURE__ */ jsx(Sun, { size: 16, className: "text-amber-500", fill: "currentColor" }) : /* @__PURE__ */ jsx(Moon, { size: 16, className: "text-indigo-400", fill: "currentColor" }) : /* @__PURE__ */ jsx("span", { className: "h-4 w-4" })
     }
   );
 }

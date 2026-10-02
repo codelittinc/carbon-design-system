@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   THEME_SCRIPT,
@@ -10,7 +11,20 @@ import {
 afterEach(() => {
   document.documentElement.classList.remove("light", "dark");
   localStorage.clear();
+  vi.restoreAllMocks();
 });
+
+function stubSystemTheme(light: boolean) {
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (query: string) =>
+      ({
+        matches: light && query === "(prefers-color-scheme: light)",
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+}
 
 function ThemeReadout() {
   const { theme, setTheme, toggleTheme } = useTheme();
@@ -89,7 +103,106 @@ describe("ThemeProvider", () => {
   });
 });
 
+describe("ThemeProvider options", () => {
+  it("starts from a concrete initialTheme and applies its class", () => {
+    render(
+      <ThemeProvider initialTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+  });
+
+  it('follows prefers-color-scheme for initialTheme="system"', () => {
+    stubSystemTheme(true);
+    render(
+      <ThemeProvider initialTheme="system">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+  });
+
+  it('falls back to dark for initialTheme="system" without a light preference', () => {
+    stubSystemTheme(false);
+    render(
+      <ThemeProvider initialTheme="system">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("ignores a later initialTheme until remounted", () => {
+    const { rerender } = render(
+      <ThemeProvider initialTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    fireEvent.click(screen.getByText("set dark"));
+    rerender(
+      <ThemeProvider initialTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("never reads or writes localStorage when persist is false", () => {
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    render(
+      <ThemeProvider initialTheme="dark" persist={false}>
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    fireEvent.click(screen.getByText("toggle"));
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("calls onThemeChange with each new theme, and not on mount", () => {
+    const onThemeChange = vi.fn();
+    render(
+      <ThemeProvider initialTheme="dark" onThemeChange={onThemeChange}>
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(onThemeChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("toggle"));
+    fireEvent.click(screen.getByText("set dark"));
+    expect(onThemeChange.mock.calls).toEqual([["light"], ["dark"]]);
+  });
+});
+
 describe("ThemeToggle", () => {
+  it("renders its icon on the server when the provider has a concrete initialTheme", () => {
+    const markup = renderToString(
+      <ThemeProvider initialTheme="light">
+        <ThemeToggle />
+      </ThemeProvider>,
+    );
+    expect(markup).toContain("lucide-moon");
+    expect(markup).toContain("Switch to dark mode");
+  });
+
+  it("renders a placeholder on the server when the theme is only known client-side", () => {
+    for (const initialTheme of [undefined, "system"] as const) {
+      const markup = renderToString(
+        <ThemeProvider initialTheme={initialTheme}>
+          <ThemeToggle />
+        </ThemeProvider>,
+      );
+      expect(markup).not.toContain("lucide-moon");
+      expect(markup).not.toContain("lucide-sun");
+    }
+  });
+
   it("renders a button with the light-mode aria-label while dark and toggles on click", () => {
     render(
       <ThemeProvider>
