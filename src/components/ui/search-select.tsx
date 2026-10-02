@@ -131,14 +131,22 @@ export function SearchSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Reset the active option whenever the list content changes (new search
+  // Reset the active option whenever the list CONTENT changes (new search
   // results), so a stale index never points past the end of the new list.
+  //
+  // Keyed on the option values, not on the `options` array's identity. A
+  // consumer that builds its options inline (`items.map(...)`) or filters on a
+  // debounced query hands over a new array with the same rows on every render;
+  // keyed on identity, that wiped the row the user had just arrowed to, and
+  // Enter then had nothing to select.
+  //
   // Opening/closing sets the active index explicitly (see openList/closeList),
   // so `open` is intentionally not a dependency here — otherwise it would clobber
   // the index we set when opening via an arrow key.
+  const optionsKey = options.map((o) => o.value).join("\u0000");
   useEffect(() => {
     setActiveIndex(-1);
-  }, [options]);
+  }, [optionsKey]);
 
   // Keep the active option scrolled into view as the user arrows through.
   useEffect(() => {
@@ -257,9 +265,16 @@ export function SearchSelect({
           break;
         }
         case "Enter": {
-          if (open && activeIndex >= 0 && options[activeIndex]) {
+          // While the list is open, Enter belongs to the list: it picks the
+          // active option, or does nothing when none is active. It must never
+          // fall through as the implicit submit of a surrounding <form> — the
+          // user is choosing a value, not sending the form. A closed trigger
+          // is a type="button", so Enter there opens the list as a click does.
+          if (open) {
             e.preventDefault();
-            handleSelect(options[activeIndex].value);
+            if (activeIndex >= 0 && options[activeIndex]) {
+              handleSelect(options[activeIndex].value);
+            }
           }
           break;
         }
