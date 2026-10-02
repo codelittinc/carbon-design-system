@@ -6,7 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { cn } from "@/lib/cn";
 import { Badge } from "./badge";
 import { Button } from "./button";
-import { Checkbox } from "./checkbox";
+import { CheckboxGroup } from "./checkbox-group";
 
 export interface StatusOption {
   value: string;
@@ -47,22 +47,15 @@ export function MultiStatusFilter({
     return `${labels.length} selected`;
   }, [selected.length, options, selectedSet]);
 
-  const toggle = (value: string) => {
-    if (selectedSet.has(value)) {
-      onChange(selected.filter((v) => v !== value));
-    } else {
-      onChange([...selected, value]);
-    }
-  };
-
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
+          variant="outline"
           aria-label={`${label} filter`}
           className={cn(
-            "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-accent/50",
+            "justify-start bg-surface-raised font-normal hover:border-accent/50 hover:bg-surface-raised",
             className,
           )}
         >
@@ -74,7 +67,7 @@ export function MultiStatusFilter({
             </Badge>
           )}
           <ChevronDown size={14} className="text-text-muted" />
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-60 p-2">
         <div className="mb-1 flex items-center justify-between px-1 pb-1">
@@ -100,20 +93,14 @@ export function MultiStatusFilter({
             </Button>
           </div>
         </div>
-        <div className="max-h-72 overflow-y-auto">
-          {options.map((opt) => {
-            const checked = selectedSet.has(opt.value);
-            return (
-              <label
-                key={opt.value}
-                className="flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm text-text-primary hover:bg-surface-overlay"
-              >
-                <Checkbox checked={checked} onCheckedChange={() => toggle(opt.value)} />
-                <span className="flex-1">{opt.label}</span>
-              </label>
-            );
-          })}
-        </div>
+        <CheckboxGroup
+          aria-label={label}
+          orientation="vertical"
+          options={options}
+          value={selected}
+          onChange={onChange}
+          className="max-h-72 overflow-y-auto"
+        />
       </PopoverContent>
     </Popover>
   );

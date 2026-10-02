@@ -116,26 +116,3 @@ export const FilterPanel: StoryObj = {
     );
   },
 };
-
-/**
- * `openOnHover`: pointing at the trigger previews the content, and a click pins
- * it open until a second click, Escape, or a click outside. While one is
- * pinned, hovering another trigger does not open it.
- */
-export const OpenOnHover: StoryObj = {
-  render: () => (
-    <div className="flex gap-3">
-      {["Jane Doe", "John Smith"].map((name) => (
-        <Popover key={name} openOnHover>
-          <PopoverTrigger asChild>
-            <Button variant="outline">{name}</Button>
-          </PopoverTrigger>
-          <PopoverContent aria-label={name} className="w-56 text-sm">
-            <p className="font-semibold text-text-primary">{name}</p>
-            <p className="mt-1 text-text-muted">Vacation, July 14 to July 18</p>
-          </PopoverContent>
-        </Popover>
-      ))}
-    </div>
-  ),
-};

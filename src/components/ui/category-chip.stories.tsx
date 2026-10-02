@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { SegmentedChip } from "./segmented-chip";
+import { CategoryChip } from "./category-chip";
 import {
   NEUTRAL_CATEGORICAL_COLOR,
   getCategoricalColor,
@@ -7,12 +7,12 @@ import {
 } from "@/lib/categorical-colors";
 
 /**
- * SegmentedChip is a small clickable chip whose fill is split into one band per
+ * CategoryChip is a small clickable chip whose fill is split into one band per
  * category, from the categorical palette. It reads the same in both themes.
  */
-const meta: Meta<typeof SegmentedChip> = {
-  title: "Components/Data Display/SegmentedChip",
-  component: SegmentedChip,
+const meta: Meta<typeof CategoryChip> = {
+  title: "Components/Data Display/CategoryChip",
+  component: CategoryChip,
   tags: ["autodocs"],
   args: {
     segments: [{ color: getCategoricalColor(0) }],
@@ -28,7 +28,7 @@ const meta: Meta<typeof SegmentedChip> = {
 };
 export default meta;
 
-type Story = StoryObj<typeof SegmentedChip>;
+type Story = StoryObj<typeof CategoryChip>;
 
 export const SingleColor: Story = {};
 
@@ -49,7 +49,7 @@ export const Palette: Story = {
   render: () => (
     <div className="flex flex-col gap-1">
       {Array.from({ length: 11 }, (_, id) => (
-        <SegmentedChip key={id} segments={[{ color: getCategoricalColor(id) }]} label={`Project ${id + 1}`} />
+        <CategoryChip key={id} segments={[{ color: getCategoricalColor(id) }]} label={`Project ${id + 1}`} />
       ))}
     </div>
   ),

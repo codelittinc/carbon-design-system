@@ -10,7 +10,7 @@ uses it as the GitHub Release notes.
 
 ## [1.17.0] - 2026-10-06
 
-### New components: TimesheetTable, EventCalendar, SegmentedChip, StatusIndicator, CheckboxGroup
+### New components: TimesheetTable, EventCalendar, CategoryChip, StatusIndicator, CheckboxGroup, HoverCard, Table
 
 Added while moving Backstage off the Backstage design system, which had these and
 Carbon did not. Each is built on the semantic tokens, so it works in both themes.
@@ -25,25 +25,52 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
   `TimesheetApi`, `TimeEntryResponse`, `ExpectedHoursResponse`, `SaveResponse`,
   `TimesheetTimeOff`, `TimesheetViewMode`, `TimesheetGridData`. A failed load
   now shows an inline error with "Try again" as well as the error toast.
-- **`EventCalendar`**: a Sunday-first month grid of items per day (who is off,
-  what is due), generic over the item type, with a "+N more" popover past
+  "Today" is the reader's local day (as in `MonthCalendar`), not the UTC one,
+  so in the Americas the current day no longer flips to tomorrow in the
+  evening.
+- **`EventCalendar`**: a month grid of items per day (who is off, what is
+  due), generic over the item type, with a "+N more" popover past
   `maxVisibleItems`. The Backstage design system's `MonthCalendar` under a new
-  name, because Carbon's `MonthCalendar` is a day picker.
-- **`SegmentedChip`**: a small clickable chip whose fill is split into one
-  color band per category, with a white label. Forwards its ref.
-- **`StatusIndicator`** and **`StatusLegend`**: a colored dot for a status, and
-  a key for a set of them. You pass the `color` (any CSS color, such as
-  `"var(--color-chart-2)"`) and the `label`, which is also the dot's accessible
-  name; the app keeps its own status → color mapping.
+  name, because Carbon's `MonthCalendar` is a day picker. Its API matches
+  Carbon's `MonthCalendar`, not the old one: `month` is a `YearMonth`
+  (`{ year, month }`) and `onMonthChange` gets one, where the old component
+  took `"YYYY-MM"` strings. **Weeks start on Monday**, and days outside the
+  month are blank (the old one started on Sunday and showed the neighbouring
+  months' days).
+- **`CategoryChip`**: a small clickable chip whose fill is split into one
+  color band per category, with a white label. A `Button` underneath, so focus
+  and disabled states match every other button. Forwards its ref.
+- **`StatusIndicator`**: a colored dot for a status. You pass the `color` (any
+  CSS color, such as `"var(--color-chart-2)"`) and the `label`, which is also
+  the dot's accessible name; the app keeps its own status → color mapping. Use
+  `ChartLegend` as the key for a set of them; there is no separate legend.
 - **`CheckboxGroup`**: labelled checkboxes for choosing any of a few options,
   in a `role="group"`, horizontal or vertical. `name` submits each checked
-  value with a form.
+  value with a form. `MultiStatusFilter` now renders one inside its popover.
+- **`HoverCard`** (`HoverCardTrigger`, `HoverCardContent`): a preview that
+  opens on hover or keyboard focus, on Radix's hover card. A click on the
+  trigger pins it open until a second click, Escape or a click outside, which
+  is also how it opens on a touch screen. Adds the `@radix-ui/react-hover-card`
+  dependency.
+- **`Table`** (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`,
+  `TableHead`, `TableCell`): the table elements, styled once. `DataTable` and
+  `TimesheetTable` are now built from them; use them for a table `DataTable`
+  does not fit.
+
+### One calendar grid, Monday-first
+
+`MonthCalendar`, `EventCalendar` and `TimesheetTable`'s month view now draw
+from the same layout, `monthWeeks(month)` in `lib/calendar`, and every grid
+starts its week on Monday. There is no option to change that. New calendar
+exports for anyone laying out days: `monthWeeks`, `WEEKDAY_LABELS`, `addDays`,
+`startOfWeek`, `isWeekend`, `parseDateKey` and `formatCalendarDate`.
+`MonthCalendar` looks and behaves as before.
 
 ### Categorical colors
 
 `getCategoricalColor(id)` gives an entity (a project, a team) a stable color
 from its numeric id, and `getCategoricalSegments(ids)` turns a list of ids into
-`SegmentedChip` segments, capped at `MAX_CHIP_SEGMENTS` with a "+N" overflow.
+`CategoryChip` segments, capped at `MAX_CHIP_SEGMENTS` with a "+N" overflow.
 Also `CATEGORICAL_PALETTE`, `NEUTRAL_CATEGORICAL_COLOR`, `OVERFLOW_SEGMENT_COLOR`
 and the `CategoricalSegment` type. They are exported from `/utils` too, for
 server components.
@@ -54,6 +81,9 @@ The values are `var(--color-category-*)` references to **new tokens**
 fills under white text, so every one clears 4.5:1 against it. Unlike the
 `chart-*` slots they cycle (the set of ids has no end) and they are the same in
 both themes, so an entity keeps one color whoever is looking.
+They sit in an `@theme static` block, so Tailwind always emits all of them:
+`getCategoricalColor` builds the names at runtime, where a source scan cannot
+see them.
 
 ### DataTable: alignment, row classes, server-side sorting, expandable rows
 
@@ -85,13 +115,12 @@ one too, called with `{ datum, value, color }` for the hovered slice. Return
 `ChartTooltipRenderer`, `ChartTooltipContext`, `ChartTooltipEntry`,
 `DonutTooltipContext`.
 
-### Popover: `openOnHover`
+### MultiStatusFilter
 
-`<Popover openOnHover>` opens as a preview when the pointer rests on the
-trigger, and a click pins it open until a second click, Escape or a click
-outside. A preview does not take focus, and while one popover is pinned,
-hovering another trigger does not open it. Without the prop, Popover is
-unchanged.
+Its trigger is now a `Button` (outline), and its options are a vertical
+`CheckboxGroup`. The rows keep their full-width hover; option labels now use
+the secondary text color, as `CheckboxGroup` does, and each is tied to its
+checkbox with `for`/`id`. No API change.
 
 ### SearchSelect and MultiSelect: create a missing option
 

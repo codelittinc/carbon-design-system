@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 /**
  * Per-column presentation, set on a column's `meta`:
@@ -193,14 +194,14 @@ export function DataTable<TData, TValue>({
   return (
     <div>
       <div className="rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
+        <Table>
+          <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-border">
+              <TableRow key={headerGroup.id}>
                 {expandable && (
-                  <th className="w-10 px-1 py-2">
+                  <TableHead className="w-10 px-1 py-2">
                     <span className="sr-only">Details</span>
-                  </th>
+                  </TableHead>
                 )}
                 {headerGroup.headers.map((header) => {
                   const meta = header.column.columnDef.meta;
@@ -209,7 +210,7 @@ export function DataTable<TData, TValue>({
                   const SortIcon =
                     sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
                   return (
-                    <th
+                    <TableHead
                       key={header.id}
                       aria-sort={
                         sorted === "asc"
@@ -219,7 +220,6 @@ export function DataTable<TData, TValue>({
                             : undefined
                       }
                       className={cn(
-                        "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
                         align.header,
                         header.column.getCanSort() && "cursor-pointer select-none",
                         meta?.headerClassName,
@@ -238,13 +238,13 @@ export function DataTable<TData, TValue>({
                           />
                         )}
                       </div>
-                    </th>
+                    </TableHead>
                   );
                 })}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
-          <tbody>
+          </TableHeader>
+          <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row, index) => {
                 const canExpand = row.getCanExpand();
@@ -252,9 +252,9 @@ export function DataTable<TData, TValue>({
                 const rowDetailId = `${detailId}-${row.id}`;
                 return (
                   <Fragment key={row.id}>
-                    <tr
+                    <TableRow
                       className={cn(
-                        "border-b border-border-subtle transition-colors last:border-0",
+                        "transition-colors last:border-0",
                         // Zebra, keyed to the row's index within the CURRENT page, so the
                         // banding starts the same way on every page instead of depending on
                         // whether the pages before it held an odd number of rows.
@@ -291,7 +291,7 @@ export function DataTable<TData, TValue>({
                       }}
                     >
                       {expandable && (
-                        <td className="w-10 px-1 py-1">
+                        <TableCell className="w-10 px-1 py-1">
                           {canExpand && (
                             <Button
                               type="button"
@@ -313,44 +313,44 @@ export function DataTable<TData, TValue>({
                               />
                             </Button>
                           )}
-                        </td>
+                        </TableCell>
                       )}
                       {row.getVisibleCells().map((cell) => (
-                        <td
+                        <TableCell
                           key={cell.id}
                           className={cn(
-                            "px-3 py-2 text-text-secondary",
+                            "text-text-secondary",
                             cell.column.columnDef.meta?.align &&
                               alignClasses[cell.column.columnDef.meta.align].cell,
                             cell.column.columnDef.meta?.className,
                           )}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                     {isExpanded && (
-                      <tr
+                      <TableRow
                         id={rowDetailId}
-                        className="border-b border-border-subtle bg-surface-raised last:border-0"
+                        className="bg-surface-raised last:border-0"
                       >
-                        <td colSpan={colCount} className="px-4 py-3 text-text-secondary">
+                        <TableCell colSpan={colCount} className="px-4 py-3 text-text-secondary">
                           {renderExpanded?.(row.original)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </Fragment>
                 );
               })
             ) : (
-              <tr>
-                <td colSpan={colCount} className="px-3 py-8 text-center text-text-muted">
+              <TableRow className="border-0">
+                <TableCell colSpan={colCount} className="py-8 text-center text-text-muted">
                   {emptyMessage}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {paginate && table.getPageCount() > 1 && (

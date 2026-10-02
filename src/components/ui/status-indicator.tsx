@@ -24,7 +24,7 @@ export interface StatusIndicatorProps {
  * A colored dot that stands for a status. The meaning is always carried by
  * `label` — as text with `showLabel`, otherwise as the dot's accessible name —
  * never by the color alone. The caller owns the status → color mapping; pair
- * it with `StatusLegend` to explain the colors once for a whole list.
+ * it with `ChartLegend` to explain the colors once for a whole list.
  */
 export function StatusIndicator({
   color,
@@ -45,33 +45,5 @@ export function StatusIndicator({
       />
       {showLabel && <span className="text-sm text-text-secondary">{label}</span>}
     </span>
-  );
-}
-
-export interface StatusLegendItem {
-  color: string;
-  label: string;
-}
-
-export interface StatusLegendProps {
-  items: StatusLegendItem[];
-  className?: string;
-}
-
-/** A key for the colors `StatusIndicator` uses: one dot and label per status. */
-export function StatusLegend({ items, className }: StatusLegendProps): ReactElement {
-  return (
-    <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 text-sm", className)}>
-      {items.map((item) => (
-        <li key={item.label} className="flex items-center gap-2 text-text-secondary">
-          <span
-            aria-hidden="true"
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={{ backgroundColor: item.color }}
-          />
-          {item.label}
-        </li>
-      ))}
-    </ul>
   );
 }

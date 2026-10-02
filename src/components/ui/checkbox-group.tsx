@@ -32,7 +32,8 @@ export interface CheckboxGroupProps {
 /**
  * A set of labelled checkboxes for choosing any number of a few options, all
  * visible — a filter's "Active / Inactive", a user's roles. Use `MultiSelect`
- * when there are too many options to show at once.
+ * when there are too many options to show at once. `MultiStatusFilter` puts a
+ * vertical one inside a popover.
  */
 export function CheckboxGroup({
   value,
@@ -46,6 +47,7 @@ export function CheckboxGroup({
   "aria-labelledby": ariaLabelledBy,
 }: CheckboxGroupProps): ReactElement {
   const baseId = useId();
+  const vertical = orientation === "vertical";
 
   function toggle(optionValue: string, checked: boolean) {
     if (checked) {
@@ -61,7 +63,7 @@ export function CheckboxGroup({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       className={cn(
-        orientation === "vertical" ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-4",
+        vertical ? "flex flex-col" : "flex flex-wrap items-center gap-4",
         className,
       )}
     >
@@ -69,7 +71,15 @@ export function CheckboxGroup({
         const id = `${baseId}-${index}`;
         const isDisabled = disabled || option.disabled;
         return (
-          <div key={option.value} className="inline-flex items-center gap-2">
+          <div
+            key={option.value}
+            className={cn(
+              "inline-flex items-center gap-2",
+              // A vertical list is a column of rows: each takes the full width and
+              // answers the pointer, as the options of a filter menu do.
+              vertical && "w-full rounded px-1 py-1.5 hover:bg-surface-overlay",
+            )}
+          >
             <Checkbox
               id={id}
               name={name}
@@ -82,6 +92,7 @@ export function CheckboxGroup({
               htmlFor={id}
               className={cn(
                 "text-sm text-text-secondary",
+                vertical && "flex-1",
                 isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
               )}
             >

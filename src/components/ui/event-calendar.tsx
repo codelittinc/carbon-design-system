@@ -1,17 +1,29 @@
 "use client";
 
-import { Fragment, useMemo, type ReactElement, type ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { daysInMonth, monthLabel, shiftMonth, type YearMonth } from "@/lib/calendar";
+import {
+  WEEKDAY_LABELS,
+  compareMonths,
+  dateKey,
+  formatCalendarDate,
+  isWeekend,
+  monthLabel,
+  monthWeeks,
+  parseDateKey,
+  shiftMonth,
+  todayIn,
+  type YearMonth,
+} from "@/lib/calendar";
 import { Button } from "./button";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Spinner } from "./spinner";
 
 export interface EventCalendarProps<T> {
-  /** The month shown, as "YYYY-MM". Controlled. */
-  month: string;
-  onMonthChange: (month: string) => void;
+  /** The month shown. Controlled, like `MonthCalendar`'s. */
+  month: YearMonth;
+  onMonthChange: (month: YearMonth) => void;
   /** Items keyed by "YYYY-MM-DD", each list already in display order. */
   itemsByDate: ReadonlyMap<string, T[]>;
   renderItem: (item: T, isoDate: string) => ReactNode;
@@ -32,30 +44,21 @@ export interface EventCalendarProps<T> {
   className?: string;
 }
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/** "2026-07" → { year: 2026, month: 7 }. */
-function parseMonth(month: string): YearMonth {
-  const [year, m] = month.split("-").map(Number);
-  return { year, month: m };
-}
-
-function formatMonth({ year, month }: YearMonth): string {
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
-
-function format(date: Date, options: Intl.DateTimeFormatOptions): string {
-  return date.toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
+/** "Tue, Jul 14" style, from a "2026-07-14" key. */
+function formatKey(isoDate: string, options: Intl.DateTimeFormatOptions): string {
+  const date = parseDateKey(isoDate);
+  return date ? formatCalendarDate(date, options) : isoDate;
 }
 
 /**
  * A month of days with items in them — who is off, what is due — drawn as a
- * Sunday-first grid. Each day shows up to `maxVisibleItems`, then a "+N more"
+ * Monday-first grid. Each day shows up to `maxVisibleItems`, then a "+N more"
  * button that lists all of that day's items in a popover. Items are whatever
- * `renderItem` draws, usually a `SegmentedChip` or a `Badge`.
+ * `renderItem` draws, usually a `CategoryChip` or a `Badge`.
  *
- * The month is computed in UTC, so the grid does not depend on the reader's
- * zone. Use `MonthCalendar` instead to PICK a day.
+ * The grid is `monthWeeks` from `lib/calendar`, the same layout `MonthCalendar`
+ * draws, so it does not depend on the reader's zone. Use `MonthCalendar`
+ * instead to PICK a day.
  */
 export function EventCalendar<T>({
   month,
@@ -70,36 +73,20 @@ export function EventCalendar<T>({
   ariaLabel,
   className,
 }: EventCalendarProps<T>): ReactElement {
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const currentMonth = todayIso.slice(0, 7);
-  const shown = parseMonth(month);
-  const monthTitle = monthLabel(shown);
-
-  const cells = useMemo(() => {
-    const { year, month: m } = parseMonth(month);
-    const firstDow = new Date(Date.UTC(year, m - 1, 1)).getUTCDay();
-    const total = Math.ceil((firstDow + daysInMonth(year, m)) / 7) * 7;
-    return Array.from({ length: total }, (_, i) => {
-      // Day offsets past either end of the month roll into its neighbours.
-      const date = new Date(Date.UTC(year, m - 1, 1 - firstDow + i));
-      const dow = date.getUTCDay();
-      return {
-        date,
-        iso: date.toISOString().slice(0, 10),
-        inMonth: date.getUTCMonth() === m - 1,
-        isWeekend: dow === 0 || dow === 6,
-      };
-    });
-  }, [month]);
+  const today = todayIn();
+  const todayKey = dateKey(today);
+  const currentMonth: YearMonth = { year: today.year, month: today.month };
+  const monthTitle = monthLabel(month);
+  const weeks = monthWeeks(month);
 
   const titleOf =
     overflowPopoverTitle ??
     ((isoDate: string, count: number) =>
-      `${format(new Date(`${isoDate}T00:00:00Z`), { weekday: "short", month: "short", day: "numeric" })} — ${count} ${count === 1 ? "item" : "items"}`);
+      `${formatKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} — ${count} ${count === 1 ? "item" : "items"}`);
   const ariaLabelOf =
     overflowAriaLabel ??
     ((isoDate: string, count: number) =>
-      `Show ${count} more items on ${format(new Date(`${isoDate}T00:00:00Z`), { month: "long", day: "numeric" })}`);
+      `Show ${count} more items on ${formatKey(isoDate, { month: "long", day: "numeric" })}`);
 
   return (
     <div className={className}>
@@ -111,7 +98,7 @@ export function EventCalendar<T>({
           <Button
             type="button"
             variant="outline"
-            disabled={month === currentMonth || loading}
+            disabled={compareMonths(month, currentMonth) === 0 || loading}
             onClick={() => onMonthChange(currentMonth)}
           >
             Today
@@ -122,7 +109,7 @@ export function EventCalendar<T>({
             size="icon"
             aria-label="Previous month"
             disabled={loading}
-            onClick={() => onMonthChange(formatMonth(shiftMonth(shown, -1)))}
+            onClick={() => onMonthChange(shiftMonth(month, -1))}
           >
             <ChevronLeft size={16} aria-hidden="true" />
           </Button>
@@ -132,7 +119,7 @@ export function EventCalendar<T>({
             size="icon"
             aria-label="Next month"
             disabled={loading}
-            onClick={() => onMonthChange(formatMonth(shiftMonth(shown, 1)))}
+            onClick={() => onMonthChange(shiftMonth(month, 1))}
           >
             <ChevronRight size={16} aria-hidden="true" />
           </Button>
@@ -165,23 +152,26 @@ export function EventCalendar<T>({
               aria-label={ariaLabel ?? `Calendar, ${monthTitle}`}
               className="divide-y divide-border overflow-hidden rounded-lg border border-border"
             >
-              {Array.from({ length: cells.length / 7 }, (_, week) => (
-                <div key={week} role="row" className="grid grid-cols-7 divide-x divide-border">
-                  {cells.slice(week * 7, week * 7 + 7).map((cell) => {
-                    const items = cell.inMonth ? itemsByDate.get(cell.iso) || [] : [];
+              {weeks.map((week, w) => (
+                <div key={w} role="row" className="grid grid-cols-7 divide-x divide-border">
+                  {week.map((cell, d) => {
+                    if (!cell) return <div key={`blank-${d}`} role="gridcell" className="bg-bg" />;
+
+                    const iso = dateKey(cell);
+                    const items = itemsByDate.get(iso) || [];
                     const visible = items.slice(0, maxVisibleItems);
                     const overflow = items.length - visible.length;
-                    const isToday = cell.inMonth && cell.iso === todayIso;
+                    const isToday = iso === todayKey;
 
                     return (
                       <div
-                        key={cell.iso}
+                        key={iso}
                         role="gridcell"
-                        aria-label={format(cell.date, { weekday: "long", month: "long", day: "numeric" })}
+                        aria-label={formatCalendarDate(cell, { weekday: "long", month: "long", day: "numeric" })}
                         aria-current={isToday ? "date" : undefined}
                         className={cn(
                           "flex min-h-[96px] flex-col gap-1 p-1.5 lg:min-h-[112px]",
-                          !cell.inMonth ? "bg-bg" : cell.isWeekend ? "bg-surface-raised" : "bg-surface",
+                          isWeekend(cell) ? "bg-surface-raised" : "bg-surface",
                         )}
                       >
                         <span
@@ -189,16 +179,14 @@ export function EventCalendar<T>({
                             "flex h-5 w-5 items-center justify-center rounded-full text-xs tabular-nums",
                             isToday
                               ? "bg-accent font-semibold text-accent-foreground"
-                              : cell.inMonth
-                                ? "font-medium text-text-secondary"
-                                : "font-medium text-text-faint",
+                              : "font-medium text-text-secondary",
                           )}
                         >
-                          {cell.date.getUTCDate()}
+                          {cell.day}
                         </span>
 
                         {visible.map((item) => (
-                          <Fragment key={itemKey(item, cell.iso)}>{renderItem(item, cell.iso)}</Fragment>
+                          <Fragment key={itemKey(item, iso)}>{renderItem(item, iso)}</Fragment>
                         ))}
 
                         {overflow > 0 && (
@@ -208,7 +196,7 @@ export function EventCalendar<T>({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                aria-label={ariaLabelOf(cell.iso, overflow)}
+                                aria-label={ariaLabelOf(iso, overflow)}
                                 className="h-6 w-full justify-start px-1.5 text-text-muted"
                               >
                                 {/* One string: Button wraps each text child in its own span. */}
@@ -217,15 +205,15 @@ export function EventCalendar<T>({
                             </PopoverTrigger>
                             <PopoverContent
                               align="start"
-                              aria-label={`Items on ${format(cell.date, { month: "long", day: "numeric" })}`}
+                              aria-label={`Items on ${formatCalendarDate(cell, { month: "long", day: "numeric" })}`}
                               className="max-h-64 w-64 space-y-1 overflow-y-auto p-2"
                             >
                               <div className="pb-1 text-xs font-semibold text-text-secondary">
-                                {titleOf(cell.iso, items.length)}
+                                {titleOf(iso, items.length)}
                               </div>
                               {items.map((item) => (
-                                <Fragment key={itemKey(item, cell.iso)}>
-                                  {renderItem(item, cell.iso)}
+                                <Fragment key={itemKey(item, iso)}>
+                                  {renderItem(item, iso)}
                                 </Fragment>
                               ))}
                             </PopoverContent>

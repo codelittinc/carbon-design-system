@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useContext, useCallback, Children, useId, Fragment, useMemo } from 'react';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, useMemo } from 'react';
 import { jsx, jsxs, Fragment as Fragment$1 } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -18,6 +18,7 @@ import * as ProgressPrimitive from '@radix-ui/react-progress';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
+import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import { useReactTable, getPaginationRowModel, getFilteredRowModel, getSortedRowModel, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { createPortal } from 'react-dom';
@@ -1073,25 +1074,29 @@ function SegmentedControl({
     }
   );
 }
-var SegmentedChip = forwardRef(
+var CategoryChip = forwardRef(
   ({ segments, label, className, ...props }, ref) => /* @__PURE__ */ jsxs(
-    "button",
+    Button,
     {
       ref,
       ...props,
       type: "button",
+      variant: "ghost",
+      size: "sm",
       className: cn(
-        "relative flex h-6 w-full shrink-0 cursor-pointer items-center overflow-hidden rounded-md px-1.5 ring-1 ring-border transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+        // The bands are the fill, so the ghost hover wash and text colours give
+        // way to a brightness lift and the white category foreground.
+        "relative h-6 w-full justify-start overflow-hidden px-1.5 text-category-foreground ring-1 ring-border hover:bg-transparent hover:text-category-foreground hover:brightness-110",
         className
       ),
       children: [
         /* @__PURE__ */ jsx("span", { "aria-hidden": "true", className: "absolute inset-0 flex", children: segments.map((segment, i) => /* @__PURE__ */ jsx("span", { className: "flex-1", style: { backgroundColor: segment.color } }, i)) }),
-        /* @__PURE__ */ jsx("span", { className: "relative z-10 truncate text-xs font-medium text-category-foreground text-shadow-xs", children: label })
+        /* @__PURE__ */ jsx("span", { className: "relative z-10 min-w-0 truncate text-xs font-medium text-shadow-xs", children: label })
       ]
     }
   )
 );
-SegmentedChip.displayName = "SegmentedChip";
+CategoryChip.displayName = "CategoryChip";
 var sizeClasses3 = {
   sm: "h-3 w-3",
   md: "h-4 w-4"
@@ -1115,19 +1120,6 @@ function StatusIndicator({
     ),
     showLabel && /* @__PURE__ */ jsx("span", { className: "text-sm text-text-secondary", children: label })
   ] });
-}
-function StatusLegend({ items, className }) {
-  return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-2 text-sm", className), children: items.map((item) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-text-secondary", children: [
-    /* @__PURE__ */ jsx(
-      "span",
-      {
-        "aria-hidden": "true",
-        className: "h-3 w-3 shrink-0 rounded-full",
-        style: { backgroundColor: item.color }
-      }
-    ),
-    item.label
-  ] }, item.label)) });
 }
 var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   CheckboxPrimitive.Root,
@@ -1154,6 +1146,7 @@ function CheckboxGroup({
   "aria-labelledby": ariaLabelledBy
 }) {
   const baseId = useId();
+  const vertical = orientation === "vertical";
   function toggle(optionValue, checked) {
     if (checked) {
       if (!value.includes(optionValue)) onChange([...value, optionValue]);
@@ -1168,36 +1161,49 @@ function CheckboxGroup({
       "aria-label": ariaLabel,
       "aria-labelledby": ariaLabelledBy,
       className: cn(
-        orientation === "vertical" ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-4",
+        vertical ? "flex flex-col" : "flex flex-wrap items-center gap-4",
         className
       ),
       children: options.map((option, index) => {
         const id = `${baseId}-${index}`;
         const isDisabled = disabled || option.disabled;
-        return /* @__PURE__ */ jsxs("div", { className: "inline-flex items-center gap-2", children: [
-          /* @__PURE__ */ jsx(
-            Checkbox,
-            {
-              id,
-              name,
-              value: option.value,
-              checked: value.includes(option.value),
-              disabled: isDisabled,
-              onCheckedChange: (checked) => toggle(option.value, checked === true)
-            }
-          ),
-          /* @__PURE__ */ jsx(
-            Label,
-            {
-              htmlFor: id,
-              className: cn(
-                "text-sm text-text-secondary",
-                isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+        return /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: cn(
+              "inline-flex items-center gap-2",
+              // A vertical list is a column of rows: each takes the full width and
+              // answers the pointer, as the options of a filter menu do.
+              vertical && "w-full rounded px-1 py-1.5 hover:bg-surface-overlay"
+            ),
+            children: [
+              /* @__PURE__ */ jsx(
+                Checkbox,
+                {
+                  id,
+                  name,
+                  value: option.value,
+                  checked: value.includes(option.value),
+                  disabled: isDisabled,
+                  onCheckedChange: (checked) => toggle(option.value, checked === true)
+                }
               ),
-              children: option.label
-            }
-          )
-        ] }, option.value);
+              /* @__PURE__ */ jsx(
+                Label,
+                {
+                  htmlFor: id,
+                  className: cn(
+                    "text-sm text-text-secondary",
+                    vertical && "flex-1",
+                    isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                  ),
+                  children: option.label
+                }
+              )
+            ]
+          },
+          option.value
+        );
       })
     }
   );
@@ -1694,161 +1700,115 @@ var TooltipContent = forwardRef(({ className, sideOffset = 4, ...props }, ref) =
   }
 ) }));
 TooltipContent.displayName = "TooltipContent";
-var HoverContext = createContext(null);
-var pinnedPopover = null;
-function Popover({
-  openOnHover = false,
-  hoverOpenDelayMs = 150,
-  hoverCloseDelayMs = 120,
-  ...props
-}) {
-  if (!openOnHover) return /* @__PURE__ */ jsx(PopoverPrimitive.Root, { ...props });
-  return /* @__PURE__ */ jsx(HoverPopover, { hoverOpenDelayMs, hoverCloseDelayMs, ...props });
+var Popover = PopoverPrimitive.Root;
+var PopoverTrigger = PopoverPrimitive.Trigger;
+var PopoverAnchor = PopoverPrimitive.Anchor;
+var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+  PopoverPrimitive.Content,
+  {
+    ref,
+    align,
+    sideOffset,
+    className: cn(
+      "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+      className
+    ),
+    ...props
+  }
+) }));
+PopoverContent.displayName = "PopoverContent";
+var PinContext = createContext(null);
+function usePinControls(component2) {
+  const controls = useContext(PinContext);
+  if (!controls) throw new Error(`<${component2}> must be used inside <HoverCard>`);
+  return controls;
 }
-function HoverPopover({
-  hoverOpenDelayMs,
-  hoverCloseDelayMs,
+function HoverCard({
   open: controlledOpen,
   defaultOpen = false,
   onOpenChange,
+  openDelay = 150,
+  closeDelay = 120,
   ...props
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const open = controlledOpen ?? uncontrolledOpen;
   const [pinned, setPinned] = useState(false);
-  const id = useRef(/* @__PURE__ */ Symbol("popover")).current;
-  const timer = useRef(null);
-  const clearTimer = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
+  const triggerRef = useRef(null);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next) => {
+    if (controlledOpen === void 0) setUncontrolledOpen(next);
+    onOpenChange?.(next);
   };
-  const setOpen = useCallback(
-    (next) => {
-      if (controlledOpen === void 0) setUncontrolledOpen(next);
-      onOpenChange?.(next);
-    },
-    [controlledOpen, onOpenChange]
-  );
-  const pin = (next) => {
-    setPinned(next);
-    if (next) pinnedPopover = id;
-    else if (pinnedPopover === id) pinnedPopover = null;
-  };
-  useEffect(() => {
-    if (!open && pinned) pin(false);
-  });
-  useEffect(
-    () => () => {
-      clearTimer();
-      if (pinnedPopover === id) pinnedPopover = null;
-    },
-    [id]
-  );
   const controls = {
-    pinned,
-    onTriggerEnter: () => {
-      if (pinned || pinnedPopover && pinnedPopover !== id) return;
-      clearTimer();
-      timer.current = setTimeout(() => setOpen(true), hoverOpenDelayMs);
+    triggerRef,
+    togglePin: () => {
+      setPinned(!pinned);
+      setOpen(!pinned);
     },
-    onLeave: () => {
-      clearTimer();
-      if (pinned || !open) return;
-      timer.current = setTimeout(() => setOpen(false), hoverCloseDelayMs);
-    },
-    onContentEnter: clearTimer,
-    onTriggerClick: () => {
-      clearTimer();
-      if (pinned) {
-        pin(false);
-        setOpen(false);
-      } else {
-        pin(true);
-        setOpen(true);
-      }
+    dismiss: () => {
+      setPinned(false);
+      setOpen(false);
     }
   };
-  return /* @__PURE__ */ jsx(HoverContext.Provider, { value: controls, children: /* @__PURE__ */ jsx(
-    PopoverPrimitive.Root,
+  return /* @__PURE__ */ jsx(PinContext.Provider, { value: controls, children: /* @__PURE__ */ jsx(
+    HoverCardPrimitive.Root,
     {
       ...props,
+      openDelay,
+      closeDelay,
       open,
       onOpenChange: (next) => {
-        if (!next) pin(false);
+        if (!next && pinned) return;
         setOpen(next);
       }
     }
   ) });
 }
-var PopoverTrigger = forwardRef(({ onClick, onPointerEnter, onPointerLeave, ...props }, ref) => {
-  const hover = useContext(HoverContext);
-  if (!hover) {
-    return /* @__PURE__ */ jsx(
-      PopoverPrimitive.Trigger,
-      {
-        ref,
-        onClick,
-        onPointerEnter,
-        onPointerLeave,
-        ...props
-      }
-    );
-  }
+var HoverCardTrigger = forwardRef(({ onClick, ...props }, ref) => {
+  const { triggerRef, togglePin } = usePinControls("HoverCardTrigger");
   return /* @__PURE__ */ jsx(
-    PopoverPrimitive.Trigger,
+    HoverCardPrimitive.Trigger,
     {
-      ref,
       ...props,
+      ref: (el) => {
+        triggerRef.current = el;
+        if (typeof ref === "function") ref(el);
+        else if (ref) ref.current = el;
+      },
       onClick: (e) => {
         onClick?.(e);
-        if (e.defaultPrevented) return;
-        e.preventDefault();
-        hover.onTriggerClick();
-      },
-      onPointerEnter: (e) => {
-        onPointerEnter?.(e);
-        if (e.pointerType !== "touch") hover.onTriggerEnter();
-      },
-      onPointerLeave: (e) => {
-        onPointerLeave?.(e);
-        hover.onLeave();
+        if (!e.defaultPrevented) togglePin();
       }
     }
   );
 });
-PopoverTrigger.displayName = "PopoverTrigger";
-var PopoverAnchor = PopoverPrimitive.Anchor;
-var PopoverContent = forwardRef(
-  ({ className, align = "center", sideOffset = 4, onOpenAutoFocus, onPointerEnter, onPointerLeave, ...props }, ref) => {
-    const hover = useContext(HoverContext);
-    return /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
-      PopoverPrimitive.Content,
-      {
-        ref,
-        align,
-        sideOffset,
-        onOpenAutoFocus: (e) => {
-          onOpenAutoFocus?.(e);
-          if (hover && !hover.pinned) e.preventDefault();
-        },
-        onPointerEnter: (e) => {
-          onPointerEnter?.(e);
-          hover?.onContentEnter();
-        },
-        onPointerLeave: (e) => {
-          onPointerLeave?.(e);
-          hover?.onLeave();
-        },
-        className: cn(
-          "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-          className
-        ),
-        ...props
-      }
-    ) });
-  }
-);
-PopoverContent.displayName = "PopoverContent";
+HoverCardTrigger.displayName = "HoverCardTrigger";
+var HoverCardContent = forwardRef(({ className, align = "center", sideOffset = 4, onEscapeKeyDown, onPointerDownOutside, ...props }, ref) => {
+  const { triggerRef, dismiss } = usePinControls("HoverCardContent");
+  return /* @__PURE__ */ jsx(HoverCardPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+    HoverCardPrimitive.Content,
+    {
+      ref,
+      align,
+      sideOffset,
+      onEscapeKeyDown: (e) => {
+        onEscapeKeyDown?.(e);
+        if (!e.defaultPrevented) dismiss();
+      },
+      onPointerDownOutside: (e) => {
+        onPointerDownOutside?.(e);
+        if (e.defaultPrevented || triggerRef.current?.contains(e.target)) return;
+        dismiss();
+      },
+      className: cn(
+        "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        className
+      ),
+      ...props
+    }
+  ) });
+});
+HoverCardContent.displayName = "HoverCardContent";
 var ScrollArea = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(ScrollAreaPrimitive.Root, { ref, className: cn("relative overflow-hidden", className), ...props, children: [
   /* @__PURE__ */ jsx(ScrollAreaPrimitive.Viewport, { className: "h-full w-full rounded-[inherit]", children }),
   /* @__PURE__ */ jsx(
@@ -1959,6 +1919,44 @@ function PageHeader({ title, description, actions, className }) {
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
 }
+var Table = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("table", { ref, className: cn("w-full text-sm", className), ...props })
+);
+Table.displayName = "Table";
+var TableHeader = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("thead", { ref, className: cn("[&_tr]:border-border", className), ...props })
+);
+TableHeader.displayName = "TableHeader";
+var TableBody = forwardRef(
+  (props, ref) => /* @__PURE__ */ jsx("tbody", { ref, ...props })
+);
+TableBody.displayName = "TableBody";
+var TableFooter = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tfoot", { ref, className: cn("[&_tr]:border-b-0 [&_tr]:border-t-2 [&_tr]:border-border", className), ...props })
+);
+TableFooter.displayName = "TableFooter";
+var TableRow = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tr", { ref, className: cn("border-b border-border-subtle", className), ...props })
+);
+TableRow.displayName = "TableRow";
+var TableHead = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+    "th",
+    {
+      ref,
+      className: cn(
+        "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
+        className
+      ),
+      ...props
+    }
+  )
+);
+TableHead.displayName = "TableHead";
+var TableCell = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("td", { ref, className: cn("px-3 py-2", className), ...props })
+);
+TableCell.displayName = "TableCell";
 var alignClasses = {
   left: { cell: "text-left", header: "text-left", content: "justify-start" },
   right: { cell: "text-right", header: "text-right", content: "justify-end" },
@@ -2027,20 +2025,19 @@ function DataTable({
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
-        expandable && /* @__PURE__ */ jsx("th", { className: "w-10 px-1 py-2", children: /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Details" }) }),
+    /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs(Table, { children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs(TableRow, { children: [
+        expandable && /* @__PURE__ */ jsx(TableHead, { className: "w-10 px-1 py-2", children: /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Details" }) }),
         headerGroup.headers.map((header) => {
           const meta = header.column.columnDef.meta;
           const align = alignClasses[meta?.align ?? "left"];
           const sorted = header.column.getIsSorted();
           const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
           return /* @__PURE__ */ jsx(
-            "th",
+            TableHead,
             {
               "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
               className: cn(
-                "px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-muted",
                 align.header,
                 header.column.getCanSort() && "cursor-pointer select-none",
                 meta?.headerClassName
@@ -2062,16 +2059,16 @@ function DataTable({
           );
         })
       ] }, headerGroup.id)) }),
-      /* @__PURE__ */ jsx("tbody", { children: table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => {
+      /* @__PURE__ */ jsx(TableBody, { children: table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => {
         const canExpand = row.getCanExpand();
         const isExpanded = canExpand && row.getIsExpanded();
         const rowDetailId = `${detailId}-${row.id}`;
         return /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsxs(
-            "tr",
+            TableRow,
             {
               className: cn(
-                "border-b border-border-subtle transition-colors last:border-0",
+                "transition-colors last:border-0",
                 // Zebra, keyed to the row's index within the CURRENT page, so the
                 // banding starts the same way on every page instead of depending on
                 // whether the pages before it held an odd number of rows.
@@ -2107,7 +2104,7 @@ function DataTable({
                 onRowClick?.(row.original);
               },
               children: [
-                expandable && /* @__PURE__ */ jsx("td", { className: "w-10 px-1 py-1", children: canExpand && /* @__PURE__ */ jsx(
+                expandable && /* @__PURE__ */ jsx(TableCell, { className: "w-10 px-1 py-1", children: canExpand && /* @__PURE__ */ jsx(
                   Button,
                   {
                     type: "button",
@@ -2131,10 +2128,10 @@ function DataTable({
                   }
                 ) }),
                 row.getVisibleCells().map((cell) => /* @__PURE__ */ jsx(
-                  "td",
+                  TableCell,
                   {
                     className: cn(
-                      "px-3 py-2 text-text-secondary",
+                      "text-text-secondary",
                       cell.column.columnDef.meta?.align && alignClasses[cell.column.columnDef.meta.align].cell,
                       cell.column.columnDef.meta?.className
                     ),
@@ -2146,15 +2143,15 @@ function DataTable({
             }
           ),
           isExpanded && /* @__PURE__ */ jsx(
-            "tr",
+            TableRow,
             {
               id: rowDetailId,
-              className: "border-b border-border-subtle bg-surface-raised last:border-0",
-              children: /* @__PURE__ */ jsx("td", { colSpan: colCount, className: "px-4 py-3 text-text-secondary", children: renderExpanded?.(row.original) })
+              className: "bg-surface-raised last:border-0",
+              children: /* @__PURE__ */ jsx(TableCell, { colSpan: colCount, className: "px-4 py-3 text-text-secondary", children: renderExpanded?.(row.original) })
             }
           )
         ] }, row.id);
-      }) : /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: colCount, className: "px-3 py-8 text-center text-text-muted", children: emptyMessage }) }) })
+      }) : /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: colCount, className: "py-8 text-center text-text-muted", children: emptyMessage }) }) })
     ] }) }),
     paginate && table.getPageCount() > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-1 pt-3", children: [
       /* @__PURE__ */ jsxs("span", { className: "text-xs text-text-muted", children: [
@@ -3515,8 +3512,27 @@ function dateKey(date) {
 function weekdayOf(date) {
   return (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() + 6) % 7;
 }
+var WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function isWeekend(date) {
+  return weekdayOf(date) >= 5;
+}
 function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+function addDays(date, step) {
+  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + step));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+function startOfWeek(date) {
+  return addDays(date, -weekdayOf(date));
+}
+function monthWeeks(month) {
+  const cells = Array(weekdayOf({ ...month, day: 1 })).fill(null);
+  for (let day = 1; day <= daysInMonth(month.year, month.month); day++) {
+    cells.push({ ...month, day });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 function shiftMonth(from, step) {
   const zeroBased = from.month - 1 + step;
@@ -3535,6 +3551,17 @@ function monthLabel({ year, month }) {
     year: "numeric"
   }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
+function parseDateKey(key) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(key);
+  if (!match) return null;
+  const date = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  return date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.year, date.month) ? date : null;
+}
+function formatCalendarDate(date, options) {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(date.year, date.month - 1, date.day))
+  );
+}
 function monthOfKey(key) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
   if (!match) return null;
@@ -3544,7 +3571,6 @@ function monthOfKey(key) {
 function todayIn(now = /* @__PURE__ */ new Date()) {
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }
-var WEEKDAY_INITIALS = ["M", "T", "W", "T", "F", "S", "S"];
 function MonthCalendar({
   month,
   onMonthChange,
@@ -3557,8 +3583,7 @@ function MonthCalendar({
   className,
   "aria-label": ariaLabel = "Choose a day"
 }) {
-  const total = daysInMonth(month.year, month.month);
-  const leadingBlanks = weekdayOf({ ...month, day: 1 });
+  const cells = monthWeeks(month).flat();
   const canGoBack = compareMonths(month, min) > 0;
   const canGoForward = compareMonths(month, max) < 0;
   return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
@@ -3590,19 +3615,19 @@ function MonthCalendar({
       )
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-1", children: [
-      WEEKDAY_INITIALS.map((day, index) => /* @__PURE__ */ jsx(
+      WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
         "span",
         {
           "aria-hidden": "true",
           className: "pb-1 text-center text-[10px] font-medium uppercase text-text-faint",
-          children: day
+          children: label[0]
         },
-        `${day}-${index}`
+        label
       )),
-      Array.from({ length: leadingBlanks }, (_, i) => /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`)),
-      Array.from({ length: total }, (_, i) => {
-        const day = i + 1;
-        const key = dateKey({ ...month, day });
+      cells.map((cell, i) => {
+        if (!cell) return /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`);
+        const { day } = cell;
+        const key = dateKey(cell);
         const open = available ? available.has(key) : true;
         const isSelected = key === selected;
         return /* @__PURE__ */ jsx(
@@ -3624,16 +3649,9 @@ function MonthCalendar({
     ] })
   ] });
 }
-var WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-function parseMonth(month) {
-  const [year, m] = month.split("-").map(Number);
-  return { year, month: m };
-}
-function formatMonth({ year, month }) {
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
-function format(date, options) {
-  return date.toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
+function formatKey(isoDate, options) {
+  const date = parseDateKey(isoDate);
+  return date ? formatCalendarDate(date, options) : isoDate;
 }
 function EventCalendar({
   month,
@@ -3648,27 +3666,13 @@ function EventCalendar({
   ariaLabel,
   className
 }) {
-  const todayIso = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-  const currentMonth = todayIso.slice(0, 7);
-  const shown = parseMonth(month);
-  const monthTitle = monthLabel(shown);
-  const cells = useMemo(() => {
-    const { year, month: m } = parseMonth(month);
-    const firstDow = new Date(Date.UTC(year, m - 1, 1)).getUTCDay();
-    const total = Math.ceil((firstDow + daysInMonth(year, m)) / 7) * 7;
-    return Array.from({ length: total }, (_, i) => {
-      const date = new Date(Date.UTC(year, m - 1, 1 - firstDow + i));
-      const dow = date.getUTCDay();
-      return {
-        date,
-        iso: date.toISOString().slice(0, 10),
-        inMonth: date.getUTCMonth() === m - 1,
-        isWeekend: dow === 0 || dow === 6
-      };
-    });
-  }, [month]);
-  const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${format(/* @__PURE__ */ new Date(`${isoDate}T00:00:00Z`), { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
-  const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${format(/* @__PURE__ */ new Date(`${isoDate}T00:00:00Z`), { month: "long", day: "numeric" })}`);
+  const today = todayIn();
+  const todayKey = dateKey(today);
+  const currentMonth = { year: today.year, month: today.month };
+  const monthTitle = monthLabel(month);
+  const weeks = monthWeeks(month);
+  const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${formatKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
+  const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${formatKey(isoDate, { month: "long", day: "numeric" })}`);
   return /* @__PURE__ */ jsxs("div", { className, children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4", children: [
       /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold text-text-primary", "aria-live": "polite", children: monthTitle }),
@@ -3678,7 +3682,7 @@ function EventCalendar({
           {
             type: "button",
             variant: "outline",
-            disabled: month === currentMonth || loading,
+            disabled: compareMonths(month, currentMonth) === 0 || loading,
             onClick: () => onMonthChange(currentMonth),
             children: "Today"
           }
@@ -3691,7 +3695,7 @@ function EventCalendar({
             size: "icon",
             "aria-label": "Previous month",
             disabled: loading,
-            onClick: () => onMonthChange(formatMonth(shiftMonth(shown, -1))),
+            onClick: () => onMonthChange(shiftMonth(month, -1)),
             children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16, "aria-hidden": "true" })
           }
         ),
@@ -3703,7 +3707,7 @@ function EventCalendar({
             size: "icon",
             "aria-label": "Next month",
             disabled: loading,
-            onClick: () => onMonthChange(formatMonth(shiftMonth(shown, 1))),
+            onClick: () => onMonthChange(shiftMonth(month, 1)),
             children: /* @__PURE__ */ jsx(ChevronRight, { size: 16, "aria-hidden": "true" })
           }
         )
@@ -3726,20 +3730,22 @@ function EventCalendar({
             role: "grid",
             "aria-label": ariaLabel ?? `Calendar, ${monthTitle}`,
             className: "divide-y divide-border overflow-hidden rounded-lg border border-border",
-            children: Array.from({ length: cells.length / 7 }, (_, week) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: cells.slice(week * 7, week * 7 + 7).map((cell) => {
-              const items = cell.inMonth ? itemsByDate.get(cell.iso) || [] : [];
+            children: weeks.map((week, w) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: week.map((cell, d) => {
+              if (!cell) return /* @__PURE__ */ jsx("div", { role: "gridcell", className: "bg-bg" }, `blank-${d}`);
+              const iso = dateKey(cell);
+              const items = itemsByDate.get(iso) || [];
               const visible = items.slice(0, maxVisibleItems);
               const overflow = items.length - visible.length;
-              const isToday = cell.inMonth && cell.iso === todayIso;
+              const isToday = iso === todayKey;
               return /* @__PURE__ */ jsxs(
                 "div",
                 {
                   role: "gridcell",
-                  "aria-label": format(cell.date, { weekday: "long", month: "long", day: "numeric" }),
+                  "aria-label": formatCalendarDate(cell, { weekday: "long", month: "long", day: "numeric" }),
                   "aria-current": isToday ? "date" : void 0,
                   className: cn(
                     "flex min-h-[96px] flex-col gap-1 p-1.5 lg:min-h-[112px]",
-                    !cell.inMonth ? "bg-bg" : cell.isWeekend ? "bg-surface-raised" : "bg-surface"
+                    isWeekend(cell) ? "bg-surface-raised" : "bg-surface"
                   ),
                   children: [
                     /* @__PURE__ */ jsx(
@@ -3747,12 +3753,12 @@ function EventCalendar({
                       {
                         className: cn(
                           "flex h-5 w-5 items-center justify-center rounded-full text-xs tabular-nums",
-                          isToday ? "bg-accent font-semibold text-accent-foreground" : cell.inMonth ? "font-medium text-text-secondary" : "font-medium text-text-faint"
+                          isToday ? "bg-accent font-semibold text-accent-foreground" : "font-medium text-text-secondary"
                         ),
-                        children: cell.date.getUTCDate()
+                        children: cell.day
                       }
                     ),
-                    visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso))),
+                    visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso))),
                     overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
                       /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
                         Button,
@@ -3760,7 +3766,7 @@ function EventCalendar({
                           type: "button",
                           variant: "ghost",
                           size: "sm",
-                          "aria-label": ariaLabelOf(cell.iso, overflow),
+                          "aria-label": ariaLabelOf(iso, overflow),
                           className: "h-6 w-full justify-start px-1.5 text-text-muted",
                           children: `+${overflow} more`
                         }
@@ -3769,20 +3775,20 @@ function EventCalendar({
                         PopoverContent,
                         {
                           align: "start",
-                          "aria-label": `Items on ${format(cell.date, { month: "long", day: "numeric" })}`,
+                          "aria-label": `Items on ${formatCalendarDate(cell, { month: "long", day: "numeric" })}`,
                           className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
                           children: [
-                            /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(cell.iso, items.length) }),
-                            items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, cell.iso) }, itemKey(item, cell.iso)))
+                            /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(iso, items.length) }),
+                            items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso)))
                           ]
                         }
                       )
                     ] })
                   ]
                 },
-                cell.iso
+                iso
               );
-            }) }, week))
+            }) }, w))
           }
         )
       ] }) })
@@ -3833,54 +3839,8 @@ function createDefaultApi(baseUrl = "", extraHeaders = {}) {
     }
   };
 }
-function parseUTCDate(dateStr) {
-  return /* @__PURE__ */ new Date(dateStr + "T00:00:00.000Z");
-}
-function toISODate(date) {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 function datePart(iso) {
   return iso.split("T")[0];
-}
-function getDaysInMonth(date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-}
-function formatMonthYear(date) {
-  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-}
-function getMonday(date) {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() - day + (day === 0 ? -6 : 1));
-  return d;
-}
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d;
-}
-function formatShortDate(date) {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-}
-function formatWeekRange(monday) {
-  const sunday = addDays(monday, 6);
-  const monStr = formatShortDate(monday);
-  const sunStr = sunday.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC"
-  });
-  return `${monStr} \u2013 ${sunStr}`;
-}
-function getFirstOfMonth(date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-}
-function getLastOfMonth(date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 }
 function cellKey(contractId, date) {
   return `${contractId}::${date}`;
@@ -3892,22 +3852,16 @@ function parseCellKey(key) {
 function contractCoversDay(contract, date) {
   return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);
 }
-var DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 var hoursInputClass = "h-8 px-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 function dayLabel(date, weekday = "short") {
-  return (/* @__PURE__ */ new Date(date + "T00:00:00.000Z")).toLocaleDateString("en-US", {
-    weekday,
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC"
-  });
+  const day = parseDateKey(date);
+  return day ? formatCalendarDate(day, { weekday, month: "short", day: "numeric", year: "numeric" }) : date;
 }
 function isTimeOffDay(date, timeOffs) {
   return timeOffs.some((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
 }
 function MonthlyCalendarGrid({
-  monthDate,
+  month,
   gridData,
   contracts,
   timeOffs,
@@ -3916,8 +3870,6 @@ function MonthlyCalendarGrid({
   onDaySelect,
   onCellChange
 }) {
-  const year = monthDate.getUTCFullYear();
-  const month = monthDate.getUTCMonth();
   const inlineInputRef = useRef(null);
   useEffect(() => {
     if (selectedDay && inlineInputRef.current) {
@@ -3925,15 +3877,10 @@ function MonthlyCalendarGrid({
       inlineInputRef.current.select();
     }
   }, [selectedDay]);
-  const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
-  const cells = Array(startDow).fill(null);
-  for (let d = 1; d <= getDaysInMonth(monthDate); d++) {
-    cells.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-  }
-  while (cells.length % 7 !== 0) cells.push(null);
+  const cells = monthWeeks(month).flat();
   const dayTotal = (date) => contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
   return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx("div", { className: "mb-px grid grid-cols-7 gap-px", children: DAY_HEADERS.map((label, i) => /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsx("div", { className: "mb-px grid grid-cols-7 gap-px", children: WEEKDAY_LABELS.map((label, i) => /* @__PURE__ */ jsx(
       "div",
       {
         className: cn(
@@ -3944,26 +3891,26 @@ function MonthlyCalendarGrid({
       },
       label
     )) }),
-    /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border", children: cells.map((date, idx) => {
-      if (!date) return /* @__PURE__ */ jsx("div", { className: "min-h-[72px] bg-bg" }, `empty-${idx}`);
-      const dow = (/* @__PURE__ */ new Date(date + "T00:00:00.000Z")).getUTCDay();
-      const isWeekend = dow === 0 || dow === 6;
+    /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border", children: cells.map((cell, idx) => {
+      if (!cell) return /* @__PURE__ */ jsx("div", { className: "min-h-[72px] bg-bg" }, `empty-${idx}`);
+      const date = dateKey(cell);
+      const weekend = isWeekend(cell);
       const isToday = date === today;
       const isSelected = date === selectedDay;
       const total = dayTotal(date);
       const hasTimeOff = isTimeOffDay(date, timeOffs);
-      const isMissingHours = !isWeekend && date < today && total === 0 && !hasTimeOff;
+      const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
       const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
-      const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : isWeekend ? "bg-surface-raised" : "bg-surface";
+      const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : weekend ? "bg-surface-raised" : "bg-surface";
       const header = /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between", children: [
         /* @__PURE__ */ jsx(
           "span",
           {
             className: cn(
               "text-sm font-medium tabular-nums",
-              isToday ? "text-accent-text" : isWeekend ? "text-text-faint" : "text-text-primary"
+              isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary"
             ),
-            children: parseInt(date.split("-")[2])
+            children: cell.day
           }
         ),
         hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" })
@@ -4067,20 +4014,20 @@ function DayDetailPanel({
       /* @__PURE__ */ jsx("h3", { className: "text-sm font-semibold text-text-primary", children: dayLabel(selectedDay, "long") }),
       /* @__PURE__ */ jsx(Button, { type: "button", variant: "ghost", size: "icon", "aria-label": "Close", onClick: onClose, children: /* @__PURE__ */ jsx(X, { size: 14 }) })
     ] }),
-    /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
-        /* @__PURE__ */ jsx("th", { className: "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted", children: "Contract" }),
-        /* @__PURE__ */ jsx("th", { className: "w-[100px] px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted", children: "Hours" })
+    /* @__PURE__ */ jsxs(Table, { children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
+        /* @__PURE__ */ jsx(TableHead, { children: "Contract" }),
+        /* @__PURE__ */ jsx(TableHead, { className: "w-[100px] text-center", children: "Hours" })
       ] }) }),
-      /* @__PURE__ */ jsxs("tbody", { children: [
-        contracts.length === 0 && /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 2, className: "py-6 text-center text-text-muted", children: "No active contracts for this day." }) }),
+      /* @__PURE__ */ jsxs(TableBody, { children: [
+        contracts.length === 0 && /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: 2, className: "py-6 text-center text-text-muted", children: "No active contracts for this day." }) }),
         contracts.map((contract, idx) => /* @__PURE__ */ jsxs(
-          "tr",
+          TableRow,
           {
-            className: "border-b border-border-subtle hover:bg-table-row-hover",
+            className: "hover:bg-table-row-hover",
             children: [
-              /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
-              /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+              /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(
                 Input,
                 {
                   ref: (el) => {
@@ -4105,13 +4052,13 @@ function DayDetailPanel({
           contract.id
         ))
       ] }),
-      /* @__PURE__ */ jsx("tfoot", { children: /* @__PURE__ */ jsxs("tr", { className: "border-t-2 border-border", children: [
-        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-xs font-medium uppercase text-text-muted", children: "Total" }),
+      /* @__PURE__ */ jsx(TableFooter, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
+        /* @__PURE__ */ jsx(TableCell, { className: "text-xs font-medium uppercase text-text-muted", children: "Total" }),
         /* @__PURE__ */ jsx(
-          "td",
+          TableCell,
           {
             className: cn(
-              "px-3 py-2 text-center font-semibold tabular-nums",
+              "text-center font-semibold tabular-nums",
               total > 0 ? "text-text-primary" : "text-text-faint"
             ),
             children: total > 0 ? `${total}h` : "\u2013"
@@ -4131,7 +4078,6 @@ function ContractName({ contract }) {
     ] })
   ] });
 }
-var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 var VIEW_OPTIONS = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" }
@@ -4139,6 +4085,13 @@ var VIEW_OPTIONS = [
 var AUTOSAVE_DELAY_MS = 15e3;
 var REVERT_WINDOW_MS = 5e3;
 var headClass = "px-2 py-3 text-xs font-medium uppercase tracking-wider";
+function weekRangeLabel(monday) {
+  const sunday = addDays(monday, 6);
+  return `${formatCalendarDate(monday, { month: "short", day: "numeric" })} \u2013 ${formatCalendarDate(sunday, { month: "short", day: "numeric", year: "numeric" })}`;
+}
+function monthOf(date) {
+  return { year: date.year, month: date.month };
+}
 function HoursSummary({
   loggedHours,
   expectedHours,
@@ -4215,20 +4168,12 @@ function TimesheetTable({
     };
   }, [apiOverrides, baseUrl, apiHeaders]);
   const [viewMode, setViewMode] = useState(defaultView);
-  const [weekStart, setWeekStart] = useState(() => {
-    if (initialWeek) {
-      const parsed = parseUTCDate(initialWeek);
-      if (!isNaN(parsed.getTime())) return getMonday(parsed);
-    }
-    return getMonday(/* @__PURE__ */ new Date());
-  });
-  const [monthDate, setMonthDate] = useState(() => {
-    if (initialMonth) {
-      const parsed = parseUTCDate(initialMonth + "-01");
-      if (!isNaN(parsed.getTime())) return getFirstOfMonth(parsed);
-    }
-    return getFirstOfMonth(/* @__PURE__ */ new Date());
-  });
+  const [weekStart, setWeekStart] = useState(
+    () => startOfWeek(initialWeek && parseDateKey(initialWeek) || todayIn())
+  );
+  const [month, setMonth] = useState(
+    () => initialMonth && monthOfKey(`${initialMonth}-01`) || monthOf(todayIn())
+  );
   const [selectedDay, setSelectedDay] = useState(null);
   const [gridData, setGridData] = useState({});
   const [originalData, setOriginalData] = useState({});
@@ -4242,15 +4187,14 @@ function TimesheetTable({
   const [revertSnapshot, setRevertSnapshot] = useState(null);
   const autoSaveTimerRef = useRef(null);
   const revertHideTimerRef = useRef(null);
-  const weekDates = Array.from({ length: 7 }, (_, i) => toISODate(addDays(weekStart, i)));
-  const weekEnd = addDays(weekStart, 6);
-  const today = toISODate(/* @__PURE__ */ new Date());
-  const rangeStart = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
-  const rangeEnd = viewMode === "weekly" ? weekEnd : getLastOfMonth(monthDate);
-  const activeContracts = contracts.filter((c) => {
-    if (!c.projectActive) return false;
-    return new Date(c.startDate) <= rangeEnd && new Date(c.endDate) >= rangeStart;
-  });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDates = weekDays.map(dateKey);
+  const today = dateKey(todayIn());
+  const rangeStart = viewMode === "weekly" ? weekDates[0] : dateKey({ ...month, day: 1 });
+  const rangeEnd = viewMode === "weekly" ? weekDates[6] : dateKey({ ...month, day: daysInMonth(month.year, month.month) });
+  const activeContracts = contracts.filter(
+    (c) => c.projectActive && datePart(c.startDate) <= rangeEnd && datePart(c.endDate) >= rangeStart
+  );
   const selectedDayContracts = selectedDay ? contracts.filter((c) => c.projectActive && contractCoversDay(c, selectedDay)) : [];
   const isDirty = JSON.stringify(gridData) !== JSON.stringify(originalData);
   const clearTimer = (ref) => {
@@ -4263,10 +4207,8 @@ function TimesheetTable({
     setLoading(true);
     setLoadError(false);
     try {
-      const start = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
-      const end = viewMode === "weekly" ? addDays(weekStart, 6) : getLastOfMonth(monthDate);
-      const startDate = toISODate(start);
-      const endDate = toISODate(end);
+      const startDate = rangeStart;
+      const endDate = rangeEnd;
       const [entriesRes, expectedRes] = await Promise.all([
         api.fetchTimeEntries({ userId, startDate, endDate }),
         api.fetchExpectedHours({ startDate, endDate })
@@ -4290,15 +4232,15 @@ function TimesheetTable({
     } finally {
       setLoading(false);
     }
-  }, [viewMode, weekStart, monthDate, userId, api]);
+  }, [rangeStart, rangeEnd, userId, api]);
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
   useEffect(() => {
     if (!onNavigate) return;
-    const params = viewMode === "monthly" ? { view: "monthly", month: toISODate(monthDate).slice(0, 7) } : { view: "weekly", week: toISODate(weekStart) };
+    const params = viewMode === "monthly" ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) } : { view: "weekly", week: dateKey(weekStart) };
     onNavigate(params);
-  }, [viewMode, weekStart, monthDate, onNavigate]);
+  }, [viewMode, weekStart, month, onNavigate]);
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (isDirty) e.preventDefault();
@@ -4410,14 +4352,13 @@ function TimesheetTable({
       return activeContracts.some((c) => c.id === contractId) ? sum + (val || 0) : sum;
     }, 0);
   };
-  const shiftMonth2 = (step) => (prev) => new Date(Date.UTC(prev.getUTCFullYear(), prev.getUTCMonth() + step, 1));
   const goToPrev = async () => {
     await flushPendingAutoSave();
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, -7));
     } else {
       setSelectedDay(null);
-      setMonthDate(shiftMonth2(-1));
+      setMonth((prev) => shiftMonth(prev, -1));
     }
   };
   const goToNext = async () => {
@@ -4426,26 +4367,26 @@ function TimesheetTable({
       setWeekStart((prev) => addDays(prev, 7));
     } else {
       setSelectedDay(null);
-      setMonthDate(shiftMonth2(1));
+      setMonth((prev) => shiftMonth(prev, 1));
     }
   };
   const goToToday = async () => {
     await flushPendingAutoSave();
     if (viewMode === "weekly") {
-      setWeekStart(getMonday(/* @__PURE__ */ new Date()));
+      setWeekStart(startOfWeek(todayIn()));
     } else {
       setSelectedDay(null);
-      setMonthDate(getFirstOfMonth(/* @__PURE__ */ new Date()));
+      setMonth(monthOf(todayIn()));
     }
   };
   const handleViewModeChange = async (mode) => {
     if (mode === viewMode) return;
     await flushPendingAutoSave();
     if (mode === "monthly") {
-      setMonthDate(getFirstOfMonth(weekStart));
+      setMonth(monthOf(weekStart));
       setSelectedDay(null);
     } else {
-      setWeekStart(getMonday(monthDate));
+      setWeekStart(startOfWeek({ ...month, day: 1 }));
     }
     setViewMode(mode);
     onViewChange?.(mode);
@@ -4502,7 +4443,7 @@ function TimesheetTable({
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
         /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: goToToday, children: "Today" }),
-        /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: viewMode === "weekly" ? formatWeekRange(weekStart) : formatMonthYear(monthDate) })
+        /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month) })
       ] }),
       /* @__PURE__ */ jsxs(Button, { type: "button", variant: "outline", size: "sm", onClick: goToNext, children: [
         "Next",
@@ -4518,11 +4459,11 @@ function TimesheetTable({
           ptoHours
         }
       ),
-      viewMode === "weekly" ? /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-        /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "border-b border-border", children: [
-          /* @__PURE__ */ jsx("th", { className: cn(headClass, "min-w-[200px] px-3 text-left text-text-muted"), children: "Contract" }),
+      viewMode === "weekly" ? /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs(Table, { children: [
+        /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
+          /* @__PURE__ */ jsx(TableHead, { className: cn(headClass, "min-w-[200px] px-3 text-left text-text-muted"), children: "Contract" }),
           weekDates.map((date, i) => /* @__PURE__ */ jsxs(
-            "th",
+            TableHead,
             {
               className: cn(
                 headClass,
@@ -4530,30 +4471,30 @@ function TimesheetTable({
                 date === today ? "bg-accent-muted text-accent-text" : i >= 5 ? "text-text-faint" : "text-text-muted"
               ),
               children: [
-                /* @__PURE__ */ jsx("div", { children: DAY_LABELS[i] }),
-                /* @__PURE__ */ jsx("div", { className: "mt-0.5 text-[10px] font-normal normal-case", children: formatShortDate(addDays(weekStart, i)) })
+                /* @__PURE__ */ jsx("div", { children: WEEKDAY_LABELS[i] }),
+                /* @__PURE__ */ jsx("div", { className: "mt-0.5 text-[10px] font-normal normal-case", children: formatCalendarDate(weekDays[i], { month: "short", day: "numeric" }) })
               ]
             },
             date
           )),
-          /* @__PURE__ */ jsx("th", { className: cn(headClass, "w-[70px] text-center text-text-muted"), children: "Total" })
+          /* @__PURE__ */ jsx(TableHead, { className: cn(headClass, "w-[70px] text-center text-text-muted"), children: "Total" })
         ] }) }),
-        /* @__PURE__ */ jsxs("tbody", { children: [
-          activeContracts.length === 0 && /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 9, className: "py-8 text-center text-text-muted", children: "No active contracts for this week." }) }),
+        /* @__PURE__ */ jsxs(TableBody, { children: [
+          activeContracts.length === 0 && /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: 9, className: "py-8 text-center text-text-muted", children: "No active contracts for this week." }) }),
           activeContracts.map((contract, contractIdx) => {
             const rowTotal = getRowTotal(contract.id);
             return /* @__PURE__ */ jsxs(
-              "tr",
+              TableRow,
               {
-                className: "border-b border-border-subtle hover:bg-table-row-hover",
+                className: "hover:bg-table-row-hover",
                 children: [
-                  /* @__PURE__ */ jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+                  /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
                   weekDates.map((date, dayIdx) => {
                     const key = cellKey(contract.id, date);
                     const value = gridData[key];
                     const isOutside = !contractCoversDay(contract, date);
                     return /* @__PURE__ */ jsx(
-                      "td",
+                      TableCell,
                       {
                         className: cn("px-1 py-2", date === today && "bg-accent-muted"),
                         children: /* @__PURE__ */ jsx(
@@ -4584,7 +4525,7 @@ function TimesheetTable({
                     );
                   }),
                   /* @__PURE__ */ jsx(
-                    "td",
+                    TableCell,
                     {
                       className: cn(
                         "px-2 py-2 text-center font-medium tabular-nums",
@@ -4599,13 +4540,13 @@ function TimesheetTable({
             );
           })
         ] }),
-        /* @__PURE__ */ jsx("tfoot", { children: /* @__PURE__ */ jsxs("tr", { className: "border-t-2 border-border", children: [
-          /* @__PURE__ */ jsx("td", { className: "px-3 py-3 text-xs font-medium uppercase text-text-muted", children: "Daily Total" }),
+        /* @__PURE__ */ jsx(TableFooter, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
+          /* @__PURE__ */ jsx(TableCell, { className: "px-3 py-3 text-xs font-medium uppercase text-text-muted", children: "Daily Total" }),
           weekDates.map((date) => {
             const colTotal = getColumnTotal(date);
             const isOver = colTotal > 24;
             return /* @__PURE__ */ jsxs(
-              "td",
+              TableCell,
               {
                 className: cn(
                   "px-2 py-3 text-center font-semibold tabular-nums",
@@ -4621,13 +4562,13 @@ function TimesheetTable({
               date
             );
           }),
-          /* @__PURE__ */ jsx("td", { className: "px-2 py-3 text-center font-bold tabular-nums text-text-primary", children: grandTotal > 0 ? grandTotal : "\u2013" })
+          /* @__PURE__ */ jsx(TableCell, { className: "px-2 py-3 text-center font-bold tabular-nums text-text-primary", children: grandTotal > 0 ? grandTotal : "\u2013" })
         ] }) })
       ] }) }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
         /* @__PURE__ */ jsx(
           MonthlyCalendarGrid,
           {
-            monthDate,
+            month,
             gridData,
             contracts: activeContracts,
             timeOffs,
@@ -4656,30 +4597,21 @@ function TimeOffList({
   timeOffs,
   viewMode
 }) {
-  const fmt = (iso) => new Date(iso).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC"
-  });
+  const fmt = (iso) => {
+    const date = parseDateKey(iso);
+    return date ? formatCalendarDate(date, { weekday: "short", month: "short", day: "numeric" }) : iso;
+  };
   return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
     /* @__PURE__ */ jsxs("h2", { className: "px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted", children: [
       "Time Off This ",
       viewMode === "weekly" ? "Week" : "Month"
     ] }),
-    /* @__PURE__ */ jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsx("tr", { className: "border-b border-border", children: ["Type", "From", "To"].map((h) => /* @__PURE__ */ jsx(
-        "th",
-        {
-          className: "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
-          children: h
-        },
-        h
-      )) }) }),
-      /* @__PURE__ */ jsx("tbody", { children: timeOffs.map((to) => /* @__PURE__ */ jsxs("tr", { className: "border-b border-border-subtle last:border-0", children: [
-        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-primary", children: to.type }),
-        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: fmt(to.startsAt) }),
-        /* @__PURE__ */ jsx("td", { className: "px-3 py-2 text-text-secondary", children: fmt(to.endsAt) })
+    /* @__PURE__ */ jsxs(Table, { children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsx(TableRow, { children: ["Type", "From", "To"].map((h) => /* @__PURE__ */ jsx(TableHead, { children: h }, h)) }) }),
+      /* @__PURE__ */ jsx(TableBody, { children: timeOffs.map((to) => /* @__PURE__ */ jsxs(TableRow, { className: "last:border-0", children: [
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-primary", children: to.type }),
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.startsAt) }),
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.endsAt) })
       ] }, to.id)) })
     ] })
   ] });
@@ -4919,21 +4851,15 @@ function MultiStatusFilter({
     if (labels.length <= 2) return labels.join(", ");
     return `${labels.length} selected`;
   }, [selected.length, options, selectedSet]);
-  const toggle = (value) => {
-    if (selectedSet.has(value)) {
-      onChange(selected.filter((v) => v !== value));
-    } else {
-      onChange([...selected, value]);
-    }
-  };
   return /* @__PURE__ */ jsxs(Popover, { children: [
     /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsxs(
-      "button",
+      Button,
       {
         type: "button",
+        variant: "outline",
         "aria-label": `${label} filter`,
         className: cn(
-          "flex h-8 items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary hover:border-accent/50",
+          "justify-start bg-surface-raised font-normal hover:border-accent/50 hover:bg-surface-raised",
           className
         ),
         children: [
@@ -4975,20 +4901,17 @@ function MultiStatusFilter({
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsx("div", { className: "max-h-72 overflow-y-auto", children: options.map((opt) => {
-        const checked = selectedSet.has(opt.value);
-        return /* @__PURE__ */ jsxs(
-          "label",
-          {
-            className: "flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm text-text-primary hover:bg-surface-overlay",
-            children: [
-              /* @__PURE__ */ jsx(Checkbox, { checked, onCheckedChange: () => toggle(opt.value) }),
-              /* @__PURE__ */ jsx("span", { className: "flex-1", children: opt.label })
-            ]
-          },
-          opt.value
-        );
-      }) })
+      /* @__PURE__ */ jsx(
+        CheckboxGroup,
+        {
+          "aria-label": label,
+          orientation: "vertical",
+          options,
+          value: selected,
+          onChange,
+          className: "max-h-72 overflow-y-auto"
+        }
+      )
     ] })
   ] });
 }
@@ -5467,4 +5390,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedChip, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StatusLegend, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, linkHrefErrorMessage, monthLabel, monthOfKey, normalizeLinkHref, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };

@@ -1,14 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { EventCalendar } from "./event-calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { SegmentedChip } from "./segmented-chip";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card";
+import { CategoryChip } from "./category-chip";
 import { getCategoricalSegments } from "@/lib/categorical-colors";
+import { dateKey, type YearMonth } from "@/lib/calendar";
 
 /**
  * EventCalendar shows a month of days with items in them. Here each item is a
- * person off that day, drawn as a SegmentedChip colored by their projects,
- * with a hover popover (`openOnHover`) that a click pins.
+ * person off that day, drawn as a CategoryChip colored by their projects,
+ * with a `HoverCard` that a click pins.
  */
 const meta: Meta<typeof EventCalendar> = {
   title: "Components/Data Display/EventCalendar",
@@ -35,8 +36,8 @@ const PEOPLE: Person[] = [
   { id: 6, name: "Luis R.", projectIds: [5, 6] },
 ];
 
-function itemsFor(month: string): Map<string, Person[]> {
-  const day = (d: number) => `${month}-${String(d).padStart(2, "0")}`;
+function itemsFor(month: YearMonth): Map<string, Person[]> {
+  const day = (d: number) => dateKey({ ...month, day: d });
   return new Map([
     [day(3), PEOPLE.slice(0, 2)],
     [day(8), [PEOPLE[2]]],
@@ -47,24 +48,24 @@ function itemsFor(month: string): Map<string, Person[]> {
 
 function PersonChip({ person }: { person: Person }) {
   return (
-    <Popover openOnHover>
-      <PopoverTrigger asChild>
-        <SegmentedChip
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        <CategoryChip
           segments={getCategoricalSegments(person.projectIds)}
           label={person.name}
           aria-label={`${person.name}, ${person.projectIds.length} projects`}
         />
-      </PopoverTrigger>
-      <PopoverContent aria-label={person.name} className="w-56 p-3 text-sm">
+      </HoverCardTrigger>
+      <HoverCardContent aria-label={person.name} className="w-56 p-3 text-sm">
         <p className="font-semibold text-text-primary">{person.name}</p>
         <p className="mt-0.5 text-xs text-text-muted">Vacation · {person.projectIds.length} projects</p>
-      </PopoverContent>
-    </Popover>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
 function Demo({ loading = false }: { loading?: boolean }) {
-  const [month, setMonth] = useState("2026-07");
+  const [month, setMonth] = useState<YearMonth>({ year: 2026, month: 7 });
   return (
     <EventCalendar<Person>
       month={month}

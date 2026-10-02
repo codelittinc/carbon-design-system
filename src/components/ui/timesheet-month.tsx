@@ -10,10 +10,18 @@ import { useEffect, useRef, type ReactElement } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
+  WEEKDAY_LABELS,
+  dateKey,
+  formatCalendarDate,
+  isWeekend,
+  monthWeeks,
+  parseDateKey,
+  type YearMonth,
+} from "@/lib/calendar";
+import {
   cellKey,
   contractCoversDay,
   datePart,
-  getDaysInMonth,
   type TimesheetContract,
   type TimesheetGridData,
   type TimesheetTimeOff,
@@ -22,8 +30,7 @@ import { Badge } from "./badge";
 import { Button } from "./button";
 import { Card } from "./card";
 import { Input } from "./input";
-
-const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 
 /**
  * The hours field, shared with the weekly grid. A number input with its
@@ -33,13 +40,8 @@ export const hoursInputClass =
   "h-8 px-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 export function dayLabel(date: string, weekday: "long" | "short" = "short"): string {
-  return new Date(date + "T00:00:00.000Z").toLocaleDateString("en-US", {
-    weekday,
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const day = parseDateKey(date);
+  return day ? formatCalendarDate(day, { weekday, month: "short", day: "numeric", year: "numeric" }) : date;
 }
 
 function isTimeOffDay(date: string, timeOffs: TimesheetTimeOff[]): boolean {
@@ -48,7 +50,7 @@ function isTimeOffDay(date: string, timeOffs: TimesheetTimeOff[]): boolean {
 }
 
 interface MonthlyCalendarGridProps {
-  monthDate: Date;
+  month: YearMonth;
   gridData: TimesheetGridData;
   contracts: TimesheetContract[];
   timeOffs: TimesheetTimeOff[];
@@ -64,7 +66,7 @@ interface MonthlyCalendarGridProps {
  * and no time off is flagged.
  */
 export function MonthlyCalendarGrid({
-  monthDate,
+  month,
   gridData,
   contracts,
   timeOffs,
@@ -73,8 +75,6 @@ export function MonthlyCalendarGrid({
   onDaySelect,
   onCellChange,
 }: MonthlyCalendarGridProps): ReactElement {
-  const year = monthDate.getUTCFullYear();
-  const month = monthDate.getUTCMonth();
   const inlineInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -84,13 +84,7 @@ export function MonthlyCalendarGrid({
     }
   }, [selectedDay]);
 
-  // Monday-first: Sunday's 0 becomes the last column.
-  const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
-  const cells: (string | null)[] = Array(startDow).fill(null);
-  for (let d = 1; d <= getDaysInMonth(monthDate); d++) {
-    cells.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-  }
-  while (cells.length % 7 !== 0) cells.push(null);
+  const cells = monthWeeks(month).flat();
 
   const dayTotal = (date: string) =>
     contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
@@ -98,7 +92,7 @@ export function MonthlyCalendarGrid({
   return (
     <div>
       <div className="mb-px grid grid-cols-7 gap-px">
-        {DAY_HEADERS.map((label, i) => (
+        {WEEKDAY_LABELS.map((label, i) => (
           <div
             key={label}
             className={cn(
@@ -113,23 +107,23 @@ export function MonthlyCalendarGrid({
 
       {/* The 1px gap over a border-colored ground draws the grid lines. */}
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
-        {cells.map((date, idx) => {
-          if (!date) return <div key={`empty-${idx}`} className="min-h-[72px] bg-bg" />;
+        {cells.map((cell, idx) => {
+          if (!cell) return <div key={`empty-${idx}`} className="min-h-[72px] bg-bg" />;
 
-          const dow = new Date(date + "T00:00:00.000Z").getUTCDay();
-          const isWeekend = dow === 0 || dow === 6;
+          const date = dateKey(cell);
+          const weekend = isWeekend(cell);
           const isToday = date === today;
           const isSelected = date === selectedDay;
           const total = dayTotal(date);
           const hasTimeOff = isTimeOffDay(date, timeOffs);
-          const isMissingHours = !isWeekend && date < today && total === 0 && !hasTimeOff;
+          const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
           const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
 
           const background = isMissingHours
             ? "bg-error-soft"
             : isToday
               ? "bg-accent-muted"
-              : isWeekend
+              : weekend
                 ? "bg-surface-raised"
                 : "bg-surface";
 
@@ -138,10 +132,10 @@ export function MonthlyCalendarGrid({
               <span
                 className={cn(
                   "text-sm font-medium tabular-nums",
-                  isToday ? "text-accent-text" : isWeekend ? "text-text-faint" : "text-text-primary",
+                  isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary",
                 )}
               >
-                {parseInt(date.split("-")[2])}
+                {cell.day}
               </span>
               {hasTimeOff && (
                 <Badge variant="info" className="px-1 text-[10px]">
@@ -270,34 +264,34 @@ export function DayDetailPanel({
             <X size={14} />
           </Button>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
                 Contract
-              </th>
-              <th className="w-[100px] px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted">
+              </TableHead>
+              <TableHead className="w-[100px] text-center">
                 Hours
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {contracts.length === 0 && (
-              <tr>
-                <td colSpan={2} className="py-6 text-center text-text-muted">
+              <TableRow className="border-0">
+                <TableCell colSpan={2} className="py-6 text-center text-text-muted">
                   No active contracts for this day.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {contracts.map((contract, idx) => (
-              <tr
+              <TableRow
                 key={contract.id}
-                className="border-b border-border-subtle hover:bg-table-row-hover"
+                className="hover:bg-table-row-hover"
               >
-                <td className="px-3 py-2">
+                <TableCell>
                   <ContractName contract={contract} />
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>
                   <Input
                     ref={(el) => {
                       inputRefs.current[idx] = el;
@@ -315,24 +309,24 @@ export function DayDetailPanel({
                     placeholder={contractCoversDay(contract, selectedDay) ? "–" : ""}
                     className={hoursInputClass}
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-border">
-              <td className="px-3 py-2 text-xs font-medium uppercase text-text-muted">Total</td>
-              <td
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell className="text-xs font-medium uppercase text-text-muted">Total</TableCell>
+              <TableCell
                 className={cn(
-                  "px-3 py-2 text-center font-semibold tabular-nums",
+                  "text-center font-semibold tabular-nums",
                   total > 0 ? "text-text-primary" : "text-text-faint",
                 )}
               >
                 {total > 0 ? `${total}h` : "–"}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </Card>
     </div>
   );
