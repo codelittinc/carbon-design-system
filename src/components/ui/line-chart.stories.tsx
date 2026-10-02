@@ -198,3 +198,55 @@ export const Empty: Story = {
     </ChartCard>
   ),
 };
+
+const CONTRACTS_BY_MONTH = [
+  { month: "Jan", count: 3, names: ["Acme", "Globex", "Initech"], ending: [] as string[] },
+  { month: "Feb", count: 3, names: ["Acme", "Globex", "Initech"], ending: ["Initech"] },
+  { month: "Mar", count: 3, names: ["Acme", "Globex", "Umbrella"], ending: [] as string[] },
+  { month: "Apr", count: 2, names: ["Acme", "Umbrella"], ending: [] as string[] },
+];
+
+/**
+ * `tooltipContent` replaces the tooltip body, inside the standard shell. Here
+ * each month lists the contracts behind the count: ending ones highlighted and
+ * the ones dropped since last month struck through. The names live outside the
+ * chart rows and are looked up by the hovered `label`.
+ */
+export const CustomTooltip: Story = {
+  render: () => (
+    <ChartCard title="Contracts over time">
+      <LineChart
+        data={CONTRACTS_BY_MONTH.map(({ month, count }) => ({ month, count }))}
+        categoryKey="month"
+        categoryLabel="Month"
+        series={[{ key: "count", label: "Active contracts" }]}
+        tooltipContent={({ label, payload }) => {
+          const i = CONTRACTS_BY_MONTH.findIndex((m) => m.month === label);
+          const entry = CONTRACTS_BY_MONTH[i];
+          const dropped = (CONTRACTS_BY_MONTH[i - 1]?.names ?? []).filter(
+            (n) => !entry.names.includes(n),
+          );
+          return (
+            <div className="max-w-xs text-xs">
+              <p className="font-medium text-text-primary">{label}</p>
+              <p className="mb-1 text-text-muted">Active contracts: {payload[0]?.value}</p>
+              <ul className="space-y-0.5 border-t border-border pt-1">
+                {entry.names.map((n) => (
+                  <li key={n} className={entry.ending.includes(n) ? "text-accent-text" : "text-text-secondary"}>
+                    {n}
+                    {entry.ending.includes(n) && " (ends this month)"}
+                  </li>
+                ))}
+                {dropped.map((n) => (
+                  <li key={n} className="text-error-text line-through">
+                    {n}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        }}
+      />
+    </ChartCard>
+  ),
+};

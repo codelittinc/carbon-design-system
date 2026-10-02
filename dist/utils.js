@@ -367,4 +367,29 @@ function linkHrefErrorMessage(reason, { targets = [] } = {}) {
   return `Use a web address, including https://, an email link (mailto:\u2026) or ${list}.`;
 }
 
-export { RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };
+// src/lib/categorical-colors.ts
+var PALETTE_SIZE = 11;
+var CATEGORICAL_PALETTE = Array.from(
+  { length: PALETTE_SIZE },
+  (_, i) => `var(--color-category-${i + 1})`
+);
+var NEUTRAL_CATEGORICAL_COLOR = "var(--color-category-neutral)";
+var OVERFLOW_SEGMENT_COLOR = "var(--color-category-overflow)";
+var MAX_CHIP_SEGMENTS = 4;
+function getCategoricalColor(id) {
+  const index = (id % PALETTE_SIZE + PALETTE_SIZE) % PALETTE_SIZE;
+  return CATEGORICAL_PALETTE[index];
+}
+function getCategoricalSegments(ids) {
+  if (ids.length === 0) return [{ color: NEUTRAL_CATEGORICAL_COLOR }];
+  if (ids.length <= MAX_CHIP_SEGMENTS) {
+    return ids.map((id) => ({ color: getCategoricalColor(id) }));
+  }
+  const visible = ids.slice(0, MAX_CHIP_SEGMENTS - 1);
+  return [
+    ...visible.map((id) => ({ color: getCategoricalColor(id) })),
+    { color: OVERFLOW_SEGMENT_COLOR, overflowCount: ids.length - visible.length }
+  ];
+}
+
+export { CATEGORICAL_PALETTE, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };
