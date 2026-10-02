@@ -1979,9 +1979,10 @@ function SearchSelect({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  const optionsKey = options.map((o) => o.value).join("\0");
   useEffect(() => {
     setActiveIndex(-1);
-  }, [options]);
+  }, [optionsKey]);
   useEffect(() => {
     if (activeIndex < 0 || !listRef.current) return;
     const el = listRef.current.querySelector(
@@ -2064,9 +2065,11 @@ function SearchSelect({
           break;
         }
         case "Enter": {
-          if (open && activeIndex >= 0 && options[activeIndex]) {
+          if (open) {
             e.preventDefault();
-            handleSelect(options[activeIndex].value);
+            if (activeIndex >= 0 && options[activeIndex]) {
+              handleSelect(options[activeIndex].value);
+            }
           }
           break;
         }

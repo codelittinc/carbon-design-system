@@ -296,6 +296,53 @@ describe("SearchSelect", () => {
       expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
     });
 
+    it("Enter in the open list never submits a surrounding form", () => {
+      // jsdom does no implicit submission, so the contract is checked where it
+      // lives: the keydown's default is prevented (fireEvent returns false),
+      // which is what stops a browser submitting the form.
+      const onChange = vi.fn();
+      render(
+        <form>
+          <Harness autoFocus onChange={onChange} />
+        </form>,
+      );
+      const input = screen.getByPlaceholderText("Search...");
+      expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false);
+      expect(onChange).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false);
+      expect(onChange).toHaveBeenCalledWith("a");
+    });
+
+    it("Enter on the closed trigger is left to the button", () => {
+      render(<Harness />);
+      expect(fireEvent.keyDown(getTrigger(), { key: "Enter" })).toBe(true);
+    });
+
+    it("keeps the active option when the parent re-renders the same options as a new array", () => {
+      const onChange = vi.fn();
+      const { rerender } = render(<Harness autoFocus onChange={onChange} options={[...OPTIONS]} />);
+      const input = screen.getByPlaceholderText("Search...");
+      fireEvent.keyDown(input, { key: "ArrowDown" }); // Apple
+      fireEvent.keyDown(input, { key: "ArrowDown" }); // Banana
+
+      rerender(<Harness autoFocus onChange={onChange} options={OPTIONS.map((o) => ({ ...o }))} />);
+      fireEvent.keyDown(screen.getByPlaceholderText("Search..."), { key: "Enter" });
+      expect(onChange).toHaveBeenCalledWith("b");
+    });
+
+    it("drops the active option when the options themselves change", () => {
+      const onChange = vi.fn();
+      const { rerender } = render(<Harness autoFocus onChange={onChange} />);
+      const input = screen.getByPlaceholderText("Search...");
+      fireEvent.keyDown(input, { key: "ArrowDown" }); // Apple
+
+      rerender(<Harness autoFocus onChange={onChange} options={[{ value: "c", label: "Cherry" }]} />);
+      fireEvent.keyDown(screen.getByPlaceholderText("Search..."), { key: "Enter" });
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("Escape closes the list and returns focus to the trigger", () => {
       render(<Harness autoFocus />);
       fireEvent.keyDown(screen.getByPlaceholderText("Search..."), { key: "Escape" });

@@ -8,6 +8,26 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.15.5] - 2026-10-02
+
+### `SearchSelect`: Enter picks an option, and never submits the form around it
+
+Inside a `<form>`, arrowing to an option and pressing Enter could submit the
+form instead of choosing the option. Two things combined:
+
+- **Enter only stopped the form's implicit submit while an option was
+  active.** With the list open and nothing active, Enter fell through and sent
+  the form. While the list is open, Enter now always belongs to it: it picks the
+  active option, or does nothing.
+- **The active option was cleared whenever `options` changed identity**, even
+  when the rows were the same. A consumer that builds its options inline, or
+  filters on the debounced `onSearch`, hands over a new array a moment after the
+  user has arrowed. That cleared the active option just before Enter, so there
+  was nothing to pick. It now resets only when the option values change.
+
+Enter on the closed trigger is unchanged: it is a `type="button"` and opens the
+list. No API change.
+
 ## [1.15.4] - 2026-10-01
 
 ### `Button`: a label made of text and expressions keeps its spaces
