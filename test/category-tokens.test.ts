@@ -30,4 +30,14 @@ describe("category tokens", () => {
       expect(themeCss.split(name)).toHaveLength(2);
     }
   });
+
+  it("are declared in an `@theme static` block, so Tailwind emits all of them", () => {
+    // getCategoricalColor builds the names at runtime, which no source scan sees;
+    // a plain @theme drops every one no class mentions.
+    const staticBlock = themeCss.slice(themeCss.indexOf("@theme static {"));
+    expect(themeCss).toContain("@theme static {");
+    const body = staticBlock.slice(0, staticBlock.indexOf("\n}"));
+    for (let i = 1; i <= CATEGORICAL_PALETTE.length; i++) expect(body).toContain(`--color-category-${i}:`);
+    expect(body).toContain("--color-category-overflow:");
+  });
 });

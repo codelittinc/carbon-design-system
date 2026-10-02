@@ -15,6 +15,7 @@ import * as ProgressPrimitive from '@radix-ui/react-progress';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
+import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import { RowData, ColumnDef, SortingState } from '@tanstack/react-table';
 export { ColumnDef, SortingState } from '@tanstack/react-table';
@@ -238,25 +239,26 @@ interface SegmentedControlProps {
  */
 declare function SegmentedControl({ options, value, onChange, name, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, "aria-describedby": ariaDescribedBy, "aria-required": ariaRequired, error, disabled, size, className, }: SegmentedControlProps): react.JSX.Element;
 
-interface SegmentedChipSegment {
+interface CategoryChipSegment {
     /** Any CSS color. Usually from `getCategoricalColor` / `getCategoricalSegments`. */
     color: string;
 }
-interface SegmentedChipProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
+interface CategoryChipProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
     /** At least one. Each is drawn at an equal width, left to right. */
-    segments: SegmentedChipSegment[];
+    segments: CategoryChipSegment[];
     label: React.ReactNode;
 }
 /**
- * A compact clickable chip whose fill is split into equal color bands — one
- * per category it belongs to, such as a calendar entry for someone on several
+ * A compact clickable chip filled with the colors of the categories it belongs
+ * to — one equal band each, such as a calendar entry for someone on several
  * projects. The label is white, so the colors must be fills that hold white
  * text: the categorical palette is made for this.
  *
- * The bands are decoration. Give the chip an `aria-label` that names what the
- * colors stand for when the label alone does not.
+ * A `Button` underneath, so focus, disabled and `type="button"` behave like
+ * every other button. The bands are decoration: give the chip an `aria-label`
+ * that names what the colors stand for when the label alone does not.
  */
-declare const SegmentedChip: react.ForwardRefExoticComponent<SegmentedChipProps & react.RefAttributes<HTMLButtonElement>>;
+declare const CategoryChip: react.ForwardRefExoticComponent<CategoryChipProps & react.RefAttributes<HTMLButtonElement>>;
 
 declare const sizeClasses: {
     readonly sm: "h-3 w-3";
@@ -279,19 +281,9 @@ interface StatusIndicatorProps {
  * A colored dot that stands for a status. The meaning is always carried by
  * `label` — as text with `showLabel`, otherwise as the dot's accessible name —
  * never by the color alone. The caller owns the status → color mapping; pair
- * it with `StatusLegend` to explain the colors once for a whole list.
+ * it with `ChartLegend` to explain the colors once for a whole list.
  */
 declare function StatusIndicator({ color, label, showLabel, size, className, }: StatusIndicatorProps): ReactElement;
-interface StatusLegendItem {
-    color: string;
-    label: string;
-}
-interface StatusLegendProps {
-    items: StatusLegendItem[];
-    className?: string;
-}
-/** A key for the colors `StatusIndicator` uses: one dot and label per status. */
-declare function StatusLegend({ items, className }: StatusLegendProps): ReactElement;
 
 interface CheckboxGroupOption {
     value: string;
@@ -318,7 +310,8 @@ interface CheckboxGroupProps {
 /**
  * A set of labelled checkboxes for choosing any number of a few options, all
  * visible — a filter's "Active / Inactive", a user's roles. Use `MultiSelect`
- * when there are too many options to show at once.
+ * when there are too many options to show at once. `MultiStatusFilter` puts a
+ * vertical one inside a popover.
  */
 declare function CheckboxGroup({ value, onChange, options, name, orientation, disabled, className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, }: CheckboxGroupProps): ReactElement;
 
@@ -559,31 +552,25 @@ declare const Tooltip: react.FC<TooltipPrimitive.TooltipProps>;
 declare const TooltipTrigger: react.ForwardRefExoticComponent<TooltipPrimitive.TooltipTriggerProps & react.RefAttributes<HTMLButtonElement>>;
 declare const TooltipContent: react.ForwardRefExoticComponent<Omit<TooltipPrimitive.TooltipContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
-interface PopoverProps extends React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root> {
-    /**
-     * Opens on hover as a preview, and a click on the trigger pins it open until
-     * a second click, Escape or a click outside. A hover preview does not take
-     * focus. Without this, the popover opens and closes on click, as before.
-     */
-    openOnHover?: boolean;
-    /** Hover delay before opening. Defaults to 150ms. */
-    hoverOpenDelayMs?: number;
-    /** Delay before a hover preview closes once the pointer leaves. Defaults to 120ms. */
-    hoverCloseDelayMs?: number;
-}
-/**
- * Radix's popover root. Pass `open` / `onOpenChange` to control it, or
- * `openOnHover` for a hover preview that a click pins.
- */
-declare function Popover({ openOnHover, hoverOpenDelayMs, hoverCloseDelayMs, ...props }: PopoverProps): ReactElement;
-/**
- * Radix's trigger. Under `openOnHover` it also carries the hover handlers, and
- * its click pins instead of toggling. Use `asChild` to make your own button —
- * a `SegmentedChip`, say — the trigger.
- */
-declare const PopoverTrigger: react.ForwardRefExoticComponent<Omit<PopoverPrimitive.PopoverTriggerProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
+declare const Popover: react.FC<PopoverPrimitive.PopoverProps>;
+declare const PopoverTrigger: react.ForwardRefExoticComponent<PopoverPrimitive.PopoverTriggerProps & react.RefAttributes<HTMLButtonElement>>;
 declare const PopoverAnchor: react.ForwardRefExoticComponent<PopoverPrimitive.PopoverAnchorProps & react.RefAttributes<HTMLDivElement>>;
 declare const PopoverContent: react.ForwardRefExoticComponent<Omit<PopoverPrimitive.PopoverContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
+
+type HoverCardProps = React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Root>;
+/**
+ * A preview that opens while the pointer rests on its trigger, or while the
+ * trigger has keyboard focus — a person's details behind a calendar chip. A
+ * click on the trigger PINS it open until a second click, Escape or a click
+ * outside, which is also how a touch screen opens it.
+ *
+ * Radix's hover card underneath. Use `Popover` for content that only opens on
+ * click, and `Tooltip` for a line of text naming a control.
+ */
+declare function HoverCard({ open: controlledOpen, defaultOpen, onOpenChange, openDelay, closeDelay, ...props }: HoverCardProps): ReactElement;
+/** The trigger. Pass `asChild` to make your own `Button` or `CategoryChip` it. */
+declare const HoverCardTrigger: react.ForwardRefExoticComponent<Omit<HoverCardPrimitive.HoverCardTriggerProps & react.RefAttributes<HTMLAnchorElement>, "ref"> & react.RefAttributes<HTMLAnchorElement>>;
+declare const HoverCardContent: react.ForwardRefExoticComponent<Omit<HoverCardPrimitive.HoverCardContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
 declare const ScrollArea: react.ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
@@ -636,6 +623,22 @@ interface PageHeaderProps {
     className?: string;
 }
 declare function PageHeader({ title, description, actions, className }: PageHeaderProps): react.JSX.Element;
+
+/**
+ * The table elements, styled once. `DataTable` is built from these; use them
+ * directly for a table `DataTable` does not fit — an editable grid, a short
+ * summary inside a `Card`. Every part takes `className`, merged last, so a
+ * cell's padding or alignment can be overridden in place.
+ */
+declare const Table: react.ForwardRefExoticComponent<react.TableHTMLAttributes<HTMLTableElement> & react.RefAttributes<HTMLTableElement>>;
+/** The heading rows. Their bottom border is the full `border` token, not the subtle one. */
+declare const TableHeader: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+declare const TableBody: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+/** Totals. A heavier rule above sets them off from the body. */
+declare const TableFooter: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+declare const TableRow: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableRowElement> & react.RefAttributes<HTMLTableRowElement>>;
+declare const TableHead: react.ForwardRefExoticComponent<react.ThHTMLAttributes<HTMLTableCellElement> & react.RefAttributes<HTMLTableCellElement>>;
+declare const TableCell: react.ForwardRefExoticComponent<react.TdHTMLAttributes<HTMLTableCellElement> & react.RefAttributes<HTMLTableCellElement>>;
 
 /**
  * Per-column presentation, set on a column's `meta`:
@@ -1471,14 +1474,46 @@ declare function dateKey(date: CalendarDate): string;
  * the reader.
  */
 declare function weekdayOf(date: CalendarDate): number;
+/**
+ * Column headings for a calendar grid. Monday-first, like `weekdayOf` and
+ * `monthWeeks`: every grid in the package starts its week on Monday, and there
+ * is no option to change it.
+ */
+declare const WEEKDAY_LABELS: readonly ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Saturday or Sunday. */
+declare function isWeekend(date: CalendarDate): boolean;
 /** How many days that month has, leap years included. */
 declare function daysInMonth(year: number, month: number): number;
+/** The day `step` days away, rolling the month and year over in both directions. */
+declare function addDays(date: CalendarDate, step: number): CalendarDate;
+/** The Monday on or before `date`. */
+declare function startOfWeek(date: CalendarDate): CalendarDate;
+/**
+ * A month as the weeks a calendar grid draws, Monday-first. Each week is seven
+ * cells; the days before the 1st and after the last are `null`, so the grid
+ * keeps its columns without showing the neighbouring months' days.
+ *
+ * This is the one grid layout in the package — `MonthCalendar`, `EventCalendar`
+ * and `TimesheetTable`'s month view all draw from it.
+ */
+declare function monthWeeks(month: YearMonth): (CalendarDate | null)[][];
 /** The month `step` months away, rolling the year over in both directions. */
 declare function shiftMonth(from: YearMonth, step: number): YearMonth;
 /** Negative if `a` is before `b`, positive after, zero for the same month. */
 declare function compareMonths(a: YearMonth, b: YearMonth): number;
 /** `"September 2026"`, for a calendar heading. */
 declare function monthLabel({ year, month }: YearMonth): string;
+/**
+ * A `"2026-09-03"` key back as a date, or null if it is not a real day. A full
+ * ISO instant (`"2026-09-03T00:00:00.000Z"`) is read by its date part.
+ */
+declare function parseDateKey(key: string): CalendarDate | null;
+/**
+ * A date written out with `Intl` options — `{ weekday: "short", month: "short",
+ * day: "numeric" }` gives "Mon, Sep 14". Pinned to UTC, like everything here,
+ * so the reader's zone cannot move the day.
+ */
+declare function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFormatOptions): string;
 /** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
 declare function monthOfKey(key: string): YearMonth | null;
 /** Today, in the READER's zone — the only sensible place to open a picker. */
@@ -1536,9 +1571,9 @@ interface MonthCalendarProps {
 declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, unavailableLabel, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): react.JSX.Element;
 
 interface EventCalendarProps<T> {
-    /** The month shown, as "YYYY-MM". Controlled. */
-    month: string;
-    onMonthChange: (month: string) => void;
+    /** The month shown. Controlled, like `MonthCalendar`'s. */
+    month: YearMonth;
+    onMonthChange: (month: YearMonth) => void;
     /** Items keyed by "YYYY-MM-DD", each list already in display order. */
     itemsByDate: ReadonlyMap<string, T[]>;
     renderItem: (item: T, isoDate: string) => ReactNode;
@@ -1560,12 +1595,13 @@ interface EventCalendarProps<T> {
 }
 /**
  * A month of days with items in them — who is off, what is due — drawn as a
- * Sunday-first grid. Each day shows up to `maxVisibleItems`, then a "+N more"
+ * Monday-first grid. Each day shows up to `maxVisibleItems`, then a "+N more"
  * button that lists all of that day's items in a popover. Items are whatever
- * `renderItem` draws, usually a `SegmentedChip` or a `Badge`.
+ * `renderItem` draws, usually a `CategoryChip` or a `Badge`.
  *
- * The month is computed in UTC, so the grid does not depend on the reader's
- * zone. Use `MonthCalendar` instead to PICK a day.
+ * The grid is `monthWeeks` from `lib/calendar`, the same layout `MonthCalendar`
+ * draws, so it does not depend on the reader's zone. Use `MonthCalendar`
+ * instead to PICK a day.
  */
 declare function EventCalendar<T>({ month, onMonthChange, itemsByDate, renderItem, itemKey, maxVisibleItems, loading, overflowPopoverTitle, overflowAriaLabel, ariaLabel, className, }: EventCalendarProps<T>): ReactElement;
 
@@ -1833,4 +1869,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, type PopoverProps, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedChip, type SegmentedChipProps, type SegmentedChipSegment, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, StatusLegend, type StatusLegendItem, type StatusLegendProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };

@@ -151,6 +151,49 @@
   /* Gridlines sit below border-subtle — they must recede behind the data. */
   --color-chart-grid: #232329;
 
+  /* ── Typography ── */
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── Spacing scale (tighter for data density) ── */
+  --spacing-px: 1px;
+  --spacing-0: 0px;
+  --spacing-0\.5: 2px;
+  --spacing-1: 4px;
+  --spacing-1\.5: 6px;
+  --spacing-2: 8px;
+  --spacing-2\.5: 10px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+
+  /* ── Radii ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ── Sidebar ── */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 56px;
+  --header-height: 48px;
+}
+
+/*
+ * `static`, unlike the block above: Tailwind only emits the @theme variables a
+ * class in the scanned source uses, and `getCategoricalColor` builds these names
+ * at runtime (`var(--color-category-${n})`), so no scan can see them. Without
+ * `static` every fill no utility happens to mention computes to nothing, in the
+ * Storybook and in every consuming app.
+ */
+@theme static {
   /*
    * ── Category fills (id → color identity) ──
    * Eleven fills for giving an unbounded set of entities (projects, teams…) a
@@ -189,40 +232,6 @@
   --color-category-overflow: #3f3f46;
   /* The text on any category fill. */
   --color-category-foreground: #ffffff;
-
-  /* ── Typography ── */
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-body: "DM Sans", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-
-  /* ── Spacing scale (tighter for data density) ── */
-  --spacing-px: 1px;
-  --spacing-0: 0px;
-  --spacing-0\.5: 2px;
-  --spacing-1: 4px;
-  --spacing-1\.5: 6px;
-  --spacing-2: 8px;
-  --spacing-2\.5: 10px;
-  --spacing-3: 12px;
-  --spacing-4: 16px;
-  --spacing-5: 20px;
-  --spacing-6: 24px;
-  --spacing-8: 32px;
-  --spacing-10: 40px;
-  --spacing-12: 48px;
-  --spacing-16: 64px;
-  --spacing-20: 80px;
-
-  /* ── Radii ── */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-
-  /* ── Sidebar ── */
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 56px;
-  --header-height: 48px;
 }
 
 /*

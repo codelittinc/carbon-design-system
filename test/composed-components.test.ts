@@ -14,10 +14,14 @@ import { describe, expect, it } from "vitest";
 const COMPOSED = [
   "alert",
   "card",
+  "category-chip",
   "checkbox-group",
+  "data-table",
   "event-calendar",
+  "hover-card",
   "label",
   "multi-select",
+  "multi-status-filter",
   "pagination",
   "segmented-control",
   "spinner",
@@ -27,7 +31,9 @@ const COMPOSED = [
   "timesheet-table",
 ];
 
-const RAW_CONTROL = /<(button|select|textarea|input)\b(?![^>]*type="hidden")/g;
+// `table` too: tables are built from `Table` and its parts (table.tsx), the one
+// place the raw elements are styled.
+const RAW_CONTROL = /<(button|select|textarea|input|table|thead|tbody|tfoot|tr|th|td)\b(?![^>]*type="hidden")/g;
 
 describe("components composed from design-system controls", () => {
   it.each(COMPOSED)("%s renders no raw control", (name) => {

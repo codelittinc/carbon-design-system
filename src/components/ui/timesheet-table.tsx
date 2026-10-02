@@ -4,19 +4,26 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
+  WEEKDAY_LABELS,
   addDays,
+  dateKey,
+  daysInMonth,
+  formatCalendarDate,
+  monthLabel,
+  monthOfKey,
+  parseDateKey,
+  shiftMonth,
+  startOfWeek,
+  todayIn,
+  type CalendarDate,
+  type YearMonth,
+} from "@/lib/calendar";
+import {
   cellKey,
   contractCoversDay,
   createDefaultApi,
-  formatMonthYear,
-  formatShortDate,
-  formatWeekRange,
-  getFirstOfMonth,
-  getLastOfMonth,
-  getMonday,
+  datePart,
   parseCellKey,
-  parseUTCDate,
-  toISODate,
   type TimesheetApi,
   type TimesheetContract,
   type TimesheetEntry,
@@ -32,6 +39,7 @@ import { Input } from "./input";
 import { PageHeader } from "./page-header";
 import { SegmentedControl } from "./segmented-control";
 import { Spinner } from "./spinner";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 import { toast } from "./toast";
 import {
   ContractName,
@@ -79,7 +87,6 @@ export interface TimesheetTableProps {
   className?: string;
 }
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const VIEW_OPTIONS = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
@@ -91,6 +98,16 @@ const AUTOSAVE_DELAY_MS = 15000;
 const REVERT_WINDOW_MS = 5000;
 
 const headClass = "px-2 py-3 text-xs font-medium uppercase tracking-wider";
+
+/** "Sep 14 – Sep 20, 2026". */
+function weekRangeLabel(monday: CalendarDate): string {
+  const sunday = addDays(monday, 6);
+  return `${formatCalendarDate(monday, { month: "short", day: "numeric" })} – ${formatCalendarDate(sunday, { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
+function monthOf(date: CalendarDate): YearMonth {
+  return { year: date.year, month: date.month };
+}
 
 function HoursSummary({
   loggedHours,
@@ -179,20 +196,12 @@ export function TimesheetTable({
   }, [apiOverrides, baseUrl, apiHeaders]);
 
   const [viewMode, setViewMode] = useState<TimesheetViewMode>(defaultView);
-  const [weekStart, setWeekStart] = useState<Date>(() => {
-    if (initialWeek) {
-      const parsed = parseUTCDate(initialWeek);
-      if (!isNaN(parsed.getTime())) return getMonday(parsed);
-    }
-    return getMonday(new Date());
-  });
-  const [monthDate, setMonthDate] = useState<Date>(() => {
-    if (initialMonth) {
-      const parsed = parseUTCDate(initialMonth + "-01");
-      if (!isNaN(parsed.getTime())) return getFirstOfMonth(parsed);
-    }
-    return getFirstOfMonth(new Date());
-  });
+  const [weekStart, setWeekStart] = useState<CalendarDate>(() =>
+    startOfWeek((initialWeek && parseDateKey(initialWeek)) || todayIn()),
+  );
+  const [month, setMonth] = useState<YearMonth>(
+    () => (initialMonth && monthOfKey(`${initialMonth}-01`)) || monthOf(todayIn()),
+  );
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [gridData, setGridData] = useState<TimesheetGridData>({});
   const [originalData, setOriginalData] = useState<TimesheetGridData>({});
@@ -208,17 +217,20 @@ export function TimesheetTable({
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revertHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const weekDates = Array.from({ length: 7 }, (_, i) => toISODate(addDays(weekStart, i)));
-  const weekEnd = addDays(weekStart, 6);
-  const today = toISODate(new Date());
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDates = weekDays.map(dateKey);
+  const today = dateKey(todayIn());
 
-  const rangeStart = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
-  const rangeEnd = viewMode === "weekly" ? weekEnd : getLastOfMonth(monthDate);
+  // The period on screen, as "YYYY-MM-DD" keys, both ends inclusive.
+  const rangeStart = viewMode === "weekly" ? weekDates[0] : dateKey({ ...month, day: 1 });
+  const rangeEnd =
+    viewMode === "weekly"
+      ? weekDates[6]
+      : dateKey({ ...month, day: daysInMonth(month.year, month.month) });
 
-  const activeContracts = contracts.filter((c) => {
-    if (!c.projectActive) return false;
-    return new Date(c.startDate) <= rangeEnd && new Date(c.endDate) >= rangeStart;
-  });
+  const activeContracts = contracts.filter(
+    (c) => c.projectActive && datePart(c.startDate) <= rangeEnd && datePart(c.endDate) >= rangeStart,
+  );
 
   const selectedDayContracts = selectedDay
     ? contracts.filter((c) => c.projectActive && contractCoversDay(c, selectedDay))
@@ -237,10 +249,8 @@ export function TimesheetTable({
     setLoading(true);
     setLoadError(false);
     try {
-      const start = viewMode === "weekly" ? weekStart : getFirstOfMonth(monthDate);
-      const end = viewMode === "weekly" ? addDays(weekStart, 6) : getLastOfMonth(monthDate);
-      const startDate = toISODate(start);
-      const endDate = toISODate(end);
+      const startDate = rangeStart;
+      const endDate = rangeEnd;
 
       const [entriesRes, expectedRes] = await Promise.all([
         api.fetchTimeEntries({ userId, startDate, endDate }),
@@ -267,7 +277,7 @@ export function TimesheetTable({
     } finally {
       setLoading(false);
     }
-  }, [viewMode, weekStart, monthDate, userId, api]);
+  }, [rangeStart, rangeEnd, userId, api]);
 
   useEffect(() => {
     fetchEntries();
@@ -278,10 +288,10 @@ export function TimesheetTable({
     if (!onNavigate) return;
     const params: Record<string, string> =
       viewMode === "monthly"
-        ? { view: "monthly", month: toISODate(monthDate).slice(0, 7) }
-        : { view: "weekly", week: toISODate(weekStart) };
+        ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) }
+        : { view: "weekly", week: dateKey(weekStart) };
     onNavigate(params);
-  }, [viewMode, weekStart, monthDate, onNavigate]);
+  }, [viewMode, weekStart, month, onNavigate]);
 
   // Warn before leaving with unsaved changes.
   useEffect(() => {
@@ -412,16 +422,13 @@ export function TimesheetTable({
     }, 0);
   };
 
-  const shiftMonth = (step: number) => (prev: Date) =>
-    new Date(Date.UTC(prev.getUTCFullYear(), prev.getUTCMonth() + step, 1));
-
   const goToPrev = async () => {
     await flushPendingAutoSave();
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, -7));
     } else {
       setSelectedDay(null);
-      setMonthDate(shiftMonth(-1));
+      setMonth((prev) => shiftMonth(prev, -1));
     }
   };
   const goToNext = async () => {
@@ -430,16 +437,16 @@ export function TimesheetTable({
       setWeekStart((prev) => addDays(prev, 7));
     } else {
       setSelectedDay(null);
-      setMonthDate(shiftMonth(1));
+      setMonth((prev) => shiftMonth(prev, 1));
     }
   };
   const goToToday = async () => {
     await flushPendingAutoSave();
     if (viewMode === "weekly") {
-      setWeekStart(getMonday(new Date()));
+      setWeekStart(startOfWeek(todayIn()));
     } else {
       setSelectedDay(null);
-      setMonthDate(getFirstOfMonth(new Date()));
+      setMonth(monthOf(todayIn()));
     }
   };
 
@@ -447,10 +454,10 @@ export function TimesheetTable({
     if (mode === viewMode) return;
     await flushPendingAutoSave();
     if (mode === "monthly") {
-      setMonthDate(getFirstOfMonth(weekStart));
+      setMonth(monthOf(weekStart));
       setSelectedDay(null);
     } else {
-      setWeekStart(getMonday(monthDate));
+      setWeekStart(startOfWeek({ ...month, day: 1 }));
     }
     setViewMode(mode);
     onViewChange?.(mode);
@@ -533,7 +540,7 @@ export function TimesheetTable({
               Today
             </Button>
             <span className="text-sm font-medium text-text-primary">
-              {viewMode === "weekly" ? formatWeekRange(weekStart) : formatMonthYear(monthDate)}
+              {viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month)}
             </span>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={goToNext}>
@@ -562,14 +569,14 @@ export function TimesheetTable({
           {viewMode === "weekly" ? (
             <Card padding="sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className={cn(headClass, "min-w-[200px] px-3 text-left text-text-muted")}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={cn(headClass, "min-w-[200px] px-3 text-left text-text-muted")}>
                         Contract
-                      </th>
+                      </TableHead>
                       {weekDates.map((date, i) => (
-                        <th
+                        <TableHead
                           key={date}
                           className={cn(
                             headClass,
@@ -581,41 +588,41 @@ export function TimesheetTable({
                                 : "text-text-muted",
                           )}
                         >
-                          <div>{DAY_LABELS[i]}</div>
+                          <div>{WEEKDAY_LABELS[i]}</div>
                           <div className="mt-0.5 text-[10px] font-normal normal-case">
-                            {formatShortDate(addDays(weekStart, i))}
+                            {formatCalendarDate(weekDays[i], { month: "short", day: "numeric" })}
                           </div>
-                        </th>
+                        </TableHead>
                       ))}
-                      <th className={cn(headClass, "w-[70px] text-center text-text-muted")}>
+                      <TableHead className={cn(headClass, "w-[70px] text-center text-text-muted")}>
                         Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {activeContracts.length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="py-8 text-center text-text-muted">
+                      <TableRow className="border-0">
+                        <TableCell colSpan={9} className="py-8 text-center text-text-muted">
                           No active contracts for this week.
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                     {activeContracts.map((contract, contractIdx) => {
                       const rowTotal = getRowTotal(contract.id);
                       return (
-                        <tr
+                        <TableRow
                           key={contract.id}
-                          className="border-b border-border-subtle hover:bg-table-row-hover"
+                          className="hover:bg-table-row-hover"
                         >
-                          <td className="px-3 py-2">
+                          <TableCell>
                             <ContractName contract={contract} />
-                          </td>
+                          </TableCell>
                           {weekDates.map((date, dayIdx) => {
                             const key = cellKey(contract.id, date);
                             const value = gridData[key];
                             const isOutside = !contractCoversDay(contract, date);
                             return (
-                              <td
+                              <TableCell
                                 key={date}
                                 className={cn("px-1 py-2", date === today && "bg-accent-muted")}
                               >
@@ -639,31 +646,31 @@ export function TimesheetTable({
                                     dayIdx >= 5 && !value && "bg-surface",
                                   )}
                                 />
-                              </td>
+                              </TableCell>
                             );
                           })}
-                          <td
+                          <TableCell
                             className={cn(
                               "px-2 py-2 text-center font-medium tabular-nums",
                               rowTotal > 0 ? "text-text-primary" : "text-text-faint",
                             )}
                           >
                             {rowTotal > 0 ? rowTotal : "–"}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-border">
-                      <td className="px-3 py-3 text-xs font-medium uppercase text-text-muted">
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell className="px-3 py-3 text-xs font-medium uppercase text-text-muted">
                         Daily Total
-                      </td>
+                      </TableCell>
                       {weekDates.map((date) => {
                         const colTotal = getColumnTotal(date);
                         const isOver = colTotal > 24;
                         return (
-                          <td
+                          <TableCell
                             key={date}
                             className={cn(
                               "px-2 py-3 text-center font-semibold tabular-nums",
@@ -678,21 +685,21 @@ export function TimesheetTable({
                           >
                             {colTotal > 0 ? colTotal : "–"}
                             {isOver && " !"}
-                          </td>
+                          </TableCell>
                         );
                       })}
-                      <td className="px-2 py-3 text-center font-bold tabular-nums text-text-primary">
+                      <TableCell className="px-2 py-3 text-center font-bold tabular-nums text-text-primary">
                         {grandTotal > 0 ? grandTotal : "–"}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
               </div>
             </Card>
           ) : (
             <>
               <MonthlyCalendarGrid
-                monthDate={monthDate}
+                month={month}
                 gridData={gridData}
                 contracts={activeContracts}
                 timeOffs={timeOffs}
@@ -727,41 +734,33 @@ function TimeOffList({
   timeOffs: TimesheetTimeOff[];
   viewMode: TimesheetViewMode;
 }): ReactElement {
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    });
+  const fmt = (iso: string) => {
+    const date = parseDateKey(iso);
+    return date ? formatCalendarDate(date, { weekday: "short", month: "short", day: "numeric" }) : iso;
+  };
   return (
     <Card padding="sm">
       <h2 className="px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted">
         Time Off This {viewMode === "weekly" ? "Week" : "Month"}
       </h2>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
+      <Table>
+        <TableHeader>
+          <TableRow>
             {["Type", "From", "To"].map((h) => (
-              <th
-                key={h}
-                className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted"
-              >
-                {h}
-              </th>
+              <TableHead key={h}>{h}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {timeOffs.map((to) => (
-            <tr key={to.id} className="border-b border-border-subtle last:border-0">
-              <td className="px-3 py-2 text-text-primary">{to.type}</td>
-              <td className="px-3 py-2 text-text-secondary">{fmt(to.startsAt)}</td>
-              <td className="px-3 py-2 text-text-secondary">{fmt(to.endsAt)}</td>
-            </tr>
+            <TableRow key={to.id} className="last:border-0">
+              <TableCell className="text-text-primary">{to.type}</TableCell>
+              <TableCell className="text-text-secondary">{fmt(to.startsAt)}</TableCell>
+              <TableCell className="text-text-secondary">{fmt(to.endsAt)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </Card>
   );
 }

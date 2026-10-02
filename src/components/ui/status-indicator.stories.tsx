@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { StatusIndicator, StatusLegend } from "./status-indicator";
+import { ChartLegend } from "./chart";
+import { StatusIndicator } from "./status-indicator";
 
 /**
  * StatusIndicator is a colored dot for a status, named by its label. The app
- * owns which color means what; StatusLegend explains the mapping once.
+ * owns which color means what; `ChartLegend` explains the mapping once.
  */
 const meta: Meta<typeof StatusIndicator> = {
   title: "Components/Data Display/StatusIndicator",
@@ -40,6 +41,7 @@ export const AllStatuses: Story = {
   ),
 };
 
+/** The key for a list of indicators is the same `ChartLegend` the charts use. */
 export const Legend: Story = {
-  render: () => <StatusLegend items={STATUSES} />,
+  render: () => <ChartLegend items={STATUSES} />,
 };

@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef, isValidElement, useRef, useState, createContext, useContext, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId } from 'react';
+import { forwardRef, isValidElement, useRef, useState, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId } from 'react';
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Slice, Fragment as Fragment$1 } from '@tiptap/pm/model';
 import { clsx } from 'clsx';
@@ -691,159 +691,21 @@ var Label = forwardRef(
   )
 );
 Label.displayName = "Label";
-var HoverContext = createContext(null);
-var pinnedPopover = null;
-function Popover({
-  openOnHover = false,
-  hoverOpenDelayMs = 150,
-  hoverCloseDelayMs = 120,
-  ...props
-}) {
-  if (!openOnHover) return /* @__PURE__ */ jsx(PopoverPrimitive.Root, { ...props });
-  return /* @__PURE__ */ jsx(HoverPopover, { hoverOpenDelayMs, hoverCloseDelayMs, ...props });
-}
-function HoverPopover({
-  hoverOpenDelayMs,
-  hoverCloseDelayMs,
-  open: controlledOpen,
-  defaultOpen = false,
-  onOpenChange,
-  ...props
-}) {
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const open = controlledOpen ?? uncontrolledOpen;
-  const [pinned, setPinned] = useState(false);
-  const id = useRef(/* @__PURE__ */ Symbol("popover")).current;
-  const timer = useRef(null);
-  const clearTimer = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-  };
-  const setOpen = useCallback(
-    (next) => {
-      if (controlledOpen === void 0) setUncontrolledOpen(next);
-      onOpenChange?.(next);
-    },
-    [controlledOpen, onOpenChange]
-  );
-  const pin = (next) => {
-    setPinned(next);
-    if (next) pinnedPopover = id;
-    else if (pinnedPopover === id) pinnedPopover = null;
-  };
-  useEffect(() => {
-    if (!open && pinned) pin(false);
-  });
-  useEffect(
-    () => () => {
-      clearTimer();
-      if (pinnedPopover === id) pinnedPopover = null;
-    },
-    [id]
-  );
-  const controls = {
-    pinned,
-    onTriggerEnter: () => {
-      if (pinned || pinnedPopover && pinnedPopover !== id) return;
-      clearTimer();
-      timer.current = setTimeout(() => setOpen(true), hoverOpenDelayMs);
-    },
-    onLeave: () => {
-      clearTimer();
-      if (pinned || !open) return;
-      timer.current = setTimeout(() => setOpen(false), hoverCloseDelayMs);
-    },
-    onContentEnter: clearTimer,
-    onTriggerClick: () => {
-      clearTimer();
-      if (pinned) {
-        pin(false);
-        setOpen(false);
-      } else {
-        pin(true);
-        setOpen(true);
-      }
-    }
-  };
-  return /* @__PURE__ */ jsx(HoverContext.Provider, { value: controls, children: /* @__PURE__ */ jsx(
-    PopoverPrimitive.Root,
-    {
-      ...props,
-      open,
-      onOpenChange: (next) => {
-        if (!next) pin(false);
-        setOpen(next);
-      }
-    }
-  ) });
-}
-var PopoverTrigger = forwardRef(({ onClick, onPointerEnter, onPointerLeave, ...props }, ref) => {
-  const hover = useContext(HoverContext);
-  if (!hover) {
-    return /* @__PURE__ */ jsx(
-      PopoverPrimitive.Trigger,
-      {
-        ref,
-        onClick,
-        onPointerEnter,
-        onPointerLeave,
-        ...props
-      }
-    );
+var Popover = PopoverPrimitive.Root;
+var PopoverTrigger = PopoverPrimitive.Trigger;
+var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+  PopoverPrimitive.Content,
+  {
+    ref,
+    align,
+    sideOffset,
+    className: cn(
+      "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+      className
+    ),
+    ...props
   }
-  return /* @__PURE__ */ jsx(
-    PopoverPrimitive.Trigger,
-    {
-      ref,
-      ...props,
-      onClick: (e) => {
-        onClick?.(e);
-        if (e.defaultPrevented) return;
-        e.preventDefault();
-        hover.onTriggerClick();
-      },
-      onPointerEnter: (e) => {
-        onPointerEnter?.(e);
-        if (e.pointerType !== "touch") hover.onTriggerEnter();
-      },
-      onPointerLeave: (e) => {
-        onPointerLeave?.(e);
-        hover.onLeave();
-      }
-    }
-  );
-});
-PopoverTrigger.displayName = "PopoverTrigger";
-var PopoverContent = forwardRef(
-  ({ className, align = "center", sideOffset = 4, onOpenAutoFocus, onPointerEnter, onPointerLeave, ...props }, ref) => {
-    const hover = useContext(HoverContext);
-    return /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
-      PopoverPrimitive.Content,
-      {
-        ref,
-        align,
-        sideOffset,
-        onOpenAutoFocus: (e) => {
-          onOpenAutoFocus?.(e);
-          if (hover && !hover.pinned) e.preventDefault();
-        },
-        onPointerEnter: (e) => {
-          onPointerEnter?.(e);
-          hover?.onContentEnter();
-        },
-        onPointerLeave: (e) => {
-          onPointerLeave?.(e);
-          hover?.onLeave();
-        },
-        className: cn(
-          "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-          className
-        ),
-        ...props
-      }
-    ) });
-  }
-);
+) }));
 PopoverContent.displayName = "PopoverContent";
 function RichTextLinkPanel({
   editor,

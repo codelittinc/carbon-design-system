@@ -27,7 +27,7 @@ export const NEUTRAL_CATEGORICAL_COLOR = "var(--color-category-neutral)";
 /** Fill for the capped "+N more" segment. */
 export const OVERFLOW_SEGMENT_COLOR = "var(--color-category-overflow)";
 
-/** Maximum number of color segments drawn on a `SegmentedChip`. */
+/** Maximum number of color segments drawn on a `CategoryChip`. */
 export const MAX_CHIP_SEGMENTS = 4;
 
 /** The palette fill for an integer id. Cycles; negative ids are safe. */
@@ -43,7 +43,7 @@ export interface CategoricalSegment {
 }
 
 /**
- * Equal-width segments for a `SegmentedChip`, from ids the caller has already
+ * Equal-width segments for a `CategoryChip`, from ids the caller has already
  * put in display order.
  *
  * - no ids → one neutral segment

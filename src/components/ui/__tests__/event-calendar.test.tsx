@@ -25,7 +25,7 @@ function renderCalendar(props: Partial<React.ComponentProps<typeof EventCalendar
   const onMonthChange = vi.fn();
   render(
     <EventCalendar<Item>
-      month="2026-07"
+      month={{ year: 2026, month: 7 }}
       onMonthChange={onMonthChange}
       itemsByDate={ITEMS}
       renderItem={(item) => <span>{item.name}</span>}
@@ -37,16 +37,23 @@ function renderCalendar(props: Partial<React.ComponentProps<typeof EventCalendar
 }
 
 describe("EventCalendar", () => {
-  it("lays the month out Sunday-first in whole weeks", () => {
+  it("lays the month out Monday-first in whole weeks, blank outside the month", () => {
     renderCalendar();
     expect(screen.getByRole("heading", { name: "July 2026" })).toBeInTheDocument();
+    expect(screen.getAllByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/).map((el) => el.textContent)).toEqual([
+      "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
+    ]);
     const grid = screen.getByRole("grid", { name: "Calendar, July 2026" });
     const rows = within(grid).getAllByRole("row");
-    // 1 July 2026 is a Wednesday: 3 leading June days + 31 + 1 August day = 35.
+    // 1 July 2026 is a Wednesday: 2 blanks + 31 days + 2 blanks = 35.
     expect(rows).toHaveLength(5);
     const first = within(rows[0]).getAllByRole("gridcell");
-    expect(first[0]).toHaveAccessibleName("Sunday, June 28");
-    expect(first[3]).toHaveAccessibleName("Wednesday, July 1");
+    expect(first[0]).not.toHaveAccessibleName();
+    expect(first[0]).toBeEmptyDOMElement();
+    expect(first[2]).toHaveAccessibleName("Wednesday, July 1");
+    const last = within(rows[4]).getAllByRole("gridcell");
+    expect(last[4]).toHaveAccessibleName("Friday, July 31");
+    expect(last[5]).toBeEmptyDOMElement();
   });
 
   it("renders a day's items, folding the rest into +N more", () => {
@@ -74,17 +81,19 @@ describe("EventCalendar", () => {
   it("pages months and returns to the current one", () => {
     const { onMonthChange } = renderCalendar();
     fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
-    expect(onMonthChange).toHaveBeenLastCalledWith("2026-06");
+    expect(onMonthChange).toHaveBeenLastCalledWith({ year: 2026, month: 6 });
     fireEvent.click(screen.getByRole("button", { name: "Next month" }));
-    expect(onMonthChange).toHaveBeenLastCalledWith("2026-08");
+    expect(onMonthChange).toHaveBeenLastCalledWith({ year: 2026, month: 8 });
     fireEvent.click(screen.getByRole("button", { name: "Today" }));
-    expect(onMonthChange).toHaveBeenLastCalledWith(new Date().toISOString().slice(0, 7));
+    const now = new Date();
+    // Today in the reader's zone, as `todayIn` reads it.
+    expect(onMonthChange).toHaveBeenLastCalledWith({ year: now.getFullYear(), month: now.getMonth() + 1 });
   });
 
   it("rolls the year over", () => {
-    const { onMonthChange } = renderCalendar({ month: "2026-12" });
+    const { onMonthChange } = renderCalendar({ month: { year: 2026, month: 12 } });
     fireEvent.click(screen.getByRole("button", { name: "Next month" }));
-    expect(onMonthChange).toHaveBeenLastCalledWith("2027-01");
+    expect(onMonthChange).toHaveBeenLastCalledWith({ year: 2027, month: 1 });
   });
 
   it("disables navigation and shows a spinner while loading", () => {

@@ -38,9 +38,49 @@ export function weekdayOf(date: CalendarDate): number {
   return (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() + 6) % 7;
 }
 
+/**
+ * Column headings for a calendar grid. Monday-first, like `weekdayOf` and
+ * `monthWeeks`: every grid in the package starts its week on Monday, and there
+ * is no option to change it.
+ */
+export const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+/** Saturday or Sunday. */
+export function isWeekend(date: CalendarDate): boolean {
+  return weekdayOf(date) >= 5;
+}
+
 /** How many days that month has, leap years included. */
 export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** The day `step` days away, rolling the month and year over in both directions. */
+export function addDays(date: CalendarDate, step: number): CalendarDate {
+  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + step));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+
+/** The Monday on or before `date`. */
+export function startOfWeek(date: CalendarDate): CalendarDate {
+  return addDays(date, -weekdayOf(date));
+}
+
+/**
+ * A month as the weeks a calendar grid draws, Monday-first. Each week is seven
+ * cells; the days before the 1st and after the last are `null`, so the grid
+ * keeps its columns without showing the neighbouring months' days.
+ *
+ * This is the one grid layout in the package — `MonthCalendar`, `EventCalendar`
+ * and `TimesheetTable`'s month view all draw from it.
+ */
+export function monthWeeks(month: YearMonth): (CalendarDate | null)[][] {
+  const cells: (CalendarDate | null)[] = Array(weekdayOf({ ...month, day: 1 })).fill(null);
+  for (let day = 1; day <= daysInMonth(month.year, month.month); day++) {
+    cells.push({ ...month, day });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 
 /** The month `step` months away, rolling the year over in both directions. */
@@ -64,6 +104,31 @@ export function monthLabel({ year, month }: YearMonth): string {
     month: "long",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/**
+ * A `"2026-09-03"` key back as a date, or null if it is not a real day. A full
+ * ISO instant (`"2026-09-03T00:00:00.000Z"`) is read by its date part.
+ */
+export function parseDateKey(key: string): CalendarDate | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(key);
+  if (!match) return null;
+
+  const date = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  return date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.year, date.month)
+    ? date
+    : null;
+}
+
+/**
+ * A date written out with `Intl` options — `{ weekday: "short", month: "short",
+ * day: "numeric" }` gives "Mon, Sep 14". Pinned to UTC, like everything here,
+ * so the reader's zone cannot move the day.
+ */
+export function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(date.year, date.month - 1, date.day)),
+  );
 }
 
 /** The month a `"2026-09-03"` key belongs to, or null if it is not one. */

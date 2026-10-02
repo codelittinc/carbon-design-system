@@ -4,12 +4,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import {
+  WEEKDAY_LABELS,
   compareMonths,
   dateKey,
-  daysInMonth,
   monthLabel,
+  monthWeeks,
   shiftMonth,
-  weekdayOf,
   type YearMonth,
 } from "@/lib/calendar";
 
@@ -45,9 +45,6 @@ export interface MonthCalendarProps {
   "aria-label"?: string;
 }
 
-/** Monday-first, matching `weekdayOf`. */
-const WEEKDAY_INITIALS = ["M", "T", "W", "T", "F", "S", "S"];
-
 /**
  * A month grid for picking one day.
  *
@@ -78,8 +75,7 @@ export function MonthCalendar({
   className,
   "aria-label": ariaLabel = "Choose a day",
 }: MonthCalendarProps) {
-  const total = daysInMonth(month.year, month.month);
-  const leadingBlanks = weekdayOf({ ...month, day: 1 });
+  const cells = monthWeeks(month).flat();
 
   const canGoBack = compareMonths(month, min) > 0;
   const canGoForward = compareMonths(month, max) < 0;
@@ -111,23 +107,20 @@ export function MonthCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1">
-        {WEEKDAY_INITIALS.map((day, index) => (
+        {WEEKDAY_LABELS.map((label) => (
           <span
-            key={`${day}-${index}`}
+            key={label}
             aria-hidden="true"
             className="pb-1 text-center text-[10px] font-medium uppercase text-text-faint"
           >
-            {day}
+            {label[0]}
           </span>
         ))}
 
-        {Array.from({ length: leadingBlanks }, (_, i) => (
-          <span key={`blank-${i}`} aria-hidden="true" />
-        ))}
-
-        {Array.from({ length: total }, (_, i) => {
-          const day = i + 1;
-          const key = dateKey({ ...month, day });
+        {cells.map((cell, i) => {
+          if (!cell) return <span key={`blank-${i}`} aria-hidden="true" />;
+          const { day } = cell;
+          const key = dateKey(cell);
           const open = available ? available.has(key) : true;
           const isSelected = key === selected;
 
