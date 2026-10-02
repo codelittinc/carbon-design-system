@@ -47,15 +47,34 @@ const buttonVariants = cva(
  * folding both into one span would collapse it. Elements are passed through
  * untouched, so a consumer who already wraps their own text keeps exactly the DOM
  * they wrote.
+ *
+ * A RUN of adjacent strings and numbers becomes ONE span. JSX splits
+ * `Create {label} account` into three children, and giving each its own span
+ * makes each a flex item: the spaces at their edges are dropped, so the words sit
+ * a flex gap apart on screen and the accessible name reads "Createoperatingaccount".
  */
 function withTruncatableLabels(children: ReactNode): ReactNode {
-  return Children.map(children, (child) =>
-    typeof child === "string" || typeof child === "number" ? (
-      <span className="min-w-0 truncate">{child}</span>
-    ) : (
-      child
-    ),
-  );
+  const out: ReactNode[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    if (run.length === 0) return;
+    out.push(
+      <span key={`label-${out.length}`} className="min-w-0 truncate">
+        {run.join("")}
+      </span>,
+    );
+    run = [];
+  };
+  for (const child of Children.toArray(children)) {
+    if (typeof child === "string" || typeof child === "number") {
+      run.push(String(child));
+    } else {
+      flush();
+      out.push(child);
+    }
+  }
+  flush();
+  return out;
 }
 
 interface ButtonProps

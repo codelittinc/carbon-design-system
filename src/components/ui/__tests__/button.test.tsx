@@ -104,6 +104,36 @@ describe("Button", () => {
     expect(label.contains(icon)).toBe(false);
   });
 
+  it("keeps a label built from text and expressions in one span, spaces intact", () => {
+    // JSX splits this into three string children. One span each made each a flex
+    // item, which drops the spaces at their edges.
+    const purpose = "operating";
+    const count = 3;
+    render(
+      <Button>
+        <svg data-testid="icon" />
+        Create {purpose} account ({count})
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Create operating account (3)" });
+    const labels = button.querySelectorAll("span");
+    expect(labels).toHaveLength(1);
+    expect(labels[0]).toHaveTextContent("Create operating account (3)");
+    expect(labels[0]).toHaveClass("truncate");
+    expect(screen.getByTestId("icon").parentElement).toBe(button);
+  });
+
+  it("keeps text on either side of an element as separate labels", () => {
+    render(
+      <Button>
+        Before <svg data-testid="icon" /> after {1}
+      </Button>,
+    );
+    const button = screen.getByRole("button");
+    const labels = Array.from(button.querySelectorAll("span")).map((s) => s.textContent);
+    expect(labels).toEqual(["Before ", " after 1"]);
+  });
+
   it("passes elements through untouched, so a consumer keeps the DOM they wrote", () => {
     render(
       <Button>

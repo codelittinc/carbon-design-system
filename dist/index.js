@@ -495,10 +495,25 @@ var buttonVariants = cva(
   }
 );
 function withTruncatableLabels(children) {
-  return Children.map(
-    children,
-    (child) => typeof child === "string" || typeof child === "number" ? /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate", children: child }) : child
-  );
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (run.length === 0) return;
+    out.push(
+      /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate", children: run.join("") }, `label-${out.length}`)
+    );
+    run = [];
+  };
+  for (const child of Children.toArray(children)) {
+    if (typeof child === "string" || typeof child === "number") {
+      run.push(String(child));
+    } else {
+      flush();
+      out.push(child);
+    }
+  }
+  flush();
+  return out;
 }
 var Button = forwardRef(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
