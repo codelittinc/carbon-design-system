@@ -8,6 +8,28 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.16.0] - 2026-10-02
+
+### `ThemeProvider`: start from a stored theme, skip localStorage, hear changes
+
+For apps that save the light/dark choice themselves (e.g. on the user's
+account) and render it on the server. Three optional props, all
+backward-compatible; with none of them the provider behaves exactly as before.
+
+- **`initialTheme?: "light" | "dark" | "system"`** seeds the theme and applies
+  the class on mount. With `"light"` or `"dark"`, `ThemeToggle` draws its icon
+  on the first render, server included, instead of a blank placeholder until
+  mount. `"system"` follows the OS `prefers-color-scheme` once mounted (dark
+  when there is no preference). Changing the prop later has no effect; remount
+  the provider (e.g. with a `key`) to start again.
+- **`persist?: boolean`** (default `true`). `false` never reads or writes
+  localStorage.
+- **`onThemeChange?: (theme) => void`** is called with the new theme after
+  `setTheme` or `toggleTheme`, never on mount. Use it to save the choice.
+
+`useTheme()` also returns `resolved`: true when the theme is known from the
+first render. `ThemeProviderProps` is exported.
+
 ## [1.15.5] - 2026-10-02
 
 ### `SearchSelect`: Enter picks an option, and never submits the form around it
