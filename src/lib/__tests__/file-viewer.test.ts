@@ -23,6 +23,7 @@ describe("fileViewerKind", () => {
     ["text/plain", "notes.txt", "text"],
     ["image/png", "a.png", "image"],
     ["image/jpeg", "a.jpg", "image"],
+    ["image/jpg", "a.jpg", "image"],
     ["image/gif", "a.gif", "image"],
     ["image/bmp", "a.bmp", "image"],
     ["image/webp", "a.webp", "image"],

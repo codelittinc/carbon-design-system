@@ -539,28 +539,3 @@
     margin: 0 0 0.75rem 0;
   }
 }
-
-/*
- * ── FileViewer: Word documents laid out by docx-preview ──
- *
- * The one exception to the layering above. docx-preview injects its own
- * stylesheet, unlayered, with a gray backdrop and a heavy shadow, and an
- * unlayered rule beats every layered one, so these have to be unlayered too.
- * They are one class more specific than the library's, so they win without
- * !important. Scoped to the viewer's host, so they style nothing else.
- */
-
-.file-viewer-docx .docx-wrapper {
-  background: transparent;
-  padding: 1.5rem 1rem 0.5rem;
-  gap: 1rem;
-}
-
-.file-viewer-docx .docx-wrapper > section.docx {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  margin-bottom: 1rem;
-  /* Narrow screens: a Letter or A4 page shrinks instead of scrolling sideways. */
-  max-width: 100%;
-}

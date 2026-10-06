@@ -1875,7 +1875,7 @@ var TEXT_CHAR_CAP = 2e5;
 var DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 var CSV_TYPES = /* @__PURE__ */ new Set(["text/csv", "application/csv", "text/comma-separated-values"]);
 var CSV_BY_NAME_TYPES = /* @__PURE__ */ new Set(["application/vnd.ms-excel", "text/plain", "application/octet-stream", ""]);
-var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/gif", "image/bmp", "image/webp", "image/avif"]);
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/avif"]);
 var KIND_BY_EXTENSION = {
   pdf: "pdf",
   docx: "docx",
@@ -2015,14 +2015,18 @@ function TableEmptyRow({
 async function parseCsv(text) {
   const mod = await import('papaparse');
   const Papa = mod.default ?? mod;
-  const result = Papa.parse(text, {
+  const rows = [];
+  Papa.parse(text, {
     delimiter: "",
     delimitersToGuess: [",", ";", "	", "|"],
     skipEmptyLines: "greedy",
-    // The header, the cap, and one row more to know the file is longer.
-    preview: CSV_ROW_CAP + 2
+    step: (result, parser) => {
+      if (result.data.every((cell) => cell.trim() === "")) return;
+      rows.push(result.data);
+      if (rows.length > CSV_ROW_CAP + 1) parser.abort();
+    }
   });
-  return shapeCsvRows(result.data);
+  return shapeCsvRows(rows);
 }
 function CsvView({ table }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -2041,8 +2045,7 @@ function DocxView({
   onFetchFailed,
   onRenderFailed
 }) {
-  const bodyRef = useRef(null);
-  const styleRef = useRef(null);
+  const hostRef = useRef(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -2058,8 +2061,9 @@ function DocxView({
       }
       try {
         const { renderAsync } = await library;
-        if (cancelled || !bodyRef.current) return;
-        await renderAsync(blob, bodyRef.current, styleRef.current ?? void 0, {
+        if (cancelled || !hostRef.current) return;
+        const { body, style } = shadowContainers(hostRef.current);
+        await renderAsync(blob, body, style, {
           inWrapper: true,
           breakPages: true,
           // Pages may grow past their nominal height, so A4 read on Letter isn't clipped.
@@ -2072,11 +2076,14 @@ function DocxView({
           // An altChunk is document-supplied HTML that the library puts in a
           // same-origin iframe, which would run its script in the app's origin
           // the moment the viewer opens.
-          renderAltChunks: false
+          renderAltChunks: false,
+          // Embedded fonts become @font-face rules, which browsers ignore inside
+          // a shadow root; the document's fonts fall back to the named families.
+          ignoreFonts: true
         });
         if (cancelled) return;
-        if (styleRef.current) replaceSymbolFontBullets(styleRef.current);
-        if (bodyRef.current) neutraliseLinks(bodyRef.current);
+        replaceSymbolFontBullets(style);
+        neutraliseLinks(body);
         setReady(true);
       } catch {
         if (!cancelled) onRenderFailed();
@@ -2088,11 +2095,32 @@ function DocxView({
   }, [file]);
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     !ready && /* @__PURE__ */ jsx("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx(Spinner, { size: "lg", label: "Laying out document\u2026" }) }),
-    /* @__PURE__ */ jsxs("div", { className: "file-viewer-docx", hidden: !ready, children: [
-      /* @__PURE__ */ jsx("div", { ref: styleRef }),
-      /* @__PURE__ */ jsx("div", { ref: bodyRef })
-    ] })
+    /* @__PURE__ */ jsx("div", { ref: hostRef, className: "file-viewer-docx [contain:paint]", hidden: !ready })
   ] });
+}
+var PAGE_CSS = `
+.docx-wrapper {
+  background: transparent;
+  padding: 1.5rem 1rem 0.5rem;
+  gap: 1rem;
+}
+.docx-wrapper > section.docx {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  /* Narrow screens: a Letter or A4 page shrinks instead of scrolling sideways. */
+  max-width: 100%;
+}
+`;
+function shadowContainers(host) {
+  const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+  const page = document.createElement("style");
+  page.textContent = PAGE_CSS;
+  const style = document.createElement("div");
+  const body = document.createElement("div");
+  root.replaceChildren(style, page, body);
+  return { body, style };
 }
 function neutraliseLinks(container) {
   for (const anchor of container.querySelectorAll("a")) {
@@ -2289,6 +2317,7 @@ function FileViewerBody({ url, filename, contentType, loadFallback }) {
   const fallbackRef = useRef(loadFallback);
   fallbackRef.current = loadFallback;
   useEffect(() => {
+    setState({ step: "loading" });
     const controller = new AbortController();
     const { signal } = controller;
     const show = (next) => {

@@ -105,6 +105,8 @@ export function FileViewerBody({ url, filename, contentType, loadFallback }: Fil
   fallbackRef.current = loadFallback;
 
   useEffect(() => {
+    // A new file while open: the previous renderer must not show the new URL.
+    setState({ step: "loading" });
     const controller = new AbortController();
     const { signal } = controller;
     const show = (next: BodyState): void => {

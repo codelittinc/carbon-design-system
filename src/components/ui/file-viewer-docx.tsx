@@ -10,7 +10,12 @@ import { Spinner } from "./spinner";
  * pulls in a zip reader, so it is imported on demand; nothing ships until
  * somebody opens a `.docx`. Internal to `FileViewer`, not exported.
  *
- * The page styling is `.file-viewer-docx` in theme.css.
+ * The document renders inside a shadow root. docx-preview copies text from the
+ * file into its stylesheet unescaped (list markers, font names), so a crafted
+ * `.docx` can close a rule and write its own: in the page, those rules would
+ * restyle the whole app while the viewer is open. In a shadow root they reach
+ * the document only, and the `contain: paint` host clips anything positioned
+ * to escape it. The page styling travels in with the document as PAGE_CSS.
  */
 export function DocxView({
   file,
@@ -23,8 +28,7 @@ export function DocxView({
   /** The chunk did not load, or the bytes are not a document it can lay out. */
   onRenderFailed: () => void;
 }): ReactElement {
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const styleRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -41,8 +45,9 @@ export function DocxView({
       }
       try {
         const { renderAsync } = await library;
-        if (cancelled || !bodyRef.current) return;
-        await renderAsync(blob, bodyRef.current, styleRef.current ?? undefined, {
+        if (cancelled || !hostRef.current) return;
+        const { body, style } = shadowContainers(hostRef.current);
+        await renderAsync(blob, body, style, {
           inWrapper: true,
           breakPages: true,
           // Pages may grow past their nominal height, so A4 read on Letter isn't clipped.
@@ -56,10 +61,13 @@ export function DocxView({
           // same-origin iframe, which would run its script in the app's origin
           // the moment the viewer opens.
           renderAltChunks: false,
+          // Embedded fonts become @font-face rules, which browsers ignore inside
+          // a shadow root; the document's fonts fall back to the named families.
+          ignoreFonts: true,
         });
         if (cancelled) return;
-        if (styleRef.current) replaceSymbolFontBullets(styleRef.current);
-        if (bodyRef.current) neutraliseLinks(bodyRef.current);
+        replaceSymbolFontBullets(style);
+        neutraliseLinks(body);
         setReady(true);
       } catch {
         if (!cancelled) onRenderFailed();
@@ -80,12 +88,42 @@ export function DocxView({
           <Spinner size="lg" label="Laying out document…" />
         </div>
       )}
-      <div className="file-viewer-docx" hidden={!ready}>
-        <div ref={styleRef} />
-        <div ref={bodyRef} />
-      </div>
+      {/* The shadow root's host: `contain: paint` clips anything the document positions. */}
+      <div ref={hostRef} className="file-viewer-docx [contain:paint]" hidden={!ready} />
     </>
   );
+}
+
+/**
+ * Page styling inside the shadow root; theme tokens inherit across it. It sits
+ * after the container docx-preview writes its stylesheet into, so at equal
+ * specificity it wins over the library's gray backdrop and heavy shadow.
+ */
+const PAGE_CSS = `
+.docx-wrapper {
+  background: transparent;
+  padding: 1.5rem 1rem 0.5rem;
+  gap: 1rem;
+}
+.docx-wrapper > section.docx {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  /* Narrow screens: a Letter or A4 page shrinks instead of scrolling sideways. */
+  max-width: 100%;
+}
+`;
+
+/** Fresh containers for one render, in the host's shadow root. */
+function shadowContainers(host: HTMLElement): { body: HTMLElement; style: HTMLElement } {
+  const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+  const page = document.createElement("style");
+  page.textContent = PAGE_CSS;
+  const style = document.createElement("div");
+  const body = document.createElement("div");
+  root.replaceChildren(style, page, body);
+  return { body, style };
 }
 
 /**

@@ -17,14 +17,22 @@ export async function parseCsv(text: string): Promise<CsvTable> {
   const mod: typeof import("papaparse") & { default?: typeof import("papaparse") } = await import("papaparse");
   // A CommonJS module: some bundlers hand it over as `default`, some as the namespace.
   const Papa = mod.default ?? mod;
-  const result = Papa.parse<string[]>(text, {
+  // Counted row by row: papaparse's `preview` counts the blank rows that
+  // `skipEmptyLines` then drops (Excel's `,,` spacers), which would show fewer
+  // rows than the cap with no note that the file goes on.
+  const rows: string[][] = [];
+  Papa.parse<string[]>(text, {
     delimiter: "",
     delimitersToGuess: [",", ";", "\t", "|"],
     skipEmptyLines: "greedy",
-    // The header, the cap, and one row more to know the file is longer.
-    preview: CSV_ROW_CAP + 2,
+    step: (result, parser) => {
+      if (result.data.every((cell) => cell.trim() === "")) return;
+      rows.push(result.data);
+      // The header, the cap, and one row more to know the file is longer.
+      if (rows.length > CSV_ROW_CAP + 1) parser.abort();
+    },
   });
-  return shapeCsvRows(result.data);
+  return shapeCsvRows(rows);
 }
 
 export function CsvView({ table }: { table: CsvTable }): ReactElement {

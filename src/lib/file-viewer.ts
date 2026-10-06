@@ -18,8 +18,11 @@ const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingm
 const CSV_TYPES = new Set(["text/csv", "application/csv", "text/comma-separated-values"]);
 /** Windows reports a `.csv` upload as an Excel file, and some servers as plain text. */
 const CSV_BY_NAME_TYPES = new Set(["application/vnd.ms-excel", "text/plain", "application/octet-stream", ""]);
-/** Raster formats every current browser decodes. No SVG: it can carry script. */
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/bmp", "image/webp", "image/avif"]);
+/**
+ * Raster formats every current browser decodes. No SVG: it can carry script.
+ * `image/jpg` is not a registered type, but upload code often stores it.
+ */
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/avif"]);
 
 /** What a generic type falls back to, by extension. */
 const KIND_BY_EXTENSION: Record<string, FileViewerKind> = {

@@ -165,8 +165,8 @@ import { Button, FileViewer } from "@codelittinc/carbon-design-system";
 ```
 
 `contentType` decides the renderer when given; otherwise the response's `Content-Type` does. The
-extension is read only for `application/octet-stream` (and a `.csv` sent as `vnd.ms-excel` or
-`text/plain` is still a CSV). `docx-preview` and `papaparse` load the first time a DOCX or a CSV
+extension is read only when the type is `application/octet-stream` or missing (and a `.csv` sent
+as `vnd.ms-excel` or `text/plain` is still a CSV). `docx-preview` and `papaparse` load the first time a DOCX or a CSV
 opens, so pages that never open one don't ship them.
 
 Legacy `.doc`, a `.docx` the browser can't lay out, and every other type show what
@@ -191,7 +191,9 @@ What the app must provide:
 - **Download saves under `filename` only for same-origin URLs.** Browsers ignore `download` across
   origins, and the availability check (a `fetch` with the page's credentials) needs CORS there.
 - **DOCX needs `img-src data:` and `style-src 'unsafe-inline'`** in a CSP, for the document's
-  images and the styles docx-preview injects. The page styling ships in the package stylesheet.
+  images and the styles docx-preview injects. The document renders in a shadow root, so those
+  styles reach the document only, never the app page. Embedded fonts are not loaded; text uses
+  the font families the document names.
 - **Serve untrusted files with `X-Content-Type-Options: nosniff`, and never as `text/html`.**
   Who may open a file is the file route's own check: the viewer adds no authorization.
 

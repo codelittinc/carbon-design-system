@@ -28,8 +28,9 @@ copies of the same viewer. Additive only.
   the dialog don't reach the trigger's ancestors, so it can sit in a clickable
   card. Every open fetches the file afresh.
 - **Choosing the renderer:** `contentType` when given, else the response's
-  `Content-Type`. The extension is read only for `application/octet-stream`;
-  a `.csv` sent as `application/vnd.ms-excel` or `text/plain` is still a CSV.
+  `Content-Type`. The extension is read only when the type is
+  `application/octet-stream` or missing; a `.csv` sent as
+  `application/vnd.ms-excel` or `text/plain` is still a CSV.
 - **`loadFallback`**, optional: called for a legacy `.doc` (`reason: "doc"`),
   a `.docx` that can't be laid out (`"render-failed"`) and other types
   (`"unsupported"`), with the URL, filename, resolved type and an
@@ -40,9 +41,14 @@ copies of the same viewer. Additive only.
 - **New dependencies:** `docx-preview` and `papaparse`. Both are reached only
   through dynamic imports, so an app's bundler loads them the first time a
   DOCX or a CSV opens, and pages that never open one don't ship them.
-- **Stylesheet:** the DOCX page styling and the fallback-HTML typography are
-  in `@codelittinc/carbon-design-system/styles`. Apps that copied the
-  `.docx-host` / `.document-preview` rules can delete them.
+- **Stylesheet:** the fallback-HTML typography is in
+  `@codelittinc/carbon-design-system/styles`, and the DOCX page styling ships
+  with the component. Apps that copied the `.docx-host` /
+  `.document-preview` rules can delete them.
+- **DOCX is isolated:** the document renders in a shadow root, so the
+  stylesheet docx-preview builds from the file (which a crafted `.docx` can
+  write rules into) styles the document only, never the app page. Embedded
+  fonts are not loaded; text uses the font families the document names.
 - **What the app must provide:** PDFs are framed, so the file route must allow
   same-origin framing (`X-Frame-Options: SAMEORIGIN` /
   `frame-ancestors 'self'`). DOCX needs `img-src data:` and

@@ -316,12 +316,35 @@ describe("PDF", () => {
     openViewer({ contentType: "application/pdf" });
     await message("We couldn't open this file. Download it to view it locally.");
   });
+
+  it("never frames a new file while it is still being checked", async () => {
+    fetchMock.mockResolvedValueOnce(file("%PDF", "application/pdf"));
+    const { rerender } = render(<FileViewer open url="/files/a.pdf" filename="a.pdf" contentType="application/pdf" />);
+    await frame("a.pdf");
+
+    const late = deferred<Response>();
+    fetchMock.mockReturnValueOnce(late.promise);
+    rerender(<FileViewer open url="/files/b.docx" filename="b.docx" contentType={DOCX} />);
+    // The old renderer is gone at once, rather than framing the new URL.
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    await act(async () => late.resolve(file("PK", DOCX)));
+  });
 });
 
 describe("DOCX", () => {
   const props = { filename: "brief.docx", url: "/files/brief.docx", contentType: DOCX };
 
-  it("lays the document out with altChunks off, links neutralised and bullets patched", async () => {
+  /** The document's shadow root, once docx-preview has written into it. */
+  async function docxRoot(): Promise<ShadowRoot> {
+    return waitFor(() => {
+      const root = document.querySelector(".file-viewer-docx")?.shadowRoot;
+      expect(root?.querySelector("section")).toBeTruthy();
+      return root!;
+    });
+  }
+
+  it("lays the document out with altChunks off and links neutralised", async () => {
     fetchMock.mockResolvedValue(file("PK", DOCX));
     renderDocx.mockImplementation(async (_blob, body, style) => {
       body.innerHTML =
@@ -329,32 +352,59 @@ describe("DOCX", () => {
         '<a href="/relative">rel</a> <a href="https://example.com">ok</a> <a href="mailto:a@example.com">mail</a> ' +
         '<a href="#bookmark">mark</a></section>';
       const sheet = document.createElement("style");
-      sheet.textContent = '.docx-num-1::before { content: ""; font-family: Symbol; }';
+      sheet.textContent = '.docx-num-1::before { content: "\uF0B7"; font-family: Symbol; }';
       style!.appendChild(sheet);
     });
     openViewer(props);
 
     expect(screen.getByRole("status", { name: "Laying out document…" })).toBeInTheDocument();
-    const ok = await screen.findByRole("link", { name: "ok" });
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    const root = await docxRoot();
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+    const doc = within(root as unknown as HTMLElement);
+    const ok = doc.getByRole("link", { name: "ok" });
 
     const options = renderDocx.mock.calls[0][3];
-    expect(options).toMatchObject({ renderAltChunks: false, ignoreHeight: true, breakPages: true, useBase64URL: true });
+    expect(options).toMatchObject({
+      renderAltChunks: false,
+      ignoreFonts: true,
+      ignoreHeight: true,
+      breakPages: true,
+      useBase64URL: true,
+    });
 
     expect(ok).toHaveAttribute("target", "_blank");
     expect(ok).toHaveAttribute("rel", "noopener noreferrer");
-    expect(screen.getByRole("link", { name: "mail" })).toHaveAttribute("href", "mailto:a@example.com");
-    expect(screen.getByRole("link", { name: "mark" })).toHaveAttribute("href", "#bookmark");
-    expect(screen.getByRole("link", { name: "mark" })).not.toHaveAttribute("target");
+    expect(doc.getByRole("link", { name: "mail" })).toHaveAttribute("href", "mailto:a@example.com");
+    expect(doc.getByRole("link", { name: "mark" })).toHaveAttribute("href", "#bookmark");
+    expect(doc.getByRole("link", { name: "mark" })).not.toHaveAttribute("target");
     for (const text of ["bad", "tab", "rel"]) {
-      const anchor = screen.getByText(text);
+      const anchor = doc.getByText(text);
       expect(anchor.tagName).toBe("A");
       expect(anchor).not.toHaveAttribute("href");
     }
 
-    const rule = document.querySelector<HTMLStyleElement>(".file-viewer-docx style")!.sheet!.cssRules[0] as CSSStyleRule;
-    expect(rule.style.content).not.toContain("");
-    expect(rule.style.content).toContain("•");
+    // The bullet patch reads the stylesheet's CSSOM, which jsdom doesn't build
+    // inside a shadow root; replaceSymbolGlyphs is tested on its own, and the
+    // DOCX story shows the patched bullets in a browser.
+  });
+
+  it("keeps the document's stylesheet out of the app page", async () => {
+    fetchMock.mockResolvedValue(file("PK", DOCX));
+    // What a crafted list marker in a .docx turns into: a closed rule, then the attacker's own.
+    renderDocx.mockImplementation(async (_blob, body, style) => {
+      body.innerHTML = '<section class="docx"><p>Resume</p></section>';
+      const sheet = document.createElement("style");
+      sheet.textContent = '.docx-num-1::before { content: ""} body { display: none } .z { content: "" }';
+      style!.appendChild(sheet);
+    });
+    openViewer(props);
+    const root = await docxRoot();
+
+    // Rendered into the shadow root: no stylesheet of the document's lands in the page.
+    for (const el of document.querySelectorAll("style")) expect(el.textContent).not.toContain("display: none");
+    expect(root.querySelector("style")).not.toBeNull();
+    // The host clips anything the document positions to escape it.
+    expect(document.querySelector(".file-viewer-docx")).toHaveClass("[contain:paint]");
   });
 
   it("asks the fallback when the document can't be laid out", async () => {
@@ -400,7 +450,9 @@ describe("DOCX", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     fireEvent.click(trigger);
-    expect(await screen.findByText("Second time lucky")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(document.querySelector(".file-viewer-docx")?.shadowRoot?.textContent).toContain("Second time lucky"),
+    );
     expect(renderDocx).toHaveBeenCalledTimes(2);
   });
 
@@ -521,6 +573,15 @@ describe("CSV", () => {
 
   it("renders the first 1,000 of 1,500 rows with a note", async () => {
     csv(["n", ...Array.from({ length: 1500 }, (_, i) => `row ${i}`)].join("\n"));
+    const rows = await cells();
+    expect(rows).toHaveLength(1001);
+    expect(rows[1000]).toEqual(["row 999"]);
+    expect(screen.getByText("Showing the first 1,000 rows. Download the file to see all of it.")).toBeInTheDocument();
+  });
+
+  it("counts only rows with content toward the cap", async () => {
+    // Excel's `,,` spacer rows and blank lines between every data row.
+    csv(["n", ...Array.from({ length: 1200 }, (_, i) => `row ${i}\n,,\n`)].join("\n"));
     const rows = await cells();
     expect(rows).toHaveLength(1001);
     expect(rows[1000]).toEqual(["row 999"]);
