@@ -187,6 +187,15 @@ export function DataTable<TData, TValue>({
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
 
+  // A list that shrinks (a refetch after a delete, with `resetPageOn` holding
+  // the page) can leave the page past the last one: an empty body over
+  // "Showing 21–15 of 15". Move back to the last page that exists.
+  const pageIndex = table.getState().pagination.pageIndex;
+  const lastPage = Math.max(0, table.getPageCount() - 1);
+  useEffect(() => {
+    if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
+  }, [paginate, pageIndex, lastPage, table]);
+
   return (
     <div>
       {/* A table wider than its container scrolls inside its border rather
@@ -208,6 +217,13 @@ export function DataTable<TData, TValue>({
                   const canSort = header.column.getCanSort();
                   const SortIcon =
                     sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+                  const sortIcon = (
+                    <SortIcon
+                      size={12}
+                      aria-hidden="true"
+                      className={sorted ? "text-text-secondary" : "text-text-faint"}
+                    />
+                  );
                   const label = header.isPlaceholder
                     ? null
                     : flexRender(header.column.columnDef.header, header.getContext());
@@ -224,26 +240,46 @@ export function DataTable<TData, TValue>({
                       className={cn(align.header, meta?.headerClassName)}
                     >
                       <div className={cn("flex items-center gap-1", align.content)}>
-                        {canSort ? (
+                        {!canSort ? (
+                          label
+                        ) : typeof label === "string" || typeof label === "number" ? (
                           // A real button, so the sort is reachable with Tab and
                           // Enter, not only a click on the cell. The heading's
                           // own look: the button only adds the hover and ring.
+                          // It wraps like the heading it replaces: a long title
+                          // takes a second line rather than an ellipsis.
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="-mx-1.5 h-6 gap-1 px-1.5 text-xs font-medium uppercase tracking-wider text-current"
+                            className={cn(
+                              "-mx-1.5 h-auto min-h-6 gap-1 whitespace-normal px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider text-current",
+                              align.header,
+                            )}
                           >
-                            {label}
-                            <SortIcon
-                              size={12}
-                              aria-hidden="true"
-                              className={sorted ? "text-text-secondary" : "text-text-faint"}
-                            />
+                            {/* Its own element, so Button leaves it untruncated. */}
+                            <span className="min-w-0">{label}</span>
+                            {sortIcon}
                           </Button>
                         ) : (
-                          label
+                          // A header the caller rendered may hold its own
+                          // control, and a button cannot hold another: the
+                          // header stays as given and the sort is a button
+                          // beside it.
+                          <>
+                            {label}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Sort by ${header.column.id}`}
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="h-6 w-6 text-current"
+                            >
+                              {sortIcon}
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableHead>

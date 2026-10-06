@@ -51,6 +51,15 @@ describe("formatDate", () => {
       expect(formatDate("2026-09-12")).toBe("Sep 12, 2026");
       expect(formatDate("2026-01-01")).toBe("Jan 1, 2026");
     });
+
+    it("shows a midnight-UTC timestamp as an instant, and its date key as the day (documented)", () => {
+      // A Prisma date-only column arrives as a timestamp. formatDate reads it
+      // as the instant it is; the docs say to pass its date key instead.
+      vi.stubEnv("TZ", "America/Chicago");
+      const prismaDate = "2026-09-12T00:00:00.000Z";
+      expect(formatDate(prismaDate)).toBe("Sep 11, 2026");
+      expect(formatDate(prismaDate.slice(0, 10))).toBe("Sep 12, 2026");
+    });
   });
 });
 

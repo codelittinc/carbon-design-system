@@ -28,6 +28,11 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
  * as that day wherever the reader is; `new Date()` would read it as midnight
  * UTC and show Sep 11 in the Americas. A full timestamp is an instant, shown in
  * the reader's zone.
+ *
+ * So a calendar day sent as a timestamp is shown a day early west of UTC: a
+ * Prisma `@db.Date` column serializes as `"2026-09-12T00:00:00.000Z"`, which is
+ * an instant here, not a day. Pass such a value as its date key
+ * (`value.slice(0, 10)`, `"2026-09-12"`) and it is shown as that day.
  */
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";

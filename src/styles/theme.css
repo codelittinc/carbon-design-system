@@ -48,8 +48,9 @@
   /*
    * A solid error fill for a destructive button, and the text on it. Fixed in
    * both themes, like the status colours above: carbon-50 on red-600 clears AA
-   * (4.6:1), where on the brighter `error` it does not (3.8:1), so `error` is
-   * only the hover step.
+   * (4.63:1), where on the brighter `error` it does not (3.61:1), so `error` is
+   * only the hover step. Button reads both with these values as fallbacks, so
+   * a theme that does not define them still gets a red button.
    */
   --color-error-solid: #dc2626;
   --color-error-foreground: var(--color-carbon-50);

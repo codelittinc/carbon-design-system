@@ -22,7 +22,12 @@ under "Tests may need updating").
   already has), and `aria-invalid` while there is an error, which is also
   announced (`role="alert"`). The ids come from `htmlFor`, or a generated id
   without it. The error is `text-error-text` and the hint `text-text-muted`,
-  so both clear AA in the light theme.
+  so both clear AA in the light theme. A `required` field also sets
+  `aria-required` on the control, unless it already sets `required` or
+  `aria-required` itself. With a `Select` child these props go to the
+  `SelectTrigger` among the `Select`'s direct children (the `Select` itself is
+  Radix's Root and renders nothing); a trigger nested deeper needs
+  `aria-describedby` / `aria-invalid` / `aria-required` passed by hand.
 - **`StructuredAddressInput`** builds each field from `FormField`. Required
   fields no longer write `" *"` into the label text and the street field's
   name: the field is named "City", not "City *", and its `required` state is
@@ -31,7 +36,13 @@ under "Tests may need updating").
   pages) instead of its own pager. Its buttons have names, and none submits a
   `<form>` around the table any more. The sort control is a button inside the
   heading, so it is reachable from the keyboard; `aria-sort` stays on the
-  heading.
+  heading. A text header is the button, and wraps onto a second line as the
+  heading did (no ellipsis); a header the column renders itself (a function,
+  which may hold its own button or link) stays as given, with a small sort
+  button ("Sort by <column id>") beside it, so no button is nested in another.
+  When the data shrinks under the current page (a refetch with `resetPageOn`
+  holding the page), the table moves to the last page that exists instead of
+  showing an empty one.
 - **`Pagination`**: every button is `type="button"`.
 - **`Dialog` / `Sheet`**: the close X is a named button ("Close") instead of an
   unnamed icon. **`AlertDialog`** gets Dialog's `85dvh` cap and flex column, and
@@ -44,7 +55,8 @@ under "Tests may need updating").
   share one dismiss button.
 - **`Button` `destructive`** uses theme tokens: the new `--color-error-solid`
   fill and `--color-error-foreground` text (fixed in both themes; red-600 as
-  before, hover red-500). **`Switch`**'s thumb is `carbon-50` instead of
+  before, hover red-500), with those values as fallbacks, so it stays red on a
+  theme that does not define them. **`Switch`**'s thumb is `carbon-50` instead of
   `bg-white`.
 - **Address pickers**: the `public` and `vendor` variants of
   `AddressAutocomplete` / `AddressCombobox` and `StructuredAddressInput` keep
@@ -59,7 +71,10 @@ under "Tests may need updating").
   screen-reader table with `ChartDataTable`.
 - **`formatDate`** shows a date-only string as that calendar day wherever the
   reader is: `"2026-09-12"` was "Sep 11, 2026" in the Americas. A full
-  timestamp is still shown in the reader's zone.
+  timestamp is still shown in the reader's zone, so a calendar day that
+  arrives as midnight UTC (a Prisma `@db.Date` column,
+  `"2026-09-12T00:00:00.000Z"`) is still a day early there: pass its date key,
+  `value.slice(0, 10)`.
 - **`monthOfKey`** reads a key the way `parseDateKey` does: an ISO instant by its
   date part, and a day that does not exist (`"2026-02-30"`) is `null`.
 - **`MoneyInput`** formats with the same code as `formatMoney`, and
@@ -69,7 +84,10 @@ under "Tests may need updating").
   month view one month grid. The timesheet's month is now a table (rows,
   weekday column headers, a cell per day named by its date), as
   `EventCalendar`'s is. The timesheet's header is the calendar's: the period as
-  a heading, then Today and two arrow buttons.
+  a heading, then Today and two arrow buttons. Weekday headers are
+  `text-text-muted`, which clears AA, in `EventCalendar` and `MonthCalendar`
+  (whose weekday letters were `text-text-faint`) alike; the timesheet keeps
+  its dimmed Sat / Sun headers to match its dimmed weekend days.
 - **Tables**: one empty-row and one row-hover style for `DataTable` and the
   timesheet tables.
 - **Shared looks**: one floating-panel surface (Popover, HoverCard, menus,
@@ -79,6 +97,17 @@ under "Tests may need updating").
   `SearchSelect` showed one after a mouse click), and `SearchSelect`'s trigger
   has the fields' disabled style.
 
+### Custom themes: define the new tokens and scopes
+
+If your app supplies its own theme instead of importing
+`@codelittinc/carbon-design-system/styles`, define the two new tokens,
+`--color-error-solid` (the destructive fill) and `--color-error-foreground`
+(its text). `Button` falls back to red-600 and carbon-50 without them, but your
+own values win once they exist. The address pickers' `public` and `vendor`
+variants also need your theme's tokens scoped under `.dark` and `.light`
+classes, as `theme.css` does; without those scopes they follow the page's
+theme instead of keeping their fixed scheme.
+
 ### Tests may need updating
 
 - The dialog and sheet close button: find it by role and name,
@@ -87,7 +116,8 @@ under "Tests may need updating").
   week" (or "… month" in the month view).
 - `DataTable`'s pager: "Previous page", "Next page" and "Page N"; the "N / M"
   and "N row(s)" text is gone. Sort by clicking the button in the heading
-  (`getByRole("button", { name: /Name/ })`), not the heading cell.
+  (`getByRole("button", { name: /Name/ })`), not the heading cell; for a
+  header rendered by a function, the "Sort by <column id>" button.
 - `StructuredAddressInput`'s fields are named without the `*` ("City").
 
 ### Internal
@@ -96,7 +126,9 @@ under "Tests may need updating").
   opt-in list, and also flags a raw `<label>`, `role="option" | "button" |
   "dialog"`, a `document` mousedown listener and a `fixed inset-0` overlay. The
   four hand-rolled comboboxes and `CommandPalette` are listed with the 2.0 item
-  that replaces them.
+  that replaces them. Each allowance names the tags it covers (`chart` may use
+  the table elements, not a `<button>`), so an allowlisted file cannot add a
+  different raw control.
 - `src/index.ts` names `lib/calendar`'s public exports one by one (the same
   ones), so the module can also hold internal helpers.
 ## [1.17.2] - 2026-10-06

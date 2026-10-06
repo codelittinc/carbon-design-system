@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FormField } from "../form-field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select";
 
 describe("FormField", () => {
   it("associates the label with the control via htmlFor", () => {
@@ -130,5 +131,57 @@ describe("FormField", () => {
       </FormField>,
     );
     expect(screen.getByRole("textbox", { name: "Email" })).toHaveAccessibleDescription("Enter an email");
+  });
+
+  it("marks the control required for screen readers when required", () => {
+    render(
+      <FormField label="Email" htmlFor="email" required>
+        <input id="email" />
+      </FormField>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" })).toHaveAttribute("aria-required", "true");
+  });
+
+  it("leaves a control's own required state alone", () => {
+    render(
+      <>
+        <FormField label="Email" htmlFor="email" required>
+          <input id="email" required />
+        </FormField>
+        <FormField label="Name" htmlFor="name" required>
+          <input id="name" aria-required="false" />
+        </FormField>
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" })).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveAttribute("aria-required", "false");
+  });
+
+  it("does not mark an optional control required", () => {
+    render(
+      <FormField label="Email" htmlFor="email">
+        <input id="email" />
+      </FormField>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" })).not.toHaveAttribute("aria-required");
+  });
+
+  it("forwards the description and required state to a Select's trigger", () => {
+    render(
+      <FormField label="Status" htmlFor="status" required error="Pick a status">
+        <Select>
+          <SelectTrigger id="status">
+            <SelectValue placeholder="Choose" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="open">Open</SelectItem>
+          </SelectContent>
+        </Select>
+      </FormField>,
+    );
+    const trigger = screen.getByRole("combobox", { name: "Status" });
+    expect(trigger).toHaveAccessibleDescription("Pick a status");
+    expect(trigger).toHaveAttribute("aria-invalid", "true");
+    expect(trigger).toHaveAttribute("aria-required", "true");
   });
 });

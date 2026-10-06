@@ -142,6 +142,8 @@ export function MonthlyCalendarGrid({
       month={month}
       ariaLabel={`Hours, ${monthLabel(month)}`}
       today={today}
+      // The weekend days are dimmed below, so their headers are too.
+      dimWeekendHeaders
       dayClassName={() => "flex min-h-[72px]"}
       renderDay={(cell, { key: date, isToday, isWeekend: weekend }) => {
         const isSelected = date === selectedDay;

@@ -25,12 +25,25 @@ const COMPONENTS = readdirSync(UI_DIR)
 const COMBOBOX_REWRITE =
   "hand-rolled combobox: moves onto the shared useListbox hook and a Radix Popover panel in the 2.0 combobox rewrite (audit Tier B #12)";
 
+/** Why a file may break a rule, and which of the rule's tags it may use. */
+interface Allowance {
+  why: string;
+  /**
+   * The tags (the pattern's first capture: `table`, `option`, …) the file may
+   * use. Any other match still fails, so an allowance for one element is not a
+   * licence for every raw control in the file.
+   */
+  tags: string[];
+}
+
 interface Rule {
   name: string;
+  /** Its first capture group is the tag an allowance is keyed by. */
   pattern: RegExp;
-  /** File → why it may break the rule. */
-  allow: Record<string, string>;
+  allow: Record<string, Allowance>;
 }
+
+const TABLE_TAGS = ["table", "thead", "tbody", "tfoot", "tr", "th", "td"];
 
 const RULES: Rule[] = [
   {
@@ -39,47 +52,54 @@ const RULES: Rule[] = [
     // one place the raw elements are styled.
     pattern: /<(button|select|textarea|input|table|thead|tbody|tfoot|tr|th|td)\b(?![^>]*type="hidden")/g,
     allow: {
-      input: "the Input primitive",
-      textarea: "the Textarea primitive",
-      table: "the Table primitives",
-      chart: "ChartDataTable is visually hidden, so Table's styling would be wasted",
-      "rich-text-image-button": "the image upload's hidden file input",
-      "search-select": COMBOBOX_REWRITE,
-      "account-combobox": COMBOBOX_REWRITE,
+      input: { why: "the Input primitive", tags: ["input"] },
+      textarea: { why: "the Textarea primitive", tags: ["textarea"] },
+      table: { why: "the Table primitives", tags: TABLE_TAGS },
+      chart: {
+        why: "ChartDataTable is visually hidden, so Table's styling would be wasted",
+        tags: ["table", "thead", "tbody", "tr", "th", "td"],
+      },
+      "rich-text-image-button": { why: "the image upload's hidden file input", tags: ["input"] },
+      "search-select": { why: COMBOBOX_REWRITE, tags: ["button", "input"] },
+      "account-combobox": { why: COMBOBOX_REWRITE, tags: ["button"] },
     },
   },
   {
     name: "raw <label>",
-    pattern: /<label\b/g,
-    allow: { label: "the Label primitive" },
+    pattern: /<(label)\b/g,
+    allow: { label: { why: "the Label primitive", tags: ["label"] } },
   },
   {
     name: "hand-rolled role",
     pattern: /role="(option|button|dialog)"/g,
     allow: {
-      "search-select": COMBOBOX_REWRITE,
-      "multi-select": COMBOBOX_REWRITE,
-      "account-combobox": COMBOBOX_REWRITE,
-      "address-combobox": COMBOBOX_REWRITE,
-      "command-palette":
-        "hand-rolled modal: moves onto Dialog (or cmdk's Command.Dialog) in 2.0 (audit Tier B #13)",
+      "search-select": { why: COMBOBOX_REWRITE, tags: ["option", "button"] },
+      "multi-select": { why: COMBOBOX_REWRITE, tags: ["option"] },
+      "account-combobox": { why: COMBOBOX_REWRITE, tags: ["option"] },
+      "address-combobox": { why: COMBOBOX_REWRITE, tags: ["option"] },
+      "command-palette": {
+        why: "hand-rolled modal: moves onto Dialog (or cmdk's Command.Dialog) in 2.0 (audit Tier B #13)",
+        tags: ["dialog"],
+      },
     },
   },
   {
     name: "document mousedown listener (hand-rolled outside click)",
-    pattern: /document\.addEventListener\("mousedown"/g,
+    pattern: /document\.addEventListener\("(mousedown)"/g,
     allow: {
-      "search-select": COMBOBOX_REWRITE,
-      "multi-select": COMBOBOX_REWRITE,
+      "search-select": { why: COMBOBOX_REWRITE, tags: ["mousedown"] },
+      "multi-select": { why: COMBOBOX_REWRITE, tags: ["mousedown"] },
     },
   },
   {
     name: "full-screen overlay outside the dialog primitives",
     // The dialog primitives draw theirs from `overlayClass` in lib/ui-classes.
-    pattern: /fixed inset-0/g,
+    pattern: /(fixed inset-0)/g,
     allow: {
-      "command-palette":
-        "hand-rolled modal: moves onto Dialog (or cmdk's Command.Dialog) in 2.0 (audit Tier B #13)",
+      "command-palette": {
+        why: "hand-rolled modal: moves onto Dialog (or cmdk's Command.Dialog) in 2.0 (audit Tier B #13)",
+        tags: ["fixed inset-0"],
+      },
     },
   },
 ];
@@ -92,6 +112,17 @@ function source(name: string): string {
   );
 }
 
+/** Each match's tag: the pattern's first capture. */
+function tagsIn(text: string, pattern: RegExp): string[] {
+  return Array.from(text.matchAll(pattern), (match) => match[1]);
+}
+
+/** The matches in `text` that its allowance (if any) does not cover. */
+function violations(text: string, rule: Rule, name: string): string[] {
+  const allowed = rule.allow[name]?.tags ?? [];
+  return tagsIn(text, rule.pattern).filter((tag) => !allowed.includes(tag));
+}
+
 describe("components composed from design-system parts", () => {
   it("finds the component files", () => {
     expect(COMPONENTS.length).toBeGreaterThan(50);
@@ -99,16 +130,25 @@ describe("components composed from design-system parts", () => {
 
   for (const rule of RULES) {
     describe(rule.name, () => {
-      it.each(COMPONENTS.filter((name) => !(name in rule.allow)))("%s has none", (name) => {
-        expect(source(name).match(rule.pattern) ?? []).toEqual([]);
+      it.each(COMPONENTS)("%s uses none outside its allowance", (name) => {
+        expect(violations(source(name), rule, name)).toEqual([]);
       });
 
       // An allowance that is no longer needed is removed, so the file is
-      // checked again from then on.
-      it.each(Object.keys(rule.allow))("%s still needs its allowance", (name) => {
+      // checked again from then on; the same goes for each tag in it.
+      it.each(Object.keys(rule.allow))("%s still needs each tag of its allowance", (name) => {
         expect(COMPONENTS).toContain(name);
-        expect(source(name).match(rule.pattern)).not.toBeNull();
+        const used = new Set(tagsIn(source(name), rule.pattern));
+        expect(rule.allow[name].tags.filter((tag) => !used.has(tag))).toEqual([]);
       });
     });
   }
+
+  it("an allowance for one tag does not cover another in the same file", () => {
+    const rule = RULES[0];
+    // chart.tsx may draw a raw <table>, but not a raw <button>.
+    const withButton = `${source("chart")}\n<button type="button">Toggle</button>`;
+    expect(violations(source("chart"), rule, "chart")).toEqual([]);
+    expect(violations(withButton, rule, "chart")).toEqual(["button"]);
+  });
 });

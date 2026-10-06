@@ -130,6 +130,12 @@ interface MonthGridProps {
   renderDay: (date: CalendarDate, day: MonthGridDay) => ReactNode;
   /** Classes for a day's cell: its height, its background. */
   dayClassName?: (date: CalendarDate, day: MonthGridDay) => string | undefined;
+  /**
+   * Draws the Sat / Sun headers in the faint text, for a grid whose weekends
+   * are dimmed throughout (the timesheet). Off by default: every header is the
+   * muted text, which clears AA; the faint text does not.
+   */
+  dimWeekendHeaders?: boolean;
   className?: string;
 }
 
@@ -148,6 +154,7 @@ export function MonthGrid({
   today,
   renderDay,
   dayClassName,
+  dimWeekendHeaders = false,
   className,
 }: MonthGridProps): ReactElement {
   return (
@@ -157,7 +164,7 @@ export function MonthGrid({
           <div
             key={label}
             role="columnheader"
-            className={cn(eyebrowClass, "py-2 text-center", i >= 5 && "text-text-faint")}
+            className={cn(eyebrowClass, "py-2 text-center", dimWeekendHeaders && i >= 5 && "text-text-faint")}
           >
             {label}
           </div>

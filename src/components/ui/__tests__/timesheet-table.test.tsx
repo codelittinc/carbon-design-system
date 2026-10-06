@@ -171,6 +171,9 @@ describe("TimesheetTable", () => {
     // The month is a table, with the day buttons in named cells, like EventCalendar's.
     const month = screen.getByRole("table", { name: "Hours, September 2026" });
     expect(within(month).getAllByRole("columnheader")).toHaveLength(7);
+    // The timesheet keeps its dimmed weekend headers (MonthGrid's opt-in).
+    expect(within(month).getByRole("columnheader", { name: "Sat" })).toHaveClass("text-text-faint");
+    expect(within(month).getByRole("columnheader", { name: "Mon" })).toHaveClass("text-text-muted");
     expect(within(month).getByRole("cell", { name: "Monday, September 14" })).toContainElement(monday);
     expect(screen.getByRole("button", { name: "Next month" })).toHaveAttribute("type", "button");
     fireEvent.click(monday);

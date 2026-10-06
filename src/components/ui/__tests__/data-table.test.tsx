@@ -63,6 +63,41 @@ describe("DataTable", () => {
     expect(nameColumnOrder()).toEqual(["Charlie", "Bob", "Alice"]);
   });
 
+  it("never nests a button: a header with its own control sorts from a separate button", () => {
+    const withControl: ColumnDef<Row, unknown>[] = [
+      {
+        accessorKey: "name",
+        header: () => (
+          <span>
+            Name <button type="button">Help</button>
+          </span>
+        ),
+      },
+      { accessorKey: "age", header: "Age" },
+    ];
+    const { container } = render(<DataTable columns={withControl} data={data} />);
+    expect(container.querySelector("button button")).toBeNull();
+
+    // The header's own control is still there, and the column still sorts.
+    const heading = screen.getAllByRole("columnheader")[0];
+    expect(within(heading).getByRole("button", { name: "Help" })).toBeInTheDocument();
+    fireEvent.click(within(heading).getByRole("button", { name: "Sort by name" }));
+    expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
+  });
+
+  it("lets a long text header wrap instead of truncating it", () => {
+    const long: ColumnDef<Row, unknown>[] = [
+      { accessorKey: "name", header: "Name of the person the row belongs to" },
+      { accessorKey: "age", header: "Age" },
+    ];
+    render(<DataTable columns={long} data={data} />);
+    const sort = screen.getByRole("button", { name: /Name of the person/ });
+    expect(sort).toHaveClass("whitespace-normal", "h-auto", "text-left");
+    expect(sort).not.toHaveClass("whitespace-nowrap");
+    // Nothing inside it truncates either.
+    expect(sort.querySelector(".truncate, .whitespace-nowrap")).toBeNull();
+  });
+
   it("shows pagination controls only when rows exceed pageSize and navigates", () => {
     const { unmount } = render(
       <DataTable columns={columns} data={data} pageSize={25} />,
@@ -207,7 +242,7 @@ describe("DataTable", () => {
           {/* A refresh: same rows, new array — what a refetch after an edit produces. */}
           <button onClick={() => setNonce((v) => v + 1)}>refetch</button>
           <button onClick={() => setFilter((f) => f + "!")}>filter</button>
-          <button onClick={() => setRows(22)}>shrink</button>
+          <button onClick={() => setRows(15)}>shrink</button>
           <DataTable
             columns={columns}
             data={data}
@@ -249,7 +284,7 @@ describe("DataTable", () => {
 
       await toLastPage();
       await click("shrink");
-      expect(page()).toBe("1 / 3");
+      expect(page()).toBe("1 / 2");
     });
 
     it("with resetPageOn, resets on the signature and holds place on a refresh", async () => {
@@ -269,11 +304,13 @@ describe("DataTable", () => {
       render(<Host withSignature />);
       await toLastPage();
 
-      // Shrinking without a signature change keeps pageIndex, so the page must still
-      // be one that exists — TanStack clamps the displayed page to the last one.
+      // 24 rows to 15 with no signature change: page 3 no longer exists, so the
+      // reader lands on the new last page rather than an empty one.
       await click("shrink");
-      expect(page()).toBe("3 / 3");
-      expect(nameColumnOrder()).toEqual(["row20", "row21"]);
+      expect(page()).toBe("2 / 2");
+      expect(screen.queryByText(/Showing 21–15 of 15/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Showing 11–15 of 15/)).toBeInTheDocument();
+      expect(nameColumnOrder()).toEqual(["row10", "row11", "row12", "row13", "row14"]);
     });
   });
 

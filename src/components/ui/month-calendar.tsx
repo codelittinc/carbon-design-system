@@ -101,7 +101,7 @@ export function MonthCalendar({
           <span
             key={label}
             aria-hidden="true"
-            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal text-text-faint")}
+            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal")}
           >
             {label[0]}
           </span>

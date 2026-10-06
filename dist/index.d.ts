@@ -966,10 +966,17 @@ interface FormFieldProps {
  * required marker, and an error or a hint below it. Pairs with the Input,
  * Select, Textarea, and MoneyInput primitives.
  *
- * The error or hint describes the control: when `children` is a single
- * element, it gets `aria-describedby` pointing at the message (added to any it
- * already has), and `aria-invalid` while there is an error, so a screen reader
- * reads the message with the field rather than leaving it stranded below.
+ * When `children` is a single element, the field's state reaches the control
+ * itself, so a screen reader reads it with the field rather than leaving it
+ * stranded around it: `aria-describedby` pointing at the error or hint (added to
+ * any it already has), `aria-invalid` while there is an error, and
+ * `aria-required` when `required` (unless the control already sets `required`
+ * or `aria-required`).
+ *
+ * A `Select` is a Radix Root, which renders nothing of its own, so the props
+ * go to the `SelectTrigger` among its direct children instead. A trigger
+ * nested deeper (inside a wrapper of your own) is not found: pass it
+ * `aria-describedby`, `aria-invalid` and `aria-required` yourself.
  */
 declare function FormField({ label, htmlFor, required, error, hint, className, children, }: FormFieldProps): ReactElement;
 

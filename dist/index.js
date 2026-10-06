@@ -2,12 +2,12 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, cloneElement, useLayoutEffect, useMemo } from 'react';
-import { jsx, jsxs, Fragment as Fragment$1 } from 'react/jsx-runtime';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment as Fragment$1, cloneElement, useLayoutEffect, useMemo } from 'react';
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
+import { X, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -609,7 +609,11 @@ var buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        destructive: "bg-error-solid text-error-foreground hover:bg-error",
+        // The error tokens with their theme.css values as fallbacks: a consumer
+        // with its own theme may not define `--color-error-solid` /
+        // `--color-error-foreground`, and a token utility for a variable that is
+        // not there compiles to nothing, leaving a transparent button.
+        destructive: "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
         link: "text-accent-text underline-offset-4 hover:underline"
@@ -2122,6 +2126,11 @@ function DataTable({
     seen.current = resetPageOn;
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
+  const pageIndex = table.getState().pagination.pageIndex;
+  const lastPage = Math.max(0, table.getPageCount() - 1);
+  useEffect(() => {
+    if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
+  }, [paginate, pageIndex, lastPage, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("div", { className: "overflow-x-auto rounded-lg border border-border", children: /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs(TableRow, { children: [
@@ -2132,16 +2141,26 @@ function DataTable({
           const sorted = header.column.getIsSorted();
           const canSort = header.column.getCanSort();
           const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+          const sortIcon = /* @__PURE__ */ jsx(
+            SortIcon,
+            {
+              size: 12,
+              "aria-hidden": "true",
+              className: sorted ? "text-text-secondary" : "text-text-faint"
+            }
+          );
           const label = header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext());
           return /* @__PURE__ */ jsx(
             TableHead,
             {
               "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
               className: cn(align.header, meta?.headerClassName),
-              children: /* @__PURE__ */ jsx("div", { className: cn("flex items-center gap-1", align.content), children: canSort ? (
+              children: /* @__PURE__ */ jsx("div", { className: cn("flex items-center gap-1", align.content), children: !canSort ? label : typeof label === "string" || typeof label === "number" ? (
                 // A real button, so the sort is reachable with Tab and
                 // Enter, not only a click on the cell. The heading's
                 // own look: the button only adds the hover and ring.
+                // It wraps like the heading it replaces: a long title
+                // takes a second line rather than an ellipsis.
                 /* @__PURE__ */ jsxs(
                   Button,
                   {
@@ -2149,21 +2168,37 @@ function DataTable({
                     variant: "ghost",
                     size: "sm",
                     onClick: header.column.getToggleSortingHandler(),
-                    className: "-mx-1.5 h-6 gap-1 px-1.5 text-xs font-medium uppercase tracking-wider text-current",
+                    className: cn(
+                      "-mx-1.5 h-auto min-h-6 gap-1 whitespace-normal px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider text-current",
+                      align.header
+                    ),
                     children: [
-                      label,
-                      /* @__PURE__ */ jsx(
-                        SortIcon,
-                        {
-                          size: 12,
-                          "aria-hidden": "true",
-                          className: sorted ? "text-text-secondary" : "text-text-faint"
-                        }
-                      )
+                      /* @__PURE__ */ jsx("span", { className: "min-w-0", children: label }),
+                      sortIcon
                     ]
                   }
                 )
-              ) : label })
+              ) : (
+                // A header the caller rendered may hold its own
+                // control, and a button cannot hold another: the
+                // header stays as given and the sort is a button
+                // beside it.
+                /* @__PURE__ */ jsxs(Fragment, { children: [
+                  label,
+                  /* @__PURE__ */ jsx(
+                    Button,
+                    {
+                      type: "button",
+                      variant: "ghost",
+                      size: "icon",
+                      "aria-label": `Sort by ${header.column.id}`,
+                      onClick: header.column.getToggleSortingHandler(),
+                      className: "h-6 w-6 text-current",
+                      children: sortIcon
+                    }
+                  )
+                ] })
+              ) })
             },
             header.id
           );
@@ -2173,7 +2208,7 @@ function DataTable({
         const canExpand = row.getCanExpand();
         const isExpanded = canExpand && row.getIsExpanded();
         const rowDetailId = `${detailId}-${row.id}`;
-        return /* @__PURE__ */ jsxs(Fragment, { children: [
+        return /* @__PURE__ */ jsxs(Fragment$1, { children: [
           /* @__PURE__ */ jsxs(
             TableRow,
             {
@@ -2764,6 +2799,17 @@ function Money({ value, colorNegative, className, ...props }) {
     }
   );
 }
+function withFieldState(control, { messageId, error, required }, ownRequired = control.props.required) {
+  const own = control.props["aria-describedby"];
+  const ownAriaRequired = control.props["aria-required"];
+  return cloneElement(control, {
+    ...messageId ? { "aria-describedby": own ? `${own} ${messageId}` : messageId } : {},
+    ...error ? { "aria-invalid": control.props["aria-invalid"] ?? true } : {},
+    // A native `required` is already announced, and a control that states its
+    // own `aria-required` keeps it.
+    ...required && ownAriaRequired === void 0 && !ownRequired ? { "aria-required": true } : {}
+  });
+}
 function FormField({
   label,
   htmlFor,
@@ -2777,13 +2823,22 @@ function FormField({
   const baseId = htmlFor ?? generatedId;
   const message = error ?? hint;
   const messageId = message ? `${baseId}-${error ? "error" : "hint"}` : void 0;
+  const state = { messageId, error: Boolean(error), required: Boolean(required) };
   let control = children;
-  if (messageId && isValidElement(children)) {
-    const own = children.props["aria-describedby"];
-    control = cloneElement(children, {
-      "aria-describedby": own ? `${own} ${messageId}` : messageId,
-      ...error ? { "aria-invalid": children.props["aria-invalid"] ?? true } : {}
-    });
+  if ((messageId || required) && isValidElement(children)) {
+    if (children.type === Select) {
+      const selectRequired = children.props.required;
+      control = cloneElement(
+        children,
+        void 0,
+        Children.map(
+          children.props.children,
+          (child) => isValidElement(child) && child.type === SelectTrigger ? withFieldState(child, state, selectRequired) : child
+        )
+      );
+    } else {
+      control = withFieldState(children, state);
+    }
   }
   return /* @__PURE__ */ jsxs("div", { className: cn("space-y-1", className), children: [
     /* @__PURE__ */ jsx(Label, { htmlFor, required, children: label }),
@@ -2898,7 +2953,7 @@ function ChartCard({
 }
 function ChartLegend({ items, onItemClick, className }) {
   return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className), children: items.map((item, i) => {
-    const content = /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    const content = /* @__PURE__ */ jsxs(Fragment, { children: [
       /* @__PURE__ */ jsx(
         "span",
         {
@@ -3063,7 +3118,7 @@ function ChartFooter({
   valueFormatter
 }) {
   const { allSeries, colors, hidden, toggle } = state;
-  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
     showLegend && /* @__PURE__ */ jsx(
       ChartLegend,
       {
@@ -3193,10 +3248,10 @@ function BarChart({
               vertical: isHorizontal
             }
           ),
-          isHorizontal ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+          isHorizontal ? /* @__PURE__ */ jsxs(Fragment, { children: [
             valueAxis,
             categoryAxis
-          ] }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
+          ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
             /* @__PURE__ */ jsx(
               XAxis,
               {
@@ -3657,6 +3712,7 @@ function MonthGrid({
   today,
   renderDay,
   dayClassName,
+  dimWeekendHeaders = false,
   className
 }) {
   return /* @__PURE__ */ jsxs("div", { role: "table", "aria-label": ariaLabel, className, children: [
@@ -3664,7 +3720,7 @@ function MonthGrid({
       "div",
       {
         role: "columnheader",
-        className: cn(eyebrowClass, "py-2 text-center", i >= 5 && "text-text-faint"),
+        className: cn(eyebrowClass, "py-2 text-center", dimWeekendHeaders && i >= 5 && "text-text-faint"),
         children: label
       },
       label
@@ -3722,7 +3778,7 @@ function MonthCalendar({
         "span",
         {
           "aria-hidden": "true",
-          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal text-text-faint"),
+          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal"),
           children: label[0]
         },
         label
@@ -3803,7 +3859,7 @@ function EventCalendar({
             const items = itemsByDate.get(iso) || [];
             const visible = items.slice(0, maxVisibleItems);
             const overflow = items.length - visible.length;
-            return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+            return /* @__PURE__ */ jsxs(Fragment, { children: [
               /* @__PURE__ */ jsx(
                 "span",
                 {
@@ -3814,7 +3870,7 @@ function EventCalendar({
                   children: cell.day
                 }
               ),
-              visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso))),
+              visible.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, iso) }, itemKey(item, iso))),
               overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
                 /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
                   Button,
@@ -3835,7 +3891,7 @@ function EventCalendar({
                     className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
                     children: [
                       /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(iso, items.length) }),
-                      items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso)))
+                      items.map((item) => /* @__PURE__ */ jsx(Fragment$1, { children: renderItem(item, iso) }, itemKey(item, iso)))
                     ]
                   }
                 )
@@ -3984,6 +4040,7 @@ function MonthlyCalendarGrid({
       month,
       ariaLabel: `Hours, ${monthLabel(month)}`,
       today,
+      dimWeekendHeaders: true,
       dayClassName: () => "flex min-h-[72px]",
       renderDay: (cell, { key: date, isToday, isWeekend: weekend }) => {
         const isSelected = date === selectedDay;
@@ -4141,7 +4198,7 @@ function DayDetailPanel({
   ] }) });
 }
 function ContractName({ contract }) {
-  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx("div", { className: "truncate text-sm font-medium text-text-primary", children: contract.projectName }),
     /* @__PURE__ */ jsxs("div", { className: "truncate text-xs text-text-muted", children: [
       contract.customerName,
@@ -4497,7 +4554,7 @@ function TimesheetTable({
         className: "mb-0",
         title,
         description: userFullName,
-        actions: /* @__PURE__ */ jsxs(Fragment$1, { children: [
+        actions: /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx(
             SegmentedControl,
             {
@@ -4507,7 +4564,7 @@ function TimesheetTable({
               onChange: (v) => handleViewModeChange(v)
             }
           ),
-          showRevert ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+          showRevert ? /* @__PURE__ */ jsxs(Fragment, { children: [
             /* @__PURE__ */ jsx("span", { role: "status", className: "text-sm font-medium text-success-text", children: "Saved" }),
             /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: handleRevert, children: "Revert" })
           ] }) : isDirty || saving ? /* @__PURE__ */ jsx(Button, { type: "button", onClick: performAutoSave, disabled: saving || !isDirty, children: saving ? "Saving..." : "Save" }) : null
@@ -4525,7 +4582,7 @@ function TimesheetTable({
         nextLabel: viewMode === "weekly" ? "Next week" : "Next month"
       }
     ),
-    loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
       /* @__PURE__ */ jsx(
         HoursSummary,
         {
@@ -4624,7 +4681,7 @@ function TimesheetTable({
           }),
           /* @__PURE__ */ jsx(TableCell, { className: "px-2 py-3 text-center font-bold tabular-nums text-text-primary", children: grandTotal > 0 ? grandTotal : "\u2013" })
         ] }) })
-      ] }) }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
+      ] }) }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsx(
           MonthlyCalendarGrid,
           {
