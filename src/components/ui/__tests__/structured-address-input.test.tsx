@@ -134,13 +134,24 @@ describe("structured address input", () => {
   it("uses Street address as the only manual and search input", () => {
     render(<AddressHarness />);
 
-    const street = screen.getByRole("combobox", { name: "Street address *" });
+    const street = screen.getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
 
     expect(street).toHaveValue("409");
     expect(screen.queryByLabelText(/Find address/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText("City *")).toBeEnabled();
-    expect(screen.getByLabelText("ZIP code *")).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "City" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "ZIP code" })).toBeEnabled();
+  });
+
+  it("names required fields without the marker, and marks them required instead", () => {
+    render(<AddressHarness />);
+
+    // The "*" is beside the label but hidden from the accessible name; the
+    // input's own required state is what a screen reader announces.
+    expect(screen.getByRole("combobox", { name: "Street address" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "City" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "Apartment or suite" })).not.toBeRequired();
+    expect(screen.getAllByText("*")[0]).toHaveAttribute("aria-hidden", "true");
   });
 
   it("requests suggestions after 409 and fills every field with keyboard selection", async () => {
@@ -149,7 +160,7 @@ describe("structured address input", () => {
     loadGooglePlacesLibrary.mockResolvedValue(library(fetchSuggestions));
     render(<AddressHarness />);
 
-    const street = screen.getByRole("combobox", { name: "Street address *" });
+    const street = screen.getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
     await finishDebounce();
 
@@ -169,9 +180,9 @@ describe("structured address input", () => {
       fields: ["addressComponents", "formattedAddress"],
     });
     expect(street).toHaveValue("409 Main Street");
-    expect(screen.getByLabelText("City *")).toHaveValue("Austin");
-    expect(screen.getByLabelText("State *")).toHaveValue("TX");
-    expect(screen.getByLabelText("ZIP code *")).toHaveValue("78701");
+    expect(screen.getByRole("textbox", { name: "City" })).toHaveValue("Austin");
+    expect(screen.getByRole("textbox", { name: "State" })).toHaveValue("TX");
+    expect(screen.getByRole("textbox", { name: "ZIP code" })).toHaveValue("78701");
     expect(street).not.toHaveAttribute("aria-activedescendant");
     expect(street).toHaveAttribute("aria-expanded", "false");
   });
@@ -182,7 +193,7 @@ describe("structured address input", () => {
     loadGooglePlacesLibrary.mockReturnValue(loading.promise);
     render(<AddressHarness />);
 
-    const street = screen.getByRole("combobox", { name: "Street address *" });
+    const street = screen.getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
     await finishDebounce();
     expect(loadGooglePlacesLibrary).toHaveBeenCalledTimes(1);
@@ -210,7 +221,7 @@ describe("structured address input", () => {
     loadGooglePlacesLibrary.mockResolvedValue(library(fetchSuggestions));
     render(<AddressHarness />);
 
-    const street = screen.getByRole("combobox", { name: "Street address *" });
+    const street = screen.getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
     await finishDebounce();
     fireEvent.change(street, { target: { value: "409 Main" } });
@@ -231,13 +242,13 @@ describe("structured address input", () => {
       .mockResolvedValueOnce(library(fetchSuggestions));
     render(<AddressHarness />);
 
-    const street = screen.getByRole("combobox", { name: "Street address *" });
+    const street = screen.getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
     await finishDebounce();
 
     expect(street).toHaveValue("409");
     expect(screen.getByText(/Address suggestions are unavailable/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("City *")).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "City" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await finishDebounce();
 
@@ -253,7 +264,7 @@ describe("structured address input", () => {
     render(<AddressHarness inDialog />);
 
     const dialog = screen.getByRole("dialog");
-    const street = within(dialog).getByRole("combobox", { name: "Street address *" });
+    const street = within(dialog).getByRole("combobox", { name: "Street address" });
     fireEvent.change(street, { target: { value: "409" } });
     await finishDebounce();
 

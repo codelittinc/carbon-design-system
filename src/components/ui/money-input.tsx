@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useState } from "react";
 import { cn } from "@/lib/cn";
+import { formatAmount } from "@/lib/format";
 import { Input } from "./input";
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
@@ -22,13 +23,15 @@ function clean(raw: string): string {
   return (neg ? "-" : "") + joined;
 }
 
-/** Pretty 2-decimal display, used ONLY when the field is not focused. */
+/**
+ * Pretty 2-decimal display, used ONLY when the field is not focused: `Money`'s
+ * format without the `$`, which the field draws itself. A value that is not a
+ * number yet ("", "-", ".") shows as typed.
+ */
 function formatForDisplay(value: string): string {
   if (!value || value === "-" || value === ".") return value;
   const num = parseFloat(value);
-  if (isNaN(num)) return value;
-  const abs = Math.abs(num).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return num < 0 ? `(${abs})` : abs;
+  return isNaN(num) ? value : formatAmount(num, { symbol: false });
 }
 
 /**

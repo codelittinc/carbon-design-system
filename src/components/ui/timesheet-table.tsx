@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { eyebrowClass, tableRowHoverClass } from "@/lib/ui-classes";
 import {
   WEEKDAY_LABELS,
   addDays,
   dateKey,
+  datePart,
   daysInMonth,
   formatCalendarDate,
   formatDateKey,
+  monthKey,
   monthLabel,
-  monthOfKey,
   parseDateKey,
+  parseMonthKey,
   shiftMonth,
   startOfWeek,
   todayIn,
@@ -23,7 +25,6 @@ import {
   cellKey,
   contractCoversDay,
   createDefaultApi,
-  datePart,
   diffGrids,
   parseCellKey,
   type TimesheetApi,
@@ -35,11 +36,13 @@ import {
 import { Alert } from "./alert";
 import { Badge } from "./badge";
 import { Button } from "./button";
+import { PeriodNav } from "./calendar-chrome";
 import { Card } from "./card";
 import { PageHeader } from "./page-header";
 import { SegmentedControl } from "./segmented-control";
 import { Spinner } from "./spinner";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
+import { TableEmptyRow } from "./table-empty-row";
 import { toast } from "./toast";
 import {
   ContractName,
@@ -103,7 +106,7 @@ const AUTOSAVE_DELAY_MS = 15000;
 /** How long "Saved · Revert" stays up after a save. */
 const REVERT_WINDOW_MS = 5000;
 
-const headClass = "px-2 py-3 text-xs font-medium uppercase tracking-wider";
+const headClass = cn(eyebrowClass, "px-2 py-3");
 
 /** "Sep 14 – Sep 20, 2026". */
 function weekRangeLabel(monday: CalendarDate): string {
@@ -225,7 +228,7 @@ export function TimesheetTable({
     startOfWeek((initialWeek && parseDateKey(initialWeek)) || todayIn()),
   );
   const [month, setMonth] = useState<YearMonth>(
-    () => (initialMonth && monthOfKey(`${initialMonth}-01`)) || monthOf(todayIn()),
+    () => (initialMonth && parseMonthKey(initialMonth)) || monthOf(todayIn()),
   );
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [gridData, setGridData] = useState<TimesheetGridData>({});
@@ -313,7 +316,7 @@ export function TimesheetTable({
   useEffect(() => {
     latest.current.onNavigate?.(
       viewMode === "monthly"
-        ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) }
+        ? { view: "monthly", month: monthKey(month) }
         : { view: "weekly", week: dateKey(weekStart) },
     );
   }, [viewMode, weekStart, month]);
@@ -555,26 +558,14 @@ export function TimesheetTable({
         }
       />
 
-      <Card padding="sm">
-        <div className="flex items-center justify-between">
-          <Button type="button" variant="outline" size="sm" onClick={goToPrev}>
-            <ChevronLeft size={14} aria-hidden="true" />
-            Prev
-          </Button>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" size="sm" onClick={goToToday}>
-              Today
-            </Button>
-            <span className="text-sm font-medium text-text-primary">
-              {viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month)}
-            </span>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={goToNext}>
-            Next
-            <ChevronRight size={14} aria-hidden="true" />
-          </Button>
-        </div>
-      </Card>
+      <PeriodNav
+        label={viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month)}
+        onPrevious={goToPrev}
+        onNext={goToNext}
+        onToday={goToToday}
+        previousLabel={viewMode === "weekly" ? "Previous week" : "Previous month"}
+        nextLabel={viewMode === "weekly" ? "Next week" : "Next month"}
+      />
 
       {loading ? (
         <Spinner label="Loading timesheet..." className="py-12" />
@@ -627,19 +618,12 @@ export function TimesheetTable({
                   </TableHeader>
                   <TableBody>
                     {activeContracts.length === 0 && (
-                      <TableRow className="border-0">
-                        <TableCell colSpan={9} className="py-8 text-center text-text-muted">
-                          No active contracts for this week.
-                        </TableCell>
-                      </TableRow>
+                      <TableEmptyRow colSpan={9}>No active contracts for this week.</TableEmptyRow>
                     )}
                     {activeContracts.map((contract, contractIdx) => {
                       const rowTotal = getRowTotal(contract.id);
                       return (
-                        <TableRow
-                          key={contract.id}
-                          className="hover:bg-table-row-hover"
-                        >
+                        <TableRow key={contract.id} className={tableRowHoverClass}>
                           <TableCell>
                             <ContractName contract={contract} />
                           </TableCell>
@@ -681,9 +665,7 @@ export function TimesheetTable({
                   </TableBody>
                   <TableFooter>
                     <TableRow>
-                      <TableCell className="px-3 py-3 text-xs font-medium uppercase text-text-muted">
-                        Daily Total
-                      </TableCell>
+                      <TableCell className={cn(eyebrowClass, "px-3 py-3")}>Daily Total</TableCell>
                       {weekDates.map((date) => {
                         const colTotal = getColumnTotal(date);
                         const isOver = colTotal > 24;
@@ -756,7 +738,7 @@ function TimeOffList({
   const fmt = (iso: string) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return (
     <Card padding="sm">
-      <h2 className="px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted">
+      <h2 className={cn(eyebrowClass, "px-3 pb-3 pt-2")}>
         Time Off This {viewMode === "weekly" ? "Week" : "Month"}
       </h2>
       <Table>

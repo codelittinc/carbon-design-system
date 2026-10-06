@@ -53,11 +53,13 @@ describe("DataTable", () => {
     render(<DataTable columns={columns} data={data} />);
     expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
 
-    const header = screen.getByRole("columnheader", { name: /Name/ });
-    fireEvent.click(header);
+    // The sort is a button in the heading, so Tab and Enter reach it too.
+    const sort = screen.getByRole("button", { name: /Name/ });
+    expect(sort).toHaveAttribute("type", "button");
+    fireEvent.click(sort);
     expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
 
-    fireEvent.click(header);
+    fireEvent.click(sort);
     expect(nameColumnOrder()).toEqual(["Charlie", "Bob", "Alice"]);
   });
 
@@ -65,24 +67,39 @@ describe("DataTable", () => {
     const { unmount } = render(
       <DataTable columns={columns} data={data} pageSize={25} />,
     );
-    // 3 rows, pageSize 25 -> single page -> no pagination indicator.
-    expect(screen.queryByText(/\/\s*\d/)).not.toBeInTheDocument();
+    // 3 rows, pageSize 25 -> single page -> no pager.
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).not.toBeInTheDocument();
     unmount();
 
     render(<DataTable columns={columns} data={data} pageSize={2} />);
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    const pager = screen.getByRole("navigation", { name: "Pagination" });
+    expect(within(pager).getByText(/Showing 1–2 of/)).toHaveTextContent("Showing 1–2 of 3");
 
-    // Two icon buttons: previous (disabled at page 1) and next.
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(2);
-    const [prev, next] = buttons;
+    // The shared Pagination: named buttons that never submit a form.
+    const prev = within(pager).getByRole("button", { name: "Previous page" });
+    const next = within(pager).getByRole("button", { name: "Next page" });
+    for (const button of within(pager).getAllByRole("button")) {
+      expect(button).toHaveAttribute("type", "button");
+    }
     expect(prev).toBeDisabled();
 
     fireEvent.click(next);
-    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page");
 
     fireEvent.click(prev);
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Page 1" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("pages without submitting a form around it", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <DataTable columns={columns} data={data} pageSize={2} />
+      </form>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: /Name/ }));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("calls onRowClick with the row original", () => {
@@ -201,11 +218,15 @@ describe("DataTable", () => {
       );
     }
 
-    const page = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
+    const page = () => {
+      const current = screen.getByRole("button", { current: "page" });
+      const last = screen.getAllByRole("button", { name: /^Page \d+$/ }).at(-1)!;
+      return `${current.textContent} / ${last.textContent}`;
+    };
 
     async function toLastPage() {
       await act(async () => {});
-      const next = () => screen.getAllByRole("button", { name: "" }).at(-1)!;
+      const next = () => screen.getByRole("button", { name: "Next page" });
       fireEvent.click(next());
       fireEvent.click(next());
       await act(async () => {});
@@ -366,7 +387,7 @@ describe("DataTable", () => {
       const name = screen.getByRole("columnheader", { name: /Name/ });
       expect(name).toHaveAttribute("aria-sort", "ascending");
 
-      fireEvent.click(name);
+      fireEvent.click(within(name).getByRole("button"));
       expect(onSort).toHaveBeenLastCalledWith([{ id: "name", desc: true }]);
       expect(name).toHaveAttribute("aria-sort", "descending");
       expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
@@ -380,7 +401,7 @@ describe("DataTable", () => {
     it("still reports changes while uncontrolled", () => {
       const onSortingChange = vi.fn();
       render(<DataTable columns={columns} data={data} onSortingChange={onSortingChange} />);
-      fireEvent.click(screen.getByRole("columnheader", { name: /Name/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Name/ }));
       expect(onSortingChange).toHaveBeenCalledWith([{ id: "name", desc: false }]);
       expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
     });

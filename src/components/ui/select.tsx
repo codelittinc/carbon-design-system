@@ -4,6 +4,7 @@ import { forwardRef } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { fieldChromeClass, floatingMotionClass, floatingSurfaceClass, optionRowClass, optionRowFocusClass } from "@/lib/ui-classes";
 
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
@@ -40,7 +41,8 @@ const SelectTrigger = forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      fieldChromeClass,
+      "flex h-8 items-center justify-between gap-2 px-3",
       "[&>span]:min-w-0 [&>span]:truncate",
       className,
     )}
@@ -62,7 +64,9 @@ const SelectContent = forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-surface-raised shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        floatingSurfaceClass,
+        floatingMotionClass,
+        "relative max-h-72 min-w-[8rem] overflow-hidden",
         position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
         className,
       )}
@@ -88,10 +92,8 @@ const SelectItem = forwardRef<
 >(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
-    className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2 text-sm text-text-secondary outline-none focus:bg-surface-overlay focus:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className,
-    )}
+    // Room on the left for the check, drawn absolutely.
+    className={cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className)}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">

@@ -16,7 +16,7 @@ describe("Button", () => {
 
   it("maps variant prop to the matching class fragment", () => {
     render(<Button variant="destructive">Delete</Button>);
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-red-600");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-error-solid", "text-error-foreground");
   });
 
   it("maps size prop to the matching class fragment", () => {

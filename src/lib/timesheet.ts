@@ -8,6 +8,8 @@
  * throughout, so the host's zone never moves a day.
  */
 
+import { datePart } from "./calendar";
+
 export interface TimesheetContract {
   id: number;
   name: string;
@@ -134,12 +136,7 @@ export function createDefaultApi(
 
 /* ─────────────────────────── Internal helpers ─────────────────────────── */
 // Used by the timesheet components; not exported from the package. Calendar
-// arithmetic lives in `lib/calendar`.
-
-/** The date part of an ISO date or instant. */
-export function datePart(iso: string): string {
-  return iso.split("T")[0];
-}
+// arithmetic, `datePart` included, lives in `lib/calendar`.
 
 export function cellKey(contractId: number, date: string): string {
   return `${contractId}::${date}`;

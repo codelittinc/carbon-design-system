@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
@@ -29,6 +30,9 @@ function pageSlots(page: number, totalPages: number): PageSlot[] {
 /**
  * Page controls for a list split into pages. Renders nothing when there is only
  * one page.
+ *
+ * Every button is `type="button"`, so paging a list inside a `<form>` never
+ * submits it.
  */
 export function Pagination({
   page,
@@ -37,7 +41,7 @@ export function Pagination({
   totalItems,
   pageSize,
   className,
-}: PaginationProps) {
+}: PaginationProps): ReactElement | null {
   if (totalPages <= 1) return null;
 
   return (
@@ -55,18 +59,20 @@ export function Pagination({
       )}
       <div className="flex items-center gap-1">
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           aria-label="Previous page"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={16} aria-hidden="true" />
         </Button>
         {pageSlots(page, totalPages).map((slot) =>
           typeof slot === "number" ? (
             <Button
               key={slot}
+              type="button"
               variant={slot === page ? "outline" : "ghost"}
               size="icon"
               aria-label={`Page ${slot}`}
@@ -83,13 +89,14 @@ export function Pagination({
           ),
         )}
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           aria-label="Next page"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={16} aria-hidden="true" />
         </Button>
       </div>
     </nav>

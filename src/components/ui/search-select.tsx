@@ -3,6 +3,12 @@
 import { useState, useEffect, useRef, useCallback, useId, type ReactElement } from "react";
 import { Search, X, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  fieldChromeClass,
+  floatingSurfaceClass,
+  optionRowActiveClass,
+  optionRowClass,
+} from "@/lib/ui-classes";
 import { useCreateOption } from "./use-create-option";
 
 interface SearchSelectOption {
@@ -344,7 +350,8 @@ export function SearchSelect({
         onKeyDown={handleKeyDown}
         onClick={() => (open ? closeList() : openList(-1))}
         className={cn(
-          "flex h-8 w-full min-w-0 items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+          fieldChromeClass,
+          "flex h-8 items-center justify-between px-3 hover:border-text-faint disabled:hover:border-border",
           triggerClassName,
         )}
       >
@@ -387,7 +394,8 @@ export function SearchSelect({
       {open && (
         <div
           className={cn(
-            "absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-border bg-surface-raised shadow-lg",
+            floatingSurfaceClass,
+            "absolute left-0 top-full mt-1 w-full min-w-[240px]",
             contentClassName,
           )}
         >
@@ -413,7 +421,7 @@ export function SearchSelect({
               className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
             />
           </div>
-          <div ref={listRef} role="listbox" id={listboxId} className="max-h-60 overflow-y-auto py-1">
+          <div ref={listRef} role="listbox" id={listboxId} className="max-h-60 overflow-y-auto p-1">
             {loading ? (
               <div className="px-3 py-4 text-center text-sm text-text-muted">Searching...</div>
             ) : options.length === 0 && !showCreate ? (
@@ -432,8 +440,9 @@ export function SearchSelect({
                   onClick={() => handleSelect(option.value)}
                   onMouseEnter={() => setActiveIndex(i)}
                   className={cn(
-                    "flex w-full items-center px-3 py-1.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-overlay",
-                    i === activeIndex && "bg-surface-overlay",
+                    optionRowClass,
+                    "text-text-primary hover:bg-surface-overlay",
+                    i === activeIndex && optionRowActiveClass,
                     option.value === value && "bg-accent-muted text-accent-text",
                     optionClassName,
                   )}
@@ -462,7 +471,8 @@ export function SearchSelect({
                 onClick={() => void handleCreate()}
                 onMouseEnter={() => setActiveIndex(options.length)}
                 className={cn(
-                  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
+                  optionRowClass,
+                  "text-accent-text hover:bg-surface-overlay",
                   activeIndex === options.length && "bg-surface-overlay",
                   creating && "cursor-wait opacity-50",
                   optionClassName,

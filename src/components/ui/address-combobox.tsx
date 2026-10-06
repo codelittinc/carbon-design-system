@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { loadGooglePlacesLibrary } from "@/lib/google-places";
 import { cn } from "@/lib/cn";
+import { floatingSurfaceClass, optionRowActiveClass } from "@/lib/ui-classes";
+import { Button } from "./button";
 import { Input } from "./input";
 import { parseGooglePlaceAddress, type PostalAddressDraft } from "./postal-address";
 
@@ -24,6 +26,17 @@ interface AddressAutocompleteProps {
 }
 
 type Suggestion = google.maps.places.AutocompleteSuggestion;
+
+/*
+ * The street field's height per variant, layered over `Input`, and shared with
+ * `StructuredAddressInput` so its other fields line up. The vendor portal's
+ * focus ring is its emerald brand; `focus-visible:` so tailwind-merge replaces
+ * Input's accent ring rather than stacking a second one. Internal: the package
+ * exports only the component from this file.
+ */
+export const STAFF_INPUT_CLASS = "h-9 py-0";
+export const VENDOR_INPUT_CLASS =
+  "h-10 py-0 shadow-none focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500";
 
 function predictionText(prediction: google.maps.places.PlacePrediction) {
   return {
@@ -165,25 +178,18 @@ export function AddressAutocomplete({
     }
   };
 
-  // Layered over `Input`. The off-token variants use `focus-visible:` so
-  // tailwind-merge replaces Input's accent ring rather than stacking a second one.
-  const variantClass =
-    variant === "public"
-      ? "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500"
-      : variant === "vendor"
-        ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
-        : "h-9 py-0";
+  // `public` and `vendor` pin their colour scheme whatever the app's theme: the
+  // public form is always dark and the vendor portal always light. They do it
+  // with the theme's own tokens, scoped by the `dark` / `light` class on the
+  // wrapper, so only the vendor portal's emerald (its brand, which the tokens
+  // do not carry) is written out.
+  const vendor = variant === "vendor";
+  const scopeClass = variant === "public" ? "dark" : vendor ? "light" : undefined;
+  const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
   const optionsVisible = searchActive && suggestions.length > 0;
-  const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
-  const optionClass =
-    variant === "public"
-      ? "border-gray-700 bg-gray-900 text-white"
-      : variant === "vendor"
-        ? "border-slate-200 bg-white text-slate-900"
-        : "border-border bg-surface-raised text-text-primary";
 
   return (
-    <div className="relative">
+    <div className={cn("relative", scopeClass)}>
       <Input
         id={inputId}
         type="text"
@@ -215,14 +221,14 @@ export function AddressAutocomplete({
         role="combobox"
         required={required}
         autoComplete={autoComplete}
-        className={cn(variantClass, className)}
+        className={cn(inputClass, className)}
       />
 
       {optionsVisible && (
         <div
           className={cn(
-            "absolute left-0 right-0 top-full z-[70] mt-1 overflow-hidden rounded-md border shadow-xl",
-            optionClass,
+            floatingSurfaceClass,
+            "absolute left-0 right-0 top-full z-[70] mt-1 overflow-hidden text-text-primary",
           )}
         >
           <ul
@@ -242,12 +248,7 @@ export function AddressAutocomplete({
                   aria-selected={activeIndex === index}
                   className={cn(
                     "cursor-pointer px-3 py-2 text-sm",
-                    activeIndex === index &&
-                      (variant === "vendor"
-                        ? "bg-emerald-50"
-                        : variant === "public"
-                          ? "bg-gray-800"
-                          : "bg-surface-overlay"),
+                    activeIndex === index && (vendor ? "bg-emerald-50" : optionRowActiveClass),
                   )}
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseEnter={() => setActiveIndex(index)}
@@ -255,7 +256,7 @@ export function AddressAutocomplete({
                 >
                   <span className="block font-medium">{text.main}</span>
                   {text.secondary && (
-                    <span className={cn("mt-0.5 block text-xs", mutedClass)}>{text.secondary}</span>
+                    <span className="mt-0.5 block text-xs text-text-muted">{text.secondary}</span>
                   )}
                 </li>
               );
@@ -276,7 +277,7 @@ export function AddressAutocomplete({
         id={statusId}
         role="status"
         aria-live="polite"
-        className={cn("mt-1 text-xs", mutedClass)}
+        className="mt-1 text-xs text-text-muted"
       >
         {status === "loading" && "Finding addresses…"}
         {status === "ready" &&
@@ -286,11 +287,13 @@ export function AddressAutocomplete({
         {status === "unavailable" && (
           <span>
             Address suggestions are unavailable. Continue entering the address manually.{" "}
-            <button
+            <Button
               type="button"
+              variant="link"
+              // Inline in the sentence: the link look without a button's box.
               className={cn(
-                "font-medium underline underline-offset-2",
-                variant === "vendor" ? "text-emerald-700" : "text-accent",
+                "inline h-auto p-0 text-xs underline",
+                vendor ? "text-emerald-700" : "text-accent-text",
               )}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
@@ -300,7 +303,7 @@ export function AddressAutocomplete({
               }}
             >
               Retry
-            </button>
+            </Button>
           </span>
         )}
       </div>

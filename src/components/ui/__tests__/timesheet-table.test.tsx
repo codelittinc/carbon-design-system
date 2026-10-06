@@ -168,6 +168,11 @@ describe("TimesheetTable", () => {
     // A day's total shows on the calendar; with two contracts, selecting it
     // opens the day panel.
     const monday = await screen.findByRole("button", { name: /^Mon, Sep 14, 2026, 6 hours/ });
+    // The month is a table, with the day buttons in named cells, like EventCalendar's.
+    const month = screen.getByRole("table", { name: "Hours, September 2026" });
+    expect(within(month).getAllByRole("columnheader")).toHaveLength(7);
+    expect(within(month).getByRole("cell", { name: "Monday, September 14" })).toContainElement(monday);
+    expect(screen.getByRole("button", { name: "Next month" })).toHaveAttribute("type", "button");
     fireEvent.click(monday);
     expect(screen.getByRole("heading", { name: "Monday, Sep 14, 2026" })).toBeInTheDocument();
     expect(cell("Legacy", "Mon, Sep 14, 2026")).toBeEnabled();
@@ -179,7 +184,7 @@ describe("TimesheetTable", () => {
     await screen.findByText("Daily Total");
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     });
     await screen.findByText("Sep 21 – Sep 27, 2026");
     expect(api.fetchTimeEntries).toHaveBeenLastCalledWith(
@@ -238,8 +243,8 @@ describe("TimesheetTable save, revert and dirty state", () => {
     fireEvent.change(cell("Backstage", "Wed, Sep 16, 2026"), { target: { value: "5" } });
 
     for (const control of [
-      () => screen.getByRole("button", { name: "Next" }),
-      () => screen.getByRole("button", { name: "Prev" }),
+      () => screen.getByRole("button", { name: "Next week" }),
+      () => screen.getByRole("button", { name: "Previous week" }),
       () => screen.getByRole("button", { name: "Today" }),
       () => screen.getByRole("radio", { name: "Monthly" }),
     ]) {
@@ -283,7 +288,7 @@ describe("TimesheetTable save, revert and dirty state", () => {
 
     // The latest callbacks are the ones used from then on.
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     });
     expect(secondNavigate).toHaveBeenLastCalledWith({ view: "weekly", week: "2026-09-21" });
   });

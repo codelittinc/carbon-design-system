@@ -37,6 +37,10 @@ interface CardProps
 /**
  * A bordered surface that groups related content. `padding` picks a step on the
  * spacing scale; `hoverable` adds a hover state for cards that are clickable.
+ *
+ * Every card in the package is this one (`StatCard` and `ChartCard` compose
+ * it), so cards share one border: the `border` token. `border-subtle` is for
+ * rules inside a card (table rows), not for the card's own edge.
  */
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, padding, hoverable, asChild = false, ...props }, ref) => {

@@ -8,9 +8,12 @@ import {
   formatCalendarDate,
   isWeekend,
   monthLabel,
+  datePart,
+  monthKey,
   monthOfKey,
   monthWeeks,
   parseDateKey,
+  parseMonthKey,
   formatDateKey,
   shiftMonth,
   startOfWeek,
@@ -89,11 +92,39 @@ describe("monthOfKey", () => {
     expect(monthOfKey("2026-09-03")).toEqual({ year: 2026, month: 9 });
   });
 
-  it("refuses anything that is not one", () => {
+  it("reads an ISO instant by its date part, as parseDateKey does", () => {
+    expect(monthOfKey("2026-09-03T00:00:00Z")).toEqual({ year: 2026, month: 9 });
+  });
+
+  it("refuses anything that is not a real day", () => {
     expect(monthOfKey("")).toBeNull();
     expect(monthOfKey("03/09/2026")).toBeNull();
     expect(monthOfKey("2026-13-01")).toBeNull();
-    expect(monthOfKey("2026-09-03T00:00:00Z")).toBeNull();
+    expect(monthOfKey("2026-02-30")).toBeNull();
+  });
+});
+
+describe("monthKey / parseMonthKey", () => {
+  it("round-trips a month", () => {
+    expect(monthKey({ year: 2026, month: 9 })).toBe("2026-09");
+    expect(parseMonthKey("2026-09")).toEqual({ year: 2026, month: 9 });
+  });
+
+  it("refuses a key that is not a month", () => {
+    expect(parseMonthKey("2026-13")).toBeNull();
+    expect(parseMonthKey("2026-9")).toBeNull();
+    expect(parseMonthKey("")).toBeNull();
+  });
+});
+
+describe("datePart", () => {
+  it("keeps a day key and cuts an instant to its day", () => {
+    expect(datePart("2026-09-03")).toBe("2026-09-03");
+    expect(datePart("2026-09-03T23:30:00.000Z")).toBe("2026-09-03");
+  });
+
+  it("cuts a value that is not a real day at its T", () => {
+    expect(datePart("2026-02-30T00:00:00Z")).toBe("2026-02-30");
   });
 });
 

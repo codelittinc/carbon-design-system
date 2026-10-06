@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { floatingSurfaceClass, optionRowActiveClass, optionRowClass } from "@/lib/ui-classes";
 import { Input } from "./input";
 import { useCreateOption } from "./use-create-option";
 
@@ -222,7 +223,7 @@ export function MultiSelect({
           role="listbox"
           aria-multiselectable="true"
           aria-busy={loading || undefined}
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
+          className={cn(floatingSurfaceClass, "absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto p-1")}
         >
           {filtered.length === 0 && !showCreate ? (
             <li className="px-2 py-3 text-center text-sm text-text-muted">
@@ -245,8 +246,8 @@ export function MultiSelect({
                   }}
                   onMouseEnter={() => setHighlighted(index)}
                   className={cn(
-                    "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary",
-                    highlighted === index && "bg-surface-overlay text-text-primary",
+                    optionRowClass,
+                    highlighted === index && optionRowActiveClass,
                     isSelected && "text-text-primary",
                     option.disabled && "cursor-not-allowed opacity-50",
                   )}
@@ -277,7 +278,8 @@ export function MultiSelect({
               }}
               onMouseEnter={() => setHighlighted(filtered.length)}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
+                optionRowClass,
+                "text-accent-text",
                 highlighted === filtered.length && "bg-surface-overlay",
                 creating && "cursor-wait opacity-50",
               )}

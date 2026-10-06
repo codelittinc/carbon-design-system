@@ -2,15 +2,15 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, useLayoutEffect, useMemo } from 'react';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, cloneElement, useLayoutEffect, useMemo } from 'react';
 import { jsx, jsxs, Fragment as Fragment$1 } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
-import { Check, ChevronDown, X, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
+import * as DialogPrimitive2 from '@radix-ui/react-dialog';
+import { X, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowUp, ArrowDown, ArrowUpDown, Search, Sun, Moon } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
@@ -30,27 +30,112 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
+// src/lib/calendar.ts
+function dateKey(date) {
+  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+}
+function weekdayOf(date) {
+  return (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() + 6) % 7;
+}
+var WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function isWeekend(date) {
+  return weekdayOf(date) >= 5;
+}
+function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+function addDays(date, step) {
+  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + step));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+function startOfWeek(date) {
+  return addDays(date, -weekdayOf(date));
+}
+function monthWeeks(month) {
+  const cells = Array(weekdayOf({ ...month, day: 1 })).fill(null);
+  for (let day = 1; day <= daysInMonth(month.year, month.month); day++) {
+    cells.push({ ...month, day });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
+}
+function shiftMonth(from, step) {
+  const zeroBased = from.month - 1 + step;
+  return {
+    year: from.year + Math.floor(zeroBased / 12),
+    month: (zeroBased % 12 + 12) % 12 + 1
+  };
+}
+function compareMonths(a, b) {
+  return a.year !== b.year ? a.year - b.year : a.month - b.month;
+}
+function monthLabel({ year, month }) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+function parseDateKey(key) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(key);
+  if (!match) return null;
+  const date = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  return date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.year, date.month) ? date : null;
+}
+function formatCalendarDate(date, options) {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(date.year, date.month - 1, date.day))
+  );
+}
+function formatDateKey(key, options) {
+  const date = parseDateKey(key);
+  return date ? formatCalendarDate(date, options) : key;
+}
+function monthOfKey(key) {
+  const date = parseDateKey(key);
+  return date ? { year: date.year, month: date.month } : null;
+}
+function todayIn(now = /* @__PURE__ */ new Date()) {
+  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+}
+function monthKey({ year, month }) {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+function parseMonthKey(key) {
+  return monthOfKey(`${key}-01`);
+}
+function datePart(iso) {
+  const date = parseDateKey(iso);
+  return date ? dateKey(date) : iso.split("T")[0];
+}
+
 // src/lib/format.ts
+function formatAmount(value, { symbol = true } = {}) {
+  const abs = Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const body = symbol ? `$${abs}` : abs;
+  return value < 0 ? `(${body})` : body;
+}
 function formatMoney(value) {
   if (value == null || value === "") return "$0.00";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "$0.00";
-  const abs = Math.abs(num);
-  const formatted = abs.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-  if (num < 0) return `($${formatted})`;
-  return `$${formatted}`;
+  return formatAmount(num);
 }
+var DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 function formatDate(iso) {
   if (!iso) return "\u2014";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const options = { month: "short", day: "numeric", year: "numeric" };
+  if (DATE_ONLY.test(iso)) return formatDateKey(iso, options);
+  return new Date(iso).toLocaleDateString("en-US", options);
+}
+function shortMonthName(month) {
+  return formatCalendarDate({ year: 2e3, month, day: 1 }, { month: "short" });
 }
 function formatPeriodLabel(month, year) {
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[month - 1]} ${year}`;
+  return `${shortMonthName(month)} ${year}`;
 }
 
 // src/lib/rich-text.ts
@@ -415,6 +500,30 @@ function getCategoricalSegments(ids) {
     { color: OVERFLOW_SEGMENT_COLOR, overflowCount: ids.length - visible.length }
   ];
 }
+
+// src/lib/ui-classes.ts
+var overlayClass = "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
+var modalSurfaceClass = "fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-lg border border-border bg-surface-raised p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+var floatingSurfaceClass = "z-50 rounded-lg border border-border bg-surface-raised shadow-lg";
+var floatingMotionClass = "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+var optionRowClass = "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-secondary outline-none transition-colors";
+var optionRowFocusClass = "focus:bg-surface-overlay focus:text-text-primary data-[highlighted]:bg-surface-overlay data-[highlighted]:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+var optionRowActiveClass = "bg-surface-overlay text-text-primary";
+var fieldChromeClass = "w-full min-w-0 rounded-md border border-border bg-surface-raised text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50";
+var eyebrowClass = "text-xs font-medium uppercase tracking-wider text-text-muted";
+var toneFillClass = {
+  success: "bg-success-soft text-success-text",
+  error: "bg-error-soft text-error-text",
+  info: "bg-info-soft text-info-text",
+  warning: "bg-accent-muted text-accent-text"
+};
+var toneBorderClass = {
+  success: "border-success-border",
+  error: "border-error-border",
+  info: "border-border",
+  warning: "border-border"
+};
+var tableRowHoverClass = "hover:bg-table-row-hover";
 var Input = forwardRef(
   ({ className, type, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -422,7 +531,8 @@ var Input = forwardRef(
       {
         type,
         className: cn(
-          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+          fieldChromeClass,
+          "flex h-8 px-3 py-1",
           className
         ),
         ref,
@@ -453,7 +563,7 @@ function loadGoogleMaps() {
   });
   return loadPromise;
 }
-var PUBLIC_CLASS = "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500";
+var PUBLIC_CLASS = "dark h-9 py-0 shadow-none";
 function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address...", className, variant = "staff" }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -499,7 +609,7 @@ var buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        destructive: "bg-red-600 text-white hover:bg-red-500",
+        destructive: "bg-error-solid text-error-foreground hover:bg-error",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
         link: "text-accent-text underline-offset-4 hover:underline"
@@ -554,11 +664,14 @@ var badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-surface-overlay text-text-secondary",
-        accent: "bg-accent-muted text-accent-text",
-        success: "bg-success-soft text-success-text",
-        warning: "bg-accent-muted text-accent-text",
-        error: "bg-error-soft text-error-text",
-        info: "bg-info-soft text-info-text"
+        // `accent` and `warning` render the same: the warning tone borrows the
+        // accent's amber (there is no separate warning tint). Both names stay,
+        // because they mean different things at the call site.
+        accent: toneFillClass.warning,
+        success: toneFillClass.success,
+        warning: toneFillClass.warning,
+        error: toneFillClass.error,
+        info: toneFillClass.info
       }
     },
     defaultVariants: {
@@ -568,6 +681,29 @@ var badgeVariants = cva(
 );
 function Badge({ className, variant, ...props }) {
   return /* @__PURE__ */ jsx("span", { className: cn(badgeVariants({ variant }), className), ...props });
+}
+var DismissButton = forwardRef(
+  ({ label, size = "md", className, ...props }, ref) => /* @__PURE__ */ jsx(
+    Button,
+    {
+      ref,
+      type: "button",
+      variant: "ghost",
+      size: "icon",
+      "aria-label": label,
+      className: cn(
+        "text-current opacity-70 hover:bg-transparent hover:text-current hover:opacity-100",
+        size === "sm" ? "h-4 w-4 rounded-full" : "h-6 w-6",
+        className
+      ),
+      ...props,
+      children: /* @__PURE__ */ jsx(X, { size: size === "sm" ? 12 : 14, "aria-hidden": "true" })
+    }
+  )
+);
+DismissButton.displayName = "DismissButton";
+function CloseButton({ className }) {
+  return /* @__PURE__ */ jsx(DialogPrimitive2.Close, { asChild: true, children: /* @__PURE__ */ jsx(DismissButton, { label: "Close", className: cn("absolute right-4 top-4", className) }) });
 }
 function Tag({
   children,
@@ -579,19 +715,8 @@ function Tag({
 }) {
   return /* @__PURE__ */ jsxs("span", { className: cn(badgeVariants({ variant }), "gap-1 text-xs", className), children: [
     children,
-    onRemove && /* @__PURE__ */ jsx(
-      Button,
-      {
-        type: "button",
-        variant: "ghost",
-        size: "icon",
-        onClick: onRemove,
-        disabled,
-        "aria-label": removeLabel,
-        className: "-mr-1 h-4 w-4 rounded-full text-current opacity-60 hover:bg-transparent hover:text-current hover:opacity-100",
-        children: /* @__PURE__ */ jsx(X, { size: 12 })
-      }
-    )
+    onRemove && // Sized to the badge's line rather than the 32px icon button.
+    /* @__PURE__ */ jsx(DismissButton, { size: "sm", label: removeLabel, onClick: onRemove, disabled, className: "-mr-1" })
   ] });
 }
 var cardVariants = cva("rounded-lg border border-border bg-surface", {
@@ -622,10 +747,10 @@ Card.displayName = "Card";
 var alertVariants = cva("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm", {
   variants: {
     variant: {
-      error: "border-error-border bg-error-soft text-error-text",
-      success: "border-success-border bg-success-soft text-success-text",
-      info: "border-border bg-info-soft text-info-text",
-      warning: "border-border bg-accent-muted text-accent-text"
+      error: cn(toneBorderClass.error, toneFillClass.error),
+      success: cn(toneBorderClass.success, toneFillClass.success),
+      info: cn(toneBorderClass.info, toneFillClass.info),
+      warning: cn(toneBorderClass.warning, toneFillClass.warning)
     }
   },
   defaultVariants: {
@@ -651,18 +776,7 @@ function Alert({ variant, title, children, onDismiss, className }) {
           title && /* @__PURE__ */ jsx("p", { className: "font-medium", children: title }),
           children && /* @__PURE__ */ jsx("div", { className: cn(title && "mt-0.5"), children })
         ] }),
-        onDismiss && /* @__PURE__ */ jsx(
-          Button,
-          {
-            type: "button",
-            variant: "ghost",
-            size: "icon",
-            onClick: onDismiss,
-            "aria-label": "Dismiss",
-            className: "-mr-1 -mt-0.5 h-6 w-6 text-current opacity-70 hover:bg-transparent hover:text-current hover:opacity-100",
-            children: /* @__PURE__ */ jsx(X, { size: 14 })
-          }
-        )
+        onDismiss && /* @__PURE__ */ jsx(DismissButton, { label: "Dismiss", onClick: onDismiss, className: "-mr-1 -mt-0.5" })
       ]
     }
   );
@@ -745,18 +859,20 @@ function Pagination({
           /* @__PURE__ */ jsx(
             Button,
             {
+              type: "button",
               variant: "ghost",
               size: "icon",
               "aria-label": "Previous page",
               disabled: page <= 1,
               onClick: () => onPageChange(page - 1),
-              children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16 })
+              children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16, "aria-hidden": "true" })
             }
           ),
           pageSlots(page, totalPages).map(
             (slot) => typeof slot === "number" ? /* @__PURE__ */ jsx(
               Button,
               {
+                type: "button",
                 variant: slot === page ? "outline" : "ghost",
                 size: "icon",
                 "aria-label": `Page ${slot}`,
@@ -771,12 +887,13 @@ function Pagination({
           /* @__PURE__ */ jsx(
             Button,
             {
+              type: "button",
               variant: "ghost",
               size: "icon",
               "aria-label": "Next page",
               disabled: page >= totalPages,
               onClick: () => onPageChange(page + 1),
-              children: /* @__PURE__ */ jsx(ChevronRight, { size: 16 })
+              children: /* @__PURE__ */ jsx(ChevronRight, { size: 16, "aria-hidden": "true" })
             }
           )
         ] })
@@ -952,7 +1069,7 @@ function MultiSelect({
         role: "listbox",
         "aria-multiselectable": "true",
         "aria-busy": loading || void 0,
-        className: "absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg",
+        className: cn(floatingSurfaceClass, "absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto p-1"),
         children: [
           filtered.length === 0 && !showCreate ? /* @__PURE__ */ jsx("li", { className: "px-2 py-3 text-center text-sm text-text-muted", children: loading ? "Loading\u2026" : emptyMessage }) : filtered.map((option, index) => {
             const isSelected = selected.has(option.value);
@@ -968,8 +1085,8 @@ function MultiSelect({
                 },
                 onMouseEnter: () => setHighlighted(index),
                 className: cn(
-                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary",
-                  highlighted === index && "bg-surface-overlay text-text-primary",
+                  optionRowClass,
+                  highlighted === index && optionRowActiveClass,
                   isSelected && "text-text-primary",
                   option.disabled && "cursor-not-allowed opacity-50"
                 ),
@@ -996,7 +1113,8 @@ function MultiSelect({
               },
               onMouseEnter: () => setHighlighted(filtered.length),
               className: cn(
-                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
+                optionRowClass,
+                "text-accent-text",
                 highlighted === filtered.length && "bg-surface-overlay",
                 creating && "cursor-wait opacity-50"
               ),
@@ -1271,7 +1389,8 @@ var Textarea = forwardRef(
       "textarea",
       {
         className: cn(
-          "flex min-h-[80px] w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+          fieldChromeClass,
+          "flex min-h-[80px] px-3 py-2",
           className
         ),
         ref,
@@ -1355,7 +1474,7 @@ var Switch = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
       SwitchPrimitive.Thumb,
       {
         className: cn(
-          "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
+          "pointer-events-none block h-4 w-4 rounded-full bg-carbon-50 shadow-sm transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
         )
       }
     )
@@ -1370,7 +1489,8 @@ var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @_
   {
     ref,
     className: cn(
-      "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-surface-raised px-3 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+      fieldChromeClass,
+      "flex h-8 items-center justify-between gap-2 px-3",
       "[&>span]:min-w-0 [&>span]:truncate",
       className
     ),
@@ -1387,7 +1507,9 @@ var SelectContent = forwardRef(({ className, children, position = "popper", ...p
   {
     ref,
     className: cn(
-      "relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-surface-raised shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      floatingSurfaceClass,
+      floatingMotionClass,
+      "relative max-h-72 min-w-[8rem] overflow-hidden",
       position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
       className
     ),
@@ -1410,10 +1532,7 @@ var SelectItem = forwardRef(({ className, children, ...props }, ref) => /* @__PU
   SelectPrimitive.Item,
   {
     ref,
-    className: cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2 text-sm text-text-secondary outline-none focus:bg-surface-overlay focus:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    ),
+    className: cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className),
     ...props,
     children: [
       /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
@@ -1422,18 +1541,15 @@ var SelectItem = forwardRef(({ className, children, ...props }, ref) => /* @__PU
   }
 ));
 SelectItem.displayName = "SelectItem";
-var Dialog = DialogPrimitive.Root;
-var DialogTrigger = DialogPrimitive.Trigger;
-var DialogClose = DialogPrimitive.Close;
-var DialogPortal = DialogPrimitive.Portal;
+var Dialog = DialogPrimitive2.Root;
+var DialogTrigger = DialogPrimitive2.Trigger;
+var DialogClose = DialogPrimitive2.Close;
+var DialogPortal = DialogPrimitive2.Portal;
 var DialogOverlay = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive.Overlay,
+  DialogPrimitive2.Overlay,
   {
     ref,
-    className: cn(
-      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    ),
+    className: cn(overlayClass, className),
     ...props
   }
 ));
@@ -1441,17 +1557,14 @@ DialogOverlay.displayName = "DialogOverlay";
 var DialogContent = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(DialogPortal, { children: [
   /* @__PURE__ */ jsx(DialogOverlay, {}),
   /* @__PURE__ */ jsxs(
-    DialogPrimitive.Content,
+    DialogPrimitive2.Content,
     {
       ref,
-      className: cn(
-        "fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-lg border border-border bg-surface-raised p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className
-      ),
+      className: cn(modalSurfaceClass, className),
       ...props,
       children: [
         children,
-        /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
+        /* @__PURE__ */ jsx(CloseButton, {})
       ]
     }
   )
@@ -1464,7 +1577,7 @@ function DialogHeader({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("mb-4 shrink-0 space-y-1", className), ...props });
 }
 var DialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive.Title,
+  DialogPrimitive2.Title,
   {
     ref,
     className: cn("text-lg font-semibold text-text-primary", className),
@@ -1481,23 +1594,12 @@ function DialogFooter({ className, ...props }) {
 var AlertDialog = AlertDialogPrimitive.Root;
 var AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 var AlertDialogContent = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxs(AlertDialogPrimitive.Portal, { children: [
-  /* @__PURE__ */ jsx(AlertDialogPrimitive.Overlay, { className: "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" }),
-  /* @__PURE__ */ jsx(
-    AlertDialogPrimitive.Content,
-    {
-      ref,
-      className: cn(
-        "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface-raised p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className
-      ),
-      ...props
-    }
-  )
+  /* @__PURE__ */ jsx(AlertDialogPrimitive.Overlay, { className: overlayClass }),
+  /* @__PURE__ */ jsx(AlertDialogPrimitive.Content, { ref, className: cn(modalSurfaceClass, className), ...props })
 ] }));
 AlertDialogContent.displayName = "AlertDialogContent";
-function AlertDialogHeader({ className, ...props }) {
-  return /* @__PURE__ */ jsx("div", { className: cn("mb-4 space-y-1", className), ...props });
-}
+var AlertDialogHeader = DialogHeader;
+var AlertDialogFooter = DialogFooter;
 var AlertDialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   AlertDialogPrimitive.Title,
   {
@@ -1516,9 +1618,6 @@ var AlertDialogDescription = forwardRef(({ className, ...props }, ref) => /* @__
   }
 ));
 AlertDialogDescription.displayName = "AlertDialogDescription";
-function AlertDialogFooter({ className, ...props }) {
-  return /* @__PURE__ */ jsx("div", { className: cn("mt-6 flex justify-end gap-2", className), ...props });
-}
 var AlertDialogAction = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(AlertDialogPrimitive.Action, { ref, className: cn(buttonVariants(), className), ...props }));
 AlertDialogAction.displayName = "AlertDialogAction";
 var AlertDialogCancel = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
@@ -1538,10 +1637,7 @@ var DropdownMenuContent = forwardRef(({ className, sideOffset = 4, ...props }, r
   {
     ref,
     sideOffset,
-    className: cn(
-      "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-      className
-    ),
+    className: cn(floatingSurfaceClass, floatingMotionClass, "min-w-[8rem] overflow-hidden p-1", className),
     ...props
   }
 ) }));
@@ -1550,10 +1646,7 @@ var DropdownMenuItem = forwardRef(({ className, ...props }, ref) => /* @__PURE__
   DropdownMenuPrimitive.Item,
   {
     ref,
-    className: cn(
-      "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary outline-none transition-colors focus:bg-surface-overlay focus:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    ),
+    className: cn(optionRowClass, optionRowFocusClass, className),
     ...props
   }
 ));
@@ -1576,18 +1669,15 @@ var DropdownMenuLabel = forwardRef(({ className, ...props }, ref) => /* @__PURE_
   }
 ));
 DropdownMenuLabel.displayName = "DropdownMenuLabel";
-var Sheet = DialogPrimitive.Root;
-var SheetTrigger = DialogPrimitive.Trigger;
-var SheetClose = DialogPrimitive.Close;
-var SheetPortal = DialogPrimitive.Portal;
+var Sheet = DialogPrimitive2.Root;
+var SheetTrigger = DialogPrimitive2.Trigger;
+var SheetClose = DialogPrimitive2.Close;
+var SheetPortal = DialogPrimitive2.Portal;
 var SheetOverlay = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive.Overlay,
+  DialogPrimitive2.Overlay,
   {
     ref,
-    className: cn(
-      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    ),
+    className: cn(overlayClass, className),
     ...props
   }
 ));
@@ -1596,7 +1686,7 @@ var SheetContent = forwardRef(
   ({ className, children, side = "right", ...props }, ref) => /* @__PURE__ */ jsxs(SheetPortal, { children: [
     /* @__PURE__ */ jsx(SheetOverlay, {}),
     /* @__PURE__ */ jsxs(
-      DialogPrimitive.Content,
+      DialogPrimitive2.Content,
       {
         ref,
         className: cn(
@@ -1608,7 +1698,7 @@ var SheetContent = forwardRef(
         ...props,
         children: [
           children,
-          /* @__PURE__ */ jsx(DialogPrimitive.Close, { className: "absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50", children: /* @__PURE__ */ jsx(X, { size: 16 }) })
+          /* @__PURE__ */ jsx(CloseButton, {})
         ]
       }
     )
@@ -1619,7 +1709,7 @@ function SheetHeader({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("border-b border-border px-6 py-4", className), ...props });
 }
 var SheetTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive.Title,
+  DialogPrimitive2.Title,
   {
     ref,
     className: cn("text-lg font-semibold text-text-primary", className),
@@ -1732,10 +1822,7 @@ var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, 
     ref,
     align,
     sideOffset,
-    className: cn(
-      "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-      className
-    ),
+    className: cn(floatingSurfaceClass, floatingMotionClass, "w-72 p-4 outline-none", className),
     ...props
   }
 ) }));
@@ -1829,10 +1916,7 @@ var HoverCardContent = forwardRef(({ className, align = "center", sideOffset = 4
         if (e.defaultPrevented || triggerRef.current?.contains(e.target)) return;
         dismiss();
       },
-      className: cn(
-        "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className
-      ),
+      className: cn(floatingSurfaceClass, floatingMotionClass, "w-72 p-4 outline-none", className),
       ...props
     }
   ) });
@@ -1866,13 +1950,9 @@ var toast = Object.assign((t) => emit(t), {
   info: (title, options) => emit({ title, ...options, variant: "info" }),
   warning: (title, options) => emit({ title, ...options, variant: "warning" })
 });
-var variantClasses = {
-  default: "border-border bg-surface-raised",
-  success: "border-success-border bg-success-soft",
-  error: "border-error-border bg-error-soft",
-  info: "border-border bg-info-soft",
-  warning: "border-border bg-accent-muted"
-};
+function toastClass(variant = "default") {
+  return variant === "default" ? "flex items-start gap-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-text-primary" : alertVariants({ variant });
+}
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((t) => {
@@ -1902,27 +1982,13 @@ function ToastProvider({ children }) {
           "div",
           {
             role: t.variant === "error" ? "alert" : "status",
-            className: cn(
-              "flex w-80 items-start gap-3 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right",
-              variantClasses[t.variant ?? "default"]
-            ),
+            className: cn(toastClass(t.variant), "w-80 shadow-lg animate-in slide-in-from-right"),
             children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex-1", children: [
-                /* @__PURE__ */ jsx("p", { className: "text-sm font-medium text-text-primary", children: t.title }),
-                t.description && /* @__PURE__ */ jsx("p", { className: "mt-0.5 text-xs text-text-muted", children: t.description })
+              /* @__PURE__ */ jsxs("div", { className: "min-w-0 flex-1", children: [
+                /* @__PURE__ */ jsx("p", { className: "font-medium", children: t.title }),
+                t.description && /* @__PURE__ */ jsx("p", { className: "mt-0.5 text-xs", children: t.description })
               ] }),
-              /* @__PURE__ */ jsx(
-                Button,
-                {
-                  type: "button",
-                  variant: "ghost",
-                  size: "icon",
-                  "aria-label": "Dismiss",
-                  onClick: () => removeToast(t.id),
-                  className: "-mr-1 -mt-0.5 h-6 w-6 text-text-muted hover:bg-transparent",
-                  children: /* @__PURE__ */ jsx(X, { size: 14 })
-                }
-              )
+              /* @__PURE__ */ jsx(DismissButton, { label: "Dismiss", onClick: () => removeToast(t.id), className: "-mr-1 -mt-0.5" })
             ]
           },
           t.id
@@ -1973,10 +2039,7 @@ var TableHead = forwardRef(
     "th",
     {
       ref,
-      className: cn(
-        "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
-        className
-      ),
+      className: cn(eyebrowClass, "px-3 py-2 text-left", className),
       ...props
     }
   )
@@ -1986,6 +2049,12 @@ var TableCell = forwardRef(
   ({ className, ...props }, ref) => /* @__PURE__ */ jsx("td", { ref, className: cn("px-3 py-2", className), ...props })
 );
 TableCell.displayName = "TableCell";
+function TableEmptyRow({
+  colSpan,
+  children
+}) {
+  return /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan, className: "py-8 text-center text-text-muted", children }) });
+}
 var alignClasses = {
   left: { cell: "text-left", header: "text-left", content: "justify-start" },
   right: { cell: "text-right", header: "text-right", content: "justify-end" },
@@ -2061,28 +2130,40 @@ function DataTable({
           const meta = header.column.columnDef.meta;
           const align = alignClasses[meta?.align ?? "left"];
           const sorted = header.column.getIsSorted();
+          const canSort = header.column.getCanSort();
           const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+          const label = header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext());
           return /* @__PURE__ */ jsx(
             TableHead,
             {
               "aria-sort": sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : void 0,
-              className: cn(
-                align.header,
-                header.column.getCanSort() && "cursor-pointer select-none",
-                meta?.headerClassName
-              ),
-              onClick: header.column.getToggleSortingHandler(),
-              children: /* @__PURE__ */ jsxs("div", { className: cn("flex items-center gap-1", align.content), children: [
-                header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext()),
-                header.column.getCanSort() && /* @__PURE__ */ jsx(
-                  SortIcon,
+              className: cn(align.header, meta?.headerClassName),
+              children: /* @__PURE__ */ jsx("div", { className: cn("flex items-center gap-1", align.content), children: canSort ? (
+                // A real button, so the sort is reachable with Tab and
+                // Enter, not only a click on the cell. The heading's
+                // own look: the button only adds the hover and ring.
+                /* @__PURE__ */ jsxs(
+                  Button,
                   {
-                    size: 12,
-                    "aria-hidden": "true",
-                    className: sorted ? "text-text-secondary" : "text-text-faint"
+                    type: "button",
+                    variant: "ghost",
+                    size: "sm",
+                    onClick: header.column.getToggleSortingHandler(),
+                    className: "-mx-1.5 h-6 gap-1 px-1.5 text-xs font-medium uppercase tracking-wider text-current",
+                    children: [
+                      label,
+                      /* @__PURE__ */ jsx(
+                        SortIcon,
+                        {
+                          size: 12,
+                          "aria-hidden": "true",
+                          className: sorted ? "text-text-secondary" : "text-text-faint"
+                        }
+                      )
+                    ]
                   }
                 )
-              ] })
+              ) : label })
             },
             header.id
           );
@@ -2121,7 +2202,7 @@ function DataTable({
                 // selected row it would cover the selection instead of deepening
                 // it, and the pointer would appear to clear the one row state that
                 // has to stay readable under it.
-                !row.getIsSelected() && "hover:bg-table-row-hover",
+                !row.getIsSelected() && tableRowHoverClass,
                 // Last, so twMerge drops the stripe from a selected row: a row gets
                 // one background, and selection is the one that means something.
                 row.getIsSelected() && "bg-accent-muted",
@@ -2180,41 +2261,20 @@ function DataTable({
             }
           )
         ] }, row.id);
-      }) : /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: colCount, className: "py-8 text-center text-text-muted", children: emptyMessage }) }) })
+      }) : /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: colCount, children: emptyMessage }) })
     ] }) }),
-    paginate && table.getPageCount() > 1 && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-1 pt-3", children: [
-      /* @__PURE__ */ jsxs("span", { className: "text-xs text-text-muted", children: [
-        table.getFilteredRowModel().rows.length,
-        " row(s)"
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1", children: [
-        /* @__PURE__ */ jsx(
-          Button,
-          {
-            variant: "ghost",
-            size: "icon",
-            onClick: () => table.previousPage(),
-            disabled: !table.getCanPreviousPage(),
-            children: /* @__PURE__ */ jsx(ChevronLeft, { size: 14 })
-          }
-        ),
-        /* @__PURE__ */ jsxs("span", { className: "px-2 text-xs text-text-secondary", children: [
-          table.getState().pagination.pageIndex + 1,
-          " / ",
-          table.getPageCount()
-        ] }),
-        /* @__PURE__ */ jsx(
-          Button,
-          {
-            variant: "ghost",
-            size: "icon",
-            onClick: () => table.nextPage(),
-            disabled: !table.getCanNextPage(),
-            children: /* @__PURE__ */ jsx(ChevronRight, { size: 14 })
-          }
-        )
-      ] })
-    ] })
+    paginate && // Renders nothing for a single page.
+    /* @__PURE__ */ jsx(
+      Pagination,
+      {
+        className: "px-1 pt-3",
+        page: table.getState().pagination.pageIndex + 1,
+        totalPages: table.getPageCount(),
+        totalItems: table.getFilteredRowModel().rows.length,
+        pageSize: table.getState().pagination.pageSize,
+        onPageChange: (page) => table.setPageIndex(page - 1)
+      }
+    )
   ] });
 }
 function clean(raw) {
@@ -2229,9 +2289,7 @@ function clean(raw) {
 function formatForDisplay(value) {
   if (!value || value === "-" || value === ".") return value;
   const num = parseFloat(value);
-  if (isNaN(num)) return value;
-  const abs = Math.abs(num).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return num < 0 ? `(${abs})` : abs;
+  return isNaN(num) ? value : formatAmount(num, { symbol: false });
 }
 var MoneyInput = forwardRef(
   ({ className, value, onChange, onFocus, onBlur, ...props }, ref) => {
@@ -2311,7 +2369,7 @@ function CommandPalette({
       /* @__PURE__ */ jsx(
         "div",
         {
-          className: "fixed inset-0 bg-black/60",
+          className: overlayClass,
           onClick: () => onOpenChange(false),
           "aria-hidden": "true"
         }
@@ -2362,7 +2420,7 @@ function CommandGroup({ heading, children }) {
     Command.Group,
     {
       heading,
-      className: "[&_[cmdk-group-heading]]:mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-faint",
+      className: "[&_[cmdk-group-heading]]:mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-muted",
       children
     }
   );
@@ -2385,7 +2443,7 @@ function CommandItem({
       forceMount,
       disabled,
       className: cn(
-        "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors",
+        optionRowClass,
         "data-[selected=true]:bg-surface-overlay data-[selected=true]:text-text-primary",
         disabled && "pointer-events-none opacity-50"
       ),
@@ -2571,7 +2629,8 @@ function SearchSelect({
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),
         className: cn(
-          "flex h-8 w-full min-w-0 items-center justify-between rounded-md border border-border bg-surface-raised px-3 text-sm transition-colors hover:border-text-faint focus:outline-none focus:ring-2 focus:ring-accent/50",
+          fieldChromeClass,
+          "flex h-8 items-center justify-between px-3 hover:border-text-faint disabled:hover:border-border",
           triggerClassName
         ),
         children: [
@@ -2606,7 +2665,8 @@ function SearchSelect({
       "div",
       {
         className: cn(
-          "absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-border bg-surface-raised shadow-lg",
+          floatingSurfaceClass,
+          "absolute left-0 top-full mt-1 w-full min-w-[240px]",
           contentClassName
         ),
         children: [
@@ -2633,7 +2693,7 @@ function SearchSelect({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs("div", { ref: listRef, role: "listbox", id: listboxId, className: "max-h-60 overflow-y-auto py-1", children: [
+          /* @__PURE__ */ jsxs("div", { ref: listRef, role: "listbox", id: listboxId, className: "max-h-60 overflow-y-auto p-1", children: [
             loading ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: "Searching..." }) : options.length === 0 && !showCreate ? /* @__PURE__ */ jsx("div", { className: "px-3 py-4 text-center text-sm text-text-muted", children: emptyMessage }) : options.map((option, i) => /* @__PURE__ */ jsx(
               "button",
               {
@@ -2645,8 +2705,9 @@ function SearchSelect({
                 onClick: () => handleSelect(option.value),
                 onMouseEnter: () => setActiveIndex(i),
                 className: cn(
-                  "flex w-full items-center px-3 py-1.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-overlay",
-                  i === activeIndex && "bg-surface-overlay",
+                  optionRowClass,
+                  "text-text-primary hover:bg-surface-overlay",
+                  i === activeIndex && optionRowActiveClass,
                   option.value === value && "bg-accent-muted text-accent-text",
                   optionClassName
                 ),
@@ -2669,7 +2730,8 @@ function SearchSelect({
                 onClick: () => void handleCreate(),
                 onMouseEnter: () => setActiveIndex(options.length),
                 className: cn(
-                  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
+                  optionRowClass,
+                  "text-accent-text hover:bg-surface-overlay",
                   activeIndex === options.length && "bg-surface-overlay",
                   creating && "cursor-wait opacity-50",
                   optionClassName
@@ -2711,13 +2773,22 @@ function FormField({
   className,
   children
 }) {
+  const generatedId = useId();
+  const baseId = htmlFor ?? generatedId;
+  const message = error ?? hint;
+  const messageId = message ? `${baseId}-${error ? "error" : "hint"}` : void 0;
+  let control = children;
+  if (messageId && isValidElement(children)) {
+    const own = children.props["aria-describedby"];
+    control = cloneElement(children, {
+      "aria-describedby": own ? `${own} ${messageId}` : messageId,
+      ...error ? { "aria-invalid": children.props["aria-invalid"] ?? true } : {}
+    });
+  }
   return /* @__PURE__ */ jsxs("div", { className: cn("space-y-1", className), children: [
-    /* @__PURE__ */ jsxs("label", { htmlFor, className: "block text-xs font-medium text-text-muted", children: [
-      label,
-      required && /* @__PURE__ */ jsx("span", { className: "ml-0.5 text-error", children: "*" })
-    ] }),
-    children,
-    error ? /* @__PURE__ */ jsx("p", { className: "text-xs text-error", children: error }) : hint ? /* @__PURE__ */ jsx("p", { className: "text-xs text-text-faint", children: hint }) : null
+    /* @__PURE__ */ jsx(Label, { htmlFor, required, children: label }),
+    control,
+    error ? /* @__PURE__ */ jsx("p", { id: messageId, role: "alert", className: "break-words text-xs text-error-text", children: error }) : hint ? /* @__PURE__ */ jsx("p", { id: messageId, className: "break-words text-xs text-text-muted", children: hint }) : null
   ] });
 }
 function DefinitionList({ columns = 2, className, children }) {
@@ -2771,8 +2842,8 @@ function FilterBar({
   ] });
 }
 function StatCard({ label, value, sub, trend, loading, className }) {
-  return /* @__PURE__ */ jsxs("div", { className: cn("rounded-lg border border-border-subtle bg-surface p-4", className), children: [
-    /* @__PURE__ */ jsx("p", { className: "text-[11px] font-medium uppercase tracking-widest text-text-faint", children: label }),
+  return /* @__PURE__ */ jsxs(Card, { padding: "none", className: cn("p-4", className), children: [
+    /* @__PURE__ */ jsx("p", { className: eyebrowClass, children: label }),
     loading ? /* @__PURE__ */ jsx(Skeleton, { className: "mt-2 h-7 w-24" }) : /* @__PURE__ */ jsx("p", { className: "mt-1 font-[family-name:var(--font-mono)] text-2xl font-semibold tracking-tight text-text-primary", children: value }),
     sub && /* @__PURE__ */ jsx(
       "p",
@@ -2813,7 +2884,7 @@ function ChartCard({
   className,
   children
 }) {
-  return /* @__PURE__ */ jsxs("div", { className: cn("rounded-lg border border-border-subtle bg-surface p-4", className), children: [
+  return /* @__PURE__ */ jsxs(Card, { padding: "none", className: cn("p-4", className), children: [
     (title || subtitle || action) && /* @__PURE__ */ jsxs("div", { className: "mb-4 flex items-start justify-between gap-4", children: [
       /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
         title && /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-text-primary", children: title }),
@@ -2839,12 +2910,14 @@ function ChartLegend({ items, onItemClick, className }) {
       /* @__PURE__ */ jsx("span", { className: cn("truncate", item.inactive ? "text-text-faint" : "text-text-secondary"), children: item.label })
     ] });
     return /* @__PURE__ */ jsx("li", { className: "min-w-0 text-xs", children: onItemClick ? /* @__PURE__ */ jsx(
-      "button",
+      Button,
       {
         type: "button",
+        variant: "ghost",
+        size: "sm",
         onClick: () => onItemClick(i),
         "aria-pressed": !item.inactive,
-        className: "-mx-1.5 -my-1 flex min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-1 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+        className: "-mx-1.5 -my-1 h-auto gap-1.5 rounded-sm px-1.5 py-1 text-xs font-normal",
         children: content
       }
     ) : /* @__PURE__ */ jsx("span", { className: "flex min-w-0 items-center gap-1.5", children: content }) }, `${item.label}-${i}`);
@@ -2959,6 +3032,63 @@ var CHART_LABEL_STYLE = {
   fontFamily: "var(--font-mono)",
   fontWeight: 500
 };
+function useChartSeries(series, data, context) {
+  const allSeries = capSeries(series, context);
+  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
+  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
+  const visibleSeries = React.useMemo(
+    () => allSeries.filter((s) => !hidden.has(s.key)),
+    [allSeries, hidden]
+  );
+  const toggle = (index) => {
+    const key = allSeries[index]?.key;
+    if (!key) return;
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else if (prev.size < allSeries.length - 1) next.add(key);
+      return next;
+    });
+  };
+  return { allSeries, visibleSeries, colors: resolveSeriesColors(allSeries), hidden, toggle, plotData };
+}
+function ChartFooter({
+  state,
+  showLegend,
+  toggleable,
+  data,
+  categoryKey,
+  categoryLabel,
+  tableCaption,
+  valueFormatter
+}) {
+  const { allSeries, colors, hidden, toggle } = state;
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    showLegend && /* @__PURE__ */ jsx(
+      ChartLegend,
+      {
+        className: "mt-3",
+        items: allSeries.map((s, i) => ({
+          label: s.label,
+          color: colors[i],
+          inactive: hidden.has(s.key)
+        })),
+        onItemClick: toggleable ? toggle : void 0
+      }
+    ),
+    /* @__PURE__ */ jsx(
+      ChartDataTable,
+      {
+        caption: tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`,
+        categoryLabel,
+        categories: data.map((row) => String(row[categoryKey] ?? "")),
+        series: allSeries,
+        data,
+        valueFormatter
+      }
+    )
+  ] });
+}
 function BarChart({
   data,
   categoryKey,
@@ -2983,14 +3113,8 @@ function BarChart({
   emptyDescription,
   className
 }) {
-  const allSeries = capSeries(series, "BarChart");
-  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
-  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
-  const visibleSeries = React.useMemo(
-    () => allSeries.filter((s) => !hidden.has(s.key)),
-    [allSeries, hidden]
-  );
-  const allColors = resolveSeriesColors(allSeries);
+  const seriesState = useChartSeries(series, data, "BarChart");
+  const { allSeries, visibleSeries, colors: allColors, plotData } = seriesState;
   const isHorizontal = orientation === "horizontal";
   const perCategory = colorBy === "category" && allSeries.length === 1;
   const categoryColors = React.useMemo(() => {
@@ -3020,16 +3144,6 @@ function BarChart({
   if (!data.length || !allSeries.length) {
     return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
   }
-  const toggle = (index) => {
-    const key = allSeries[index]?.key;
-    if (!key) return;
-    setHidden((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else if (prev.size < allSeries.length - 1) next.add(key);
-      return next;
-    });
-  };
   const capFor = (isLastInStack) => {
     if (stacked && !isLastInStack) return [0, 0, 0, 0];
     return isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0];
@@ -3154,26 +3268,16 @@ function BarChart({
         ]
       }
     ) }) }),
-    showLegend && /* @__PURE__ */ jsx(
-      ChartLegend,
-      {
-        className: "mt-3",
-        items: allSeries.map((s, i) => ({
-          label: s.label,
-          color: allColors[i],
-          inactive: hidden.has(s.key)
-        })),
-        onItemClick: toggleableSeries ? toggle : void 0
-      }
-    ),
     /* @__PURE__ */ jsx(
-      ChartDataTable,
+      ChartFooter,
       {
-        caption: tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`,
-        categoryLabel,
-        categories: data.map((row) => String(row[categoryKey] ?? "")),
-        series: allSeries,
+        state: seriesState,
+        showLegend,
+        toggleable: toggleableSeries,
         data,
+        categoryKey,
+        categoryLabel,
+        tableCaption,
         valueFormatter
       }
     )
@@ -3203,14 +3307,8 @@ function LineChart({
   emptyDescription,
   className
 }) {
-  const allSeries = capSeries(series, "LineChart");
-  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
-  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
-  const visibleSeries = React.useMemo(
-    () => allSeries.filter((s) => !hidden.has(s.key)),
-    [allSeries, hidden]
-  );
-  const allColors = resolveSeriesColors(allSeries);
+  const seriesState = useChartSeries(series, data, "LineChart");
+  const { allSeries, visibleSeries, colors: allColors, plotData } = seriesState;
   const showLegend = legend ?? allSeries.length > 1;
   const showDots = dots ?? data.length <= 12;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
@@ -3218,16 +3316,6 @@ function LineChart({
   if (!data.length || !allSeries.length) {
     return /* @__PURE__ */ jsx(ChartEmpty, { height, title: emptyTitle, description: emptyDescription });
   }
-  const toggle = (index) => {
-    const key = allSeries[index]?.key;
-    if (!key) return;
-    setHidden((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else if (prev.size < allSeries.length - 1) next.add(key);
-      return next;
-    });
-  };
   return /* @__PURE__ */ jsxs("div", { className: cn("w-full", className), children: [
     /* @__PURE__ */ jsx("div", { style: { height }, children: /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(
       AreaChart,
@@ -3309,31 +3397,25 @@ function LineChart({
         ]
       }
     ) }) }),
-    showLegend && /* @__PURE__ */ jsx(
-      ChartLegend,
-      {
-        className: "mt-3",
-        items: allSeries.map((s, i) => ({
-          label: s.label,
-          color: allColors[i],
-          inactive: hidden.has(s.key)
-        })),
-        onItemClick: toggleableSeries ? toggle : void 0
-      }
-    ),
     /* @__PURE__ */ jsx(
-      ChartDataTable,
+      ChartFooter,
       {
-        caption: tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`,
-        categoryLabel,
-        categories: data.map((row) => String(row[categoryKey] ?? "")),
-        series: allSeries,
+        state: seriesState,
+        showLegend,
+        toggleable: toggleableSeries,
         data,
+        categoryKey,
+        categoryLabel,
+        tableCaption,
         valueFormatter
       }
     )
   ] });
 }
+var DONUT_TABLE_SERIES = [
+  { key: "value", label: "Value" },
+  { key: "share", label: "Share" }
+];
 function DonutChart({
   data,
   maxSlices = 6,
@@ -3442,42 +3524,23 @@ function DonutChart({
             /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate text-text-secondary", children: slice.label }),
             /* @__PURE__ */ jsx("span", { className: "ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary", children: showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value) })
           ] }, `${slice.label}-${i}`)) }),
-          /* @__PURE__ */ jsxs("table", { className: "sr-only", children: [
-            /* @__PURE__ */ jsx("caption", { children: tableCaption ?? `Share of total by ${categoryLabel}` }),
-            /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
-              /* @__PURE__ */ jsx("th", { scope: "col", children: categoryLabel }),
-              /* @__PURE__ */ jsx("th", { scope: "col", children: "Value" }),
-              /* @__PURE__ */ jsx("th", { scope: "col", children: "Share" })
-            ] }) }),
-            /* @__PURE__ */ jsx("tbody", { children: slices.map((slice, i) => /* @__PURE__ */ jsxs("tr", { children: [
-              /* @__PURE__ */ jsx("th", { scope: "row", children: slice.label }),
-              /* @__PURE__ */ jsx("td", { children: valueFormatter(slice.value) }),
-              /* @__PURE__ */ jsxs("td", { children: [
-                slice.percent.toFixed(1),
-                "%"
-              ] })
-            ] }, `${slice.label}-${i}`)) })
-          ] })
+          /* @__PURE__ */ jsx(
+            ChartDataTable,
+            {
+              caption: tableCaption ?? `Share of total by ${categoryLabel}`,
+              categoryLabel,
+              categories: slices.map((slice) => slice.label),
+              series: DONUT_TABLE_SERIES,
+              data: slices.map((slice) => ({ value: slice.value, share: `${slice.percent.toFixed(1)}%` })),
+              valueFormatter
+            }
+          )
         ]
       }
     )
   );
 }
-var MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec"
-];
-var MONTH_OPTIONS = MONTH_NAMES.map((label, i) => ({ value: i + 1, label }));
+var MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: shortMonthName(i + 1) }));
 var triggerClass = "h-7 gap-1 px-2 text-xs";
 function NumberSelect({
   value,
@@ -3541,76 +3604,88 @@ function DateRangePicker({ value, onChange, years, className }) {
     ] })
   ] });
 }
-
-// src/lib/calendar.ts
-function dateKey(date) {
-  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
-}
-function weekdayOf(date) {
-  return (new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay() + 6) % 7;
-}
-var WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-function isWeekend(date) {
-  return weekdayOf(date) >= 5;
-}
-function daysInMonth(year, month) {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-function addDays(date, step) {
-  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + step));
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
-}
-function startOfWeek(date) {
-  return addDays(date, -weekdayOf(date));
-}
-function monthWeeks(month) {
-  const cells = Array(weekdayOf({ ...month, day: 1 })).fill(null);
-  for (let day = 1; day <= daysInMonth(month.year, month.month); day++) {
-    cells.push({ ...month, day });
-  }
-  while (cells.length % 7 !== 0) cells.push(null);
-  return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
-}
-function shiftMonth(from, step) {
-  const zeroBased = from.month - 1 + step;
-  return {
-    year: from.year + Math.floor(zeroBased / 12),
-    month: (zeroBased % 12 + 12) % 12 + 1
+function PeriodNav({
+  label,
+  layout = "bar",
+  onPrevious,
+  onNext,
+  onToday,
+  previousLabel,
+  nextLabel,
+  previousDisabled = false,
+  nextDisabled = false,
+  todayDisabled = false,
+  disabled = false,
+  className
+}) {
+  const compact = layout === "compact";
+  const arrow = (direction) => {
+    const previous = direction === "previous";
+    const Icon2 = previous ? ChevronLeft : ChevronRight;
+    return /* @__PURE__ */ jsx(
+      Button,
+      {
+        type: "button",
+        variant: compact ? "ghost" : "outline",
+        size: "icon",
+        "aria-label": previous ? previousLabel : nextLabel,
+        disabled: disabled || (previous ? previousDisabled : nextDisabled),
+        onClick: previous ? onPrevious : onNext,
+        children: /* @__PURE__ */ jsx(Icon2, { size: 16, "aria-hidden": "true" })
+      }
+    );
   };
+  if (compact) {
+    return /* @__PURE__ */ jsxs("div", { className: cn("flex items-center justify-between", className), children: [
+      arrow("previous"),
+      /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", "aria-live": "polite", children: label }),
+      arrow("next")
+    ] });
+  }
+  return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-wrap items-center justify-between gap-2", className), children: [
+    /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold text-text-primary", "aria-live": "polite", children: label }),
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+      onToday && /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", disabled: disabled || todayDisabled, onClick: onToday, children: "Today" }),
+      arrow("previous"),
+      arrow("next")
+    ] })
+  ] });
 }
-function compareMonths(a, b) {
-  return a.year !== b.year ? a.year - b.year : a.month - b.month;
-}
-function monthLabel({ year, month }) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    month: "long",
-    year: "numeric"
-  }).format(new Date(Date.UTC(year, month - 1, 1)));
-}
-function parseDateKey(key) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(key);
-  if (!match) return null;
-  const date = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
-  return date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.year, date.month) ? date : null;
-}
-function formatCalendarDate(date, options) {
-  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(
-    new Date(Date.UTC(date.year, date.month - 1, date.day))
-  );
-}
-function formatDateKey(key, options) {
-  const date = parseDateKey(key);
-  return date ? formatCalendarDate(date, options) : key;
-}
-function monthOfKey(key) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!match) return null;
-  const month = Number(match[2]);
-  return month >= 1 && month <= 12 ? { year: Number(match[1]), month } : null;
-}
-function todayIn(now = /* @__PURE__ */ new Date()) {
-  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+function MonthGrid({
+  month,
+  ariaLabel,
+  today,
+  renderDay,
+  dayClassName,
+  className
+}) {
+  return /* @__PURE__ */ jsxs("div", { role: "table", "aria-label": ariaLabel, className, children: [
+    /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7", children: WEEKDAY_LABELS.map((label, i) => /* @__PURE__ */ jsx(
+      "div",
+      {
+        role: "columnheader",
+        className: cn(eyebrowClass, "py-2 text-center", i >= 5 && "text-text-faint"),
+        children: label
+      },
+      label
+    )) }),
+    /* @__PURE__ */ jsx("div", { role: "rowgroup", className: "divide-y divide-border overflow-hidden rounded-lg border border-border", children: monthWeeks(month).map((week, w) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: week.map((date, d) => {
+      if (!date) return /* @__PURE__ */ jsx("div", { role: "cell", className: "bg-bg" }, `blank-${d}`);
+      const key = dateKey(date);
+      const day = { key, isToday: key === today, isWeekend: isWeekend(date) };
+      return /* @__PURE__ */ jsx(
+        "div",
+        {
+          role: "cell",
+          "aria-label": formatCalendarDate(date, { weekday: "long", month: "long", day: "numeric" }),
+          "aria-current": day.isToday ? "date" : void 0,
+          className: cn("min-w-0", dayClassName?.(date, day)),
+          children: renderDay(date, day)
+        },
+        key
+      );
+    }) }, w)) })
+  ] });
 }
 function MonthCalendar({
   month,
@@ -3628,39 +3703,26 @@ function MonthCalendar({
   const canGoBack = compareMonths(month, min) > 0;
   const canGoForward = compareMonths(month, max) < 0;
   return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
-    /* @__PURE__ */ jsxs("div", { className: "mb-2 flex items-center justify-between", children: [
-      /* @__PURE__ */ jsx(
-        Button,
-        {
-          type: "button",
-          variant: "ghost",
-          size: "icon",
-          "aria-label": "Previous month",
-          disabled: !canGoBack,
-          onClick: () => onMonthChange(shiftMonth(month, -1)),
-          children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16 })
-        }
-      ),
-      /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: monthLabel(month) }),
-      /* @__PURE__ */ jsx(
-        Button,
-        {
-          type: "button",
-          variant: "ghost",
-          size: "icon",
-          "aria-label": "Next month",
-          disabled: !canGoForward,
-          onClick: () => onMonthChange(shiftMonth(month, 1)),
-          children: /* @__PURE__ */ jsx(ChevronRight, { size: 16 })
-        }
-      )
-    ] }),
+    /* @__PURE__ */ jsx(
+      PeriodNav,
+      {
+        layout: "compact",
+        className: "mb-2",
+        label: monthLabel(month),
+        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
+        onNext: () => onMonthChange(shiftMonth(month, 1)),
+        previousLabel: "Previous month",
+        nextLabel: "Next month",
+        previousDisabled: !canGoBack,
+        nextDisabled: !canGoForward
+      }
+    ),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-1", children: [
       WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
         "span",
         {
           "aria-hidden": "true",
-          className: "pb-1 text-center text-[10px] font-medium uppercase text-text-faint",
+          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal text-text-faint"),
           children: label[0]
         },
         label
@@ -3707,128 +3769,81 @@ function EventCalendar({
   const todayKey = dateKey(today);
   const currentMonth = { year: today.year, month: today.month };
   const monthTitle = monthLabel(month);
-  const weeks = monthWeeks(month);
   const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${formatDateKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
   const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${formatDateKey(isoDate, { month: "long", day: "numeric" })}`);
   return /* @__PURE__ */ jsxs("div", { className, children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4", children: [
-      /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold text-text-primary", "aria-live": "polite", children: monthTitle }),
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-        /* @__PURE__ */ jsx(
-          Button,
-          {
-            type: "button",
-            variant: "outline",
-            disabled: compareMonths(month, currentMonth) === 0 || loading,
-            onClick: () => onMonthChange(currentMonth),
-            children: "Today"
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          Button,
-          {
-            type: "button",
-            variant: "outline",
-            size: "icon",
-            "aria-label": "Previous month",
-            disabled: loading,
-            onClick: () => onMonthChange(shiftMonth(month, -1)),
-            children: /* @__PURE__ */ jsx(ChevronLeft, { size: 16, "aria-hidden": "true" })
-          }
-        ),
-        /* @__PURE__ */ jsx(
-          Button,
-          {
-            type: "button",
-            variant: "outline",
-            size: "icon",
-            "aria-label": "Next month",
-            disabled: loading,
-            onClick: () => onMonthChange(shiftMonth(month, 1)),
-            children: /* @__PURE__ */ jsx(ChevronRight, { size: 16, "aria-hidden": "true" })
-          }
-        )
-      ] })
-    ] }),
+    /* @__PURE__ */ jsx(
+      PeriodNav,
+      {
+        className: "border-b border-border pb-4",
+        label: monthTitle,
+        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
+        onNext: () => onMonthChange(shiftMonth(month, 1)),
+        onToday: () => onMonthChange(currentMonth),
+        previousLabel: "Previous month",
+        nextLabel: "Next month",
+        todayDisabled: compareMonths(month, currentMonth) === 0,
+        disabled: loading
+      }
+    ),
     /* @__PURE__ */ jsxs("div", { className: "relative pt-4", children: [
       loading && /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-20 flex items-center justify-center bg-bg/60", children: /* @__PURE__ */ jsx(Spinner, { size: "sm" }) }),
-      /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("div", { role: "table", "aria-label": ariaLabel ?? `Calendar, ${monthTitle}`, className: "min-w-[700px]", children: [
-        /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7", children: WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
-          "div",
-          {
-            role: "columnheader",
-            className: "py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted",
-            children: label
-          },
-          label
-        )) }),
-        /* @__PURE__ */ jsx(
-          "div",
-          {
-            role: "rowgroup",
-            className: "divide-y divide-border overflow-hidden rounded-lg border border-border",
-            children: weeks.map((week, w) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: week.map((cell, d) => {
-              if (!cell) return /* @__PURE__ */ jsx("div", { role: "cell", className: "bg-bg" }, `blank-${d}`);
-              const iso = dateKey(cell);
-              const items = itemsByDate.get(iso) || [];
-              const visible = items.slice(0, maxVisibleItems);
-              const overflow = items.length - visible.length;
-              const isToday = iso === todayKey;
-              return /* @__PURE__ */ jsxs(
-                "div",
+      /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsx(
+        MonthGrid,
+        {
+          className: "min-w-[700px]",
+          month,
+          ariaLabel: ariaLabel ?? `Calendar, ${monthTitle}`,
+          today: todayKey,
+          dayClassName: (_date, day) => cn(
+            "flex min-h-[96px] flex-col gap-1 p-1.5 lg:min-h-[112px]",
+            day.isWeekend ? "bg-surface-raised" : "bg-surface"
+          ),
+          renderDay: (cell, { key: iso, isToday }) => {
+            const items = itemsByDate.get(iso) || [];
+            const visible = items.slice(0, maxVisibleItems);
+            const overflow = items.length - visible.length;
+            return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+              /* @__PURE__ */ jsx(
+                "span",
                 {
-                  role: "cell",
-                  "aria-label": formatCalendarDate(cell, { weekday: "long", month: "long", day: "numeric" }),
-                  "aria-current": isToday ? "date" : void 0,
                   className: cn(
-                    "flex min-h-[96px] flex-col gap-1 p-1.5 lg:min-h-[112px]",
-                    isWeekend(cell) ? "bg-surface-raised" : "bg-surface"
+                    "flex h-5 w-5 items-center justify-center rounded-full text-xs tabular-nums",
+                    isToday ? "bg-accent font-semibold text-accent-foreground" : "font-medium text-text-secondary"
                   ),
-                  children: [
-                    /* @__PURE__ */ jsx(
-                      "span",
-                      {
-                        className: cn(
-                          "flex h-5 w-5 items-center justify-center rounded-full text-xs tabular-nums",
-                          isToday ? "bg-accent font-semibold text-accent-foreground" : "font-medium text-text-secondary"
-                        ),
-                        children: cell.day
-                      }
-                    ),
-                    visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso))),
-                    overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
-                      /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
-                        Button,
-                        {
-                          type: "button",
-                          variant: "ghost",
-                          size: "sm",
-                          "aria-label": ariaLabelOf(iso, overflow),
-                          className: "h-6 w-full justify-start px-1.5 text-text-muted",
-                          children: `+${overflow} more`
-                        }
-                      ) }),
-                      /* @__PURE__ */ jsxs(
-                        PopoverContent,
-                        {
-                          align: "start",
-                          "aria-label": `Items on ${formatCalendarDate(cell, { month: "long", day: "numeric" })}`,
-                          className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
-                          children: [
-                            /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(iso, items.length) }),
-                            items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso)))
-                          ]
-                        }
-                      )
-                    ] })
-                  ]
-                },
-                iso
-              );
-            }) }, w))
+                  children: cell.day
+                }
+              ),
+              visible.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso))),
+              overflow > 0 && /* @__PURE__ */ jsxs(Popover, { children: [
+                /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
+                  Button,
+                  {
+                    type: "button",
+                    variant: "ghost",
+                    size: "sm",
+                    "aria-label": ariaLabelOf(iso, overflow),
+                    className: "h-6 w-full justify-start px-1.5 text-text-muted",
+                    children: `+${overflow} more`
+                  }
+                ) }),
+                /* @__PURE__ */ jsxs(
+                  PopoverContent,
+                  {
+                    align: "start",
+                    "aria-label": `Items on ${formatCalendarDate(cell, { month: "long", day: "numeric" })}`,
+                    className: "max-h-64 w-64 space-y-1 overflow-y-auto p-2",
+                    children: [
+                      /* @__PURE__ */ jsx("div", { className: "pb-1 text-xs font-semibold text-text-secondary", children: titleOf(iso, items.length) }),
+                      items.map((item) => /* @__PURE__ */ jsx(Fragment, { children: renderItem(item, iso) }, itemKey(item, iso)))
+                    ]
+                  }
+                )
+              ] })
+            ] });
           }
-        )
-      ] }) })
+        }
+      ) })
     ] })
   ] });
 }
@@ -3875,9 +3890,6 @@ function createDefaultApi(baseUrl = "", extraHeaders = {}) {
       return res.json();
     }
   };
-}
-function datePart(iso) {
-  return iso.split("T")[0];
 }
 function cellKey(contractId, date) {
   return `${contractId}::${date}`;
@@ -3965,106 +3977,89 @@ function MonthlyCalendarGrid({
     }
     returnFocusTo.current = null;
   }, [selectedDay]);
-  const cells = monthWeeks(month).flat();
   const dayTotal = (date) => contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
-  return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx("div", { className: "mb-px grid grid-cols-7 gap-px", children: WEEKDAY_LABELS.map((label, i) => /* @__PURE__ */ jsx(
-      "div",
-      {
-        className: cn(
-          "py-2 text-center text-xs font-medium uppercase tracking-wider",
-          i >= 5 ? "text-text-faint" : "text-text-muted"
-        ),
-        children: label
-      },
-      label
-    )) }),
-    /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border", children: cells.map((cell, idx) => {
-      if (!cell) return /* @__PURE__ */ jsx("div", { className: "min-h-[72px] bg-bg" }, `empty-${idx}`);
-      const date = dateKey(cell);
-      const weekend = isWeekend(cell);
-      const isToday = date === today;
-      const isSelected = date === selectedDay;
-      const total = dayTotal(date);
-      const hasTimeOff = isTimeOffDay(date, timeOffs);
-      const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
-      const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
-      const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : weekend ? "bg-surface-raised" : "bg-surface";
-      const header = /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between", children: [
-        /* @__PURE__ */ jsx(
-          "span",
-          {
-            className: cn(
-              "text-sm font-medium tabular-nums",
-              isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary"
-            ),
-            children: cell.day
-          }
-        ),
-        hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" })
-      ] });
-      if (isSelected && dayContracts.length === 1) {
-        const contract = dayContracts[0];
+  return /* @__PURE__ */ jsx(
+    MonthGrid,
+    {
+      month,
+      ariaLabel: `Hours, ${monthLabel(month)}`,
+      today,
+      dayClassName: () => "flex min-h-[72px]",
+      renderDay: (cell, { key: date, isToday, isWeekend: weekend }) => {
+        const isSelected = date === selectedDay;
+        const total = dayTotal(date);
+        const hasTimeOff = isTimeOffDay(date, timeOffs);
+        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
+        const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
+        const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : weekend ? "bg-surface-raised" : "bg-surface";
+        const header = /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between", children: [
+          /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: cn(
+                "text-sm font-medium tabular-nums",
+                isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary"
+              ),
+              children: cell.day
+            }
+          ),
+          hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" })
+        ] });
+        if (isSelected && dayContracts.length === 1) {
+          const contract = dayContracts[0];
+          return /* @__PURE__ */ jsxs("div", { className: cn("w-full p-2 ring-2 ring-inset ring-accent", background), children: [
+            header,
+            /* @__PURE__ */ jsx(
+              HoursInput,
+              {
+                ref: inlineInputRef,
+                "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
+                value: gridData[cellKey(contract.id, date)],
+                onValueChange: (value) => onCellChange(contract.id, date, value),
+                onKeyDown: (e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    returnFocusTo.current = date;
+                    onClose();
+                  }
+                },
+                placeholder: "\u2013",
+                className: "mt-1 h-7"
+              }
+            )
+          ] });
+        }
         return /* @__PURE__ */ jsxs(
-          "div",
+          Button,
           {
-            className: cn("min-h-[72px] p-2 ring-2 ring-inset ring-accent", background),
+            ref: (el) => {
+              dayButtonRefs.current[date] = el;
+            },
+            type: "button",
+            variant: "ghost",
+            "aria-pressed": isSelected,
+            "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`,
+            onClick: () => onDaySelect(date),
+            className: cn(
+              // A whole calendar cell, not an inline button: stacked, square, full height.
+              "flex h-auto w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
+              background,
+              "hover:bg-surface-overlay",
+              isSelected && "ring-2 ring-inset ring-accent"
+            ),
             children: [
               header,
-              /* @__PURE__ */ jsx(
-                HoursInput,
-                {
-                  ref: inlineInputRef,
-                  "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
-                  value: gridData[cellKey(contract.id, date)],
-                  onValueChange: (value) => onCellChange(contract.id, date, value),
-                  onKeyDown: (e) => {
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      returnFocusTo.current = date;
-                      onClose();
-                    }
-                  },
-                  placeholder: "\u2013",
-                  className: "mt-1 h-7"
-                }
-              )
+              total > 0 && /* @__PURE__ */ jsxs("div", { className: "mt-1 text-xs font-semibold tabular-nums text-text-primary", children: [
+                total,
+                "h"
+              ] }),
+              isMissingHours && /* @__PURE__ */ jsx("div", { className: "mt-1 text-[10px] text-error-text", children: "No hours" })
             ]
-          },
-          date
+          }
         );
       }
-      return /* @__PURE__ */ jsxs(
-        Button,
-        {
-          ref: (el) => {
-            dayButtonRefs.current[date] = el;
-          },
-          type: "button",
-          variant: "ghost",
-          "aria-pressed": isSelected,
-          "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`,
-          onClick: () => onDaySelect(date),
-          className: cn(
-            // A whole calendar cell, not an inline button: stacked, square, full height.
-            "flex h-auto min-h-[72px] w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
-            background,
-            "hover:bg-surface-overlay",
-            isSelected && "ring-2 ring-inset ring-accent"
-          ),
-          children: [
-            header,
-            total > 0 && /* @__PURE__ */ jsxs("div", { className: "mt-1 text-xs font-semibold tabular-nums text-text-primary", children: [
-              total,
-              "h"
-            ] }),
-            isMissingHours && /* @__PURE__ */ jsx("div", { className: "mt-1 text-[10px] text-error-text", children: "No hours" })
-          ]
-        },
-        date
-      );
-    }) })
-  ] });
+    }
+  );
 }
 function DayDetailPanel({
   selectedDay,
@@ -4110,31 +4105,24 @@ function DayDetailPanel({
         /* @__PURE__ */ jsx(TableHead, { className: "w-[100px] text-center", children: "Hours" })
       ] }) }),
       /* @__PURE__ */ jsxs(TableBody, { children: [
-        contracts.length === 0 && /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: 2, className: "py-6 text-center text-text-muted", children: "No active contracts for this day." }) }),
-        contracts.map((contract, idx) => /* @__PURE__ */ jsxs(
-          TableRow,
-          {
-            className: "hover:bg-table-row-hover",
-            children: [
-              /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
-              /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(
-                HoursInput,
-                {
-                  ref: (el) => {
-                    inputRefs.current[idx] = el;
-                  },
-                  "aria-label": `Hours for ${contract.projectName} on ${dayLabel(selectedDay)}`,
-                  value: gridData[cellKey(contract.id, selectedDay)],
-                  disabled: !contractCoversDay(contract, selectedDay),
-                  onValueChange: (value) => onCellChange(contract.id, selectedDay, value),
-                  onKeyDown: (e) => handleKeyDown(e, idx),
-                  placeholder: contractCoversDay(contract, selectedDay) ? "\u2013" : ""
-                }
-              ) })
-            ]
-          },
-          contract.id
-        ))
+        contracts.length === 0 && /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: 2, children: "No active contracts for this day." }),
+        contracts.map((contract, idx) => /* @__PURE__ */ jsxs(TableRow, { className: tableRowHoverClass, children: [
+          /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+          /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(
+            HoursInput,
+            {
+              ref: (el) => {
+                inputRefs.current[idx] = el;
+              },
+              "aria-label": `Hours for ${contract.projectName} on ${dayLabel(selectedDay)}`,
+              value: gridData[cellKey(contract.id, selectedDay)],
+              disabled: !contractCoversDay(contract, selectedDay),
+              onValueChange: (value) => onCellChange(contract.id, selectedDay, value),
+              onKeyDown: (e) => handleKeyDown(e, idx),
+              placeholder: contractCoversDay(contract, selectedDay) ? "\u2013" : ""
+            }
+          ) })
+        ] }, contract.id))
       ] }),
       /* @__PURE__ */ jsx(TableFooter, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
         /* @__PURE__ */ jsx(TableCell, { className: "text-xs font-medium uppercase text-text-muted", children: "Total" }),
@@ -4168,7 +4156,7 @@ var VIEW_OPTIONS = [
 ];
 var AUTOSAVE_DELAY_MS = 15e3;
 var REVERT_WINDOW_MS = 5e3;
-var headClass = "px-2 py-3 text-xs font-medium uppercase tracking-wider";
+var headClass = cn(eyebrowClass, "px-2 py-3");
 function weekRangeLabel(monday) {
   const sunday = addDays(monday, 6);
   return `${formatCalendarDate(monday, { month: "short", day: "numeric" })} \u2013 ${formatCalendarDate(sunday, { month: "short", day: "numeric", year: "numeric" })}`;
@@ -4268,7 +4256,7 @@ function TimesheetTable({
     () => startOfWeek(initialWeek && parseDateKey(initialWeek) || todayIn())
   );
   const [month, setMonth] = useState(
-    () => initialMonth && monthOfKey(`${initialMonth}-01`) || monthOf(todayIn())
+    () => initialMonth && parseMonthKey(initialMonth) || monthOf(todayIn())
   );
   const [selectedDay, setSelectedDay] = useState(null);
   const [gridData, setGridData] = useState({});
@@ -4334,7 +4322,7 @@ function TimesheetTable({
   }, [fetchEntries]);
   useEffect(() => {
     latest.current.onNavigate?.(
-      viewMode === "monthly" ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) } : { view: "weekly", week: dateKey(weekStart) }
+      viewMode === "monthly" ? { view: "monthly", month: monthKey(month) } : { view: "weekly", week: dateKey(weekStart) }
     );
   }, [viewMode, weekStart, month]);
   useEffect(() => {
@@ -4526,20 +4514,17 @@ function TimesheetTable({
         ] })
       }
     ),
-    /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-      /* @__PURE__ */ jsxs(Button, { type: "button", variant: "outline", size: "sm", onClick: goToPrev, children: [
-        /* @__PURE__ */ jsx(ChevronLeft, { size: 14, "aria-hidden": "true" }),
-        "Prev"
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
-        /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", onClick: goToToday, children: "Today" }),
-        /* @__PURE__ */ jsx("span", { className: "text-sm font-medium text-text-primary", children: viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month) })
-      ] }),
-      /* @__PURE__ */ jsxs(Button, { type: "button", variant: "outline", size: "sm", onClick: goToNext, children: [
-        "Next",
-        /* @__PURE__ */ jsx(ChevronRight, { size: 14, "aria-hidden": "true" })
-      ] })
-    ] }) }),
+    /* @__PURE__ */ jsx(
+      PeriodNav,
+      {
+        label: viewMode === "weekly" ? weekRangeLabel(weekStart) : monthLabel(month),
+        onPrevious: goToPrev,
+        onNext: goToNext,
+        onToday: goToToday,
+        previousLabel: viewMode === "weekly" ? "Previous week" : "Previous month",
+        nextLabel: viewMode === "weekly" ? "Next week" : "Next month"
+      }
+    ),
     loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment$1, { children: [
       /* @__PURE__ */ jsx(
         HoursSummary,
@@ -4570,60 +4555,53 @@ function TimesheetTable({
           /* @__PURE__ */ jsx(TableHead, { className: cn(headClass, "w-[70px] text-center text-text-muted"), children: "Total" })
         ] }) }),
         /* @__PURE__ */ jsxs(TableBody, { children: [
-          activeContracts.length === 0 && /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan: 9, className: "py-8 text-center text-text-muted", children: "No active contracts for this week." }) }),
+          activeContracts.length === 0 && /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: 9, children: "No active contracts for this week." }),
           activeContracts.map((contract, contractIdx) => {
             const rowTotal = getRowTotal(contract.id);
-            return /* @__PURE__ */ jsxs(
-              TableRow,
-              {
-                className: "hover:bg-table-row-hover",
-                children: [
-                  /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
-                  weekDates.map((date, dayIdx) => {
-                    const key = cellKey(contract.id, date);
-                    const value = gridData[key];
-                    const isOutside = !contractCoversDay(contract, date);
-                    return /* @__PURE__ */ jsx(
-                      TableCell,
+            return /* @__PURE__ */ jsxs(TableRow, { className: tableRowHoverClass, children: [
+              /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
+              weekDates.map((date, dayIdx) => {
+                const key = cellKey(contract.id, date);
+                const value = gridData[key];
+                const isOutside = !contractCoversDay(contract, date);
+                return /* @__PURE__ */ jsx(
+                  TableCell,
+                  {
+                    className: cn("px-1 py-2", date === today && "bg-accent-muted"),
+                    children: /* @__PURE__ */ jsx(
+                      HoursInput,
                       {
-                        className: cn("px-1 py-2", date === today && "bg-accent-muted"),
-                        children: /* @__PURE__ */ jsx(
-                          HoursInput,
-                          {
-                            ref: (el) => {
-                              inputRefs.current[key] = el;
-                            },
-                            "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
-                            value,
-                            disabled: isOutside,
-                            onValueChange: (next) => handleCellChange(contract.id, date, next),
-                            onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
-                            placeholder: isOutside ? "" : "\u2013",
-                            className: cn(dayIdx >= 5 && !value && "bg-surface")
-                          }
-                        )
-                      },
-                      date
-                    );
-                  }),
-                  /* @__PURE__ */ jsx(
-                    TableCell,
-                    {
-                      className: cn(
-                        "px-2 py-2 text-center font-medium tabular-nums",
-                        rowTotal > 0 ? "text-text-primary" : "text-text-faint"
-                      ),
-                      children: rowTotal > 0 ? rowTotal : "\u2013"
-                    }
-                  )
-                ]
-              },
-              contract.id
-            );
+                        ref: (el) => {
+                          inputRefs.current[key] = el;
+                        },
+                        "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
+                        value,
+                        disabled: isOutside,
+                        onValueChange: (next) => handleCellChange(contract.id, date, next),
+                        onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
+                        placeholder: isOutside ? "" : "\u2013",
+                        className: cn(dayIdx >= 5 && !value && "bg-surface")
+                      }
+                    )
+                  },
+                  date
+                );
+              }),
+              /* @__PURE__ */ jsx(
+                TableCell,
+                {
+                  className: cn(
+                    "px-2 py-2 text-center font-medium tabular-nums",
+                    rowTotal > 0 ? "text-text-primary" : "text-text-faint"
+                  ),
+                  children: rowTotal > 0 ? rowTotal : "\u2013"
+                }
+              )
+            ] }, contract.id);
           })
         ] }),
         /* @__PURE__ */ jsx(TableFooter, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
-          /* @__PURE__ */ jsx(TableCell, { className: "px-3 py-3 text-xs font-medium uppercase text-text-muted", children: "Daily Total" }),
+          /* @__PURE__ */ jsx(TableCell, { className: cn(eyebrowClass, "px-3 py-3"), children: "Daily Total" }),
           weekDates.map((date) => {
             const colTotal = getColumnTotal(date);
             const isOver = colTotal > 24;
@@ -4682,7 +4660,7 @@ function TimeOffList({
 }) {
   const fmt = (iso) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
-    /* @__PURE__ */ jsxs("h2", { className: "px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted", children: [
+    /* @__PURE__ */ jsxs("h2", { className: cn(eyebrowClass, "px-3 pb-3 pt-2"), children: [
       "Time Off This ",
       viewMode === "weekly" ? "Week" : "Month"
     ] }),
@@ -4891,7 +4869,7 @@ function AccountCombobox({
       {
         ref: listRef,
         role: "listbox",
-        className: "absolute left-0 top-full z-50 mt-1 max-h-60 w-full min-w-[18rem] overflow-y-auto rounded-md border border-border bg-surface-raised shadow-lg",
+        className: cn(floatingSurfaceClass, "absolute left-0 top-full mt-1 max-h-60 w-full min-w-[18rem] overflow-y-auto p-1"),
         children: filtered.length === 0 ? /* @__PURE__ */ jsx("div", { className: "px-2 py-1.5 text-xs text-text-faint", children: "No matching accounts" }) : filtered.slice(0, 50).map((a, i) => /* @__PURE__ */ jsxs(
           "button",
           {
@@ -4901,8 +4879,9 @@ function AccountCombobox({
             onMouseDown: (e) => e.preventDefault(),
             onClick: () => selectAccount(a.id),
             className: cn(
-              "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-surface-overlay",
-              i === highlightIdx && "bg-surface-overlay",
+              optionRowClass,
+              "text-xs hover:bg-surface-overlay",
+              i === highlightIdx && optionRowActiveClass,
               a.id === value && "text-accent-text"
             ),
             children: [
@@ -5117,6 +5096,8 @@ function parseGooglePlaceAddress(place) {
 }
 var SEARCH_DELAY_MS = 250;
 var MIN_QUERY_LENGTH = 3;
+var STAFF_INPUT_CLASS = "h-9 py-0";
+var VENDOR_INPUT_CLASS = "h-10 py-0 shadow-none focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500";
 function predictionText(prediction) {
   return {
     main: prediction.mainText?.toString() || prediction.text.toString(),
@@ -5239,11 +5220,11 @@ function AddressAutocomplete2({
       setSearchActive(false);
     }
   };
-  const variantClass = variant === "public" ? "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500" : variant === "vendor" ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500" : "h-9 py-0";
+  const vendor = variant === "vendor";
+  const scopeClass = variant === "public" ? "dark" : vendor ? "light" : void 0;
+  const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
   const optionsVisible = searchActive && suggestions.length > 0;
-  const mutedClass = variant === "vendor" ? "text-slate-500" : "text-text-muted";
-  const optionClass = variant === "public" ? "border-gray-700 bg-gray-900 text-white" : variant === "vendor" ? "border-slate-200 bg-white text-slate-900" : "border-border bg-surface-raised text-text-primary";
-  return /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+  return /* @__PURE__ */ jsxs("div", { className: cn("relative", scopeClass), children: [
     /* @__PURE__ */ jsx(
       Input,
       {
@@ -5277,15 +5258,15 @@ function AddressAutocomplete2({
         role: "combobox",
         required,
         autoComplete,
-        className: cn(variantClass, className)
+        className: cn(inputClass, className)
       }
     ),
     optionsVisible && /* @__PURE__ */ jsxs(
       "div",
       {
         className: cn(
-          "absolute left-0 right-0 top-full z-[70] mt-1 overflow-hidden rounded-md border shadow-xl",
-          optionClass
+          floatingSurfaceClass,
+          "absolute left-0 right-0 top-full z-[70] mt-1 overflow-hidden text-text-primary"
         ),
         children: [
           /* @__PURE__ */ jsx(
@@ -5306,14 +5287,14 @@ function AddressAutocomplete2({
                     "aria-selected": activeIndex === index,
                     className: cn(
                       "cursor-pointer px-3 py-2 text-sm",
-                      activeIndex === index && (variant === "vendor" ? "bg-emerald-50" : variant === "public" ? "bg-gray-800" : "bg-surface-overlay")
+                      activeIndex === index && (vendor ? "bg-emerald-50" : optionRowActiveClass)
                     ),
                     onMouseDown: (event) => event.preventDefault(),
                     onMouseEnter: () => setActiveIndex(index),
                     onClick: () => void selectSuggestion(suggestion),
                     children: [
                       /* @__PURE__ */ jsx("span", { className: "block font-medium", children: text.main }),
-                      text.secondary && /* @__PURE__ */ jsx("span", { className: cn("mt-0.5 block text-xs", mutedClass), children: text.secondary })
+                      text.secondary && /* @__PURE__ */ jsx("span", { className: "mt-0.5 block text-xs text-text-muted", children: text.secondary })
                     ]
                   },
                   prediction.placeId
@@ -5338,7 +5319,7 @@ function AddressAutocomplete2({
         id: statusId,
         role: "status",
         "aria-live": "polite",
-        className: cn("mt-1 text-xs", mutedClass),
+        className: "mt-1 text-xs text-text-muted",
         children: [
           status === "loading" && "Finding addresses\u2026",
           status === "ready" && !suggestions.length && value.trim().length >= MIN_QUERY_LENGTH && "No matches. Continue entering the address manually.",
@@ -5346,12 +5327,13 @@ function AddressAutocomplete2({
             "Address suggestions are unavailable. Continue entering the address manually.",
             " ",
             /* @__PURE__ */ jsx(
-              "button",
+              Button,
               {
                 type: "button",
+                variant: "link",
                 className: cn(
-                  "font-medium underline underline-offset-2",
-                  variant === "vendor" ? "text-emerald-700" : "text-accent"
+                  "inline h-auto p-0 text-xs underline",
+                  vendor ? "text-emerald-700" : "text-accent-text"
                 ),
                 onMouseDown: (event) => event.preventDefault(),
                 onClick: () => {
@@ -5376,96 +5358,77 @@ function StructuredAddressInput({
   required = false
 }) {
   const vendor = variant === "vendor";
-  const inputClass = vendor ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500" : "h-9 py-0";
-  const labelClass = vendor ? "mb-1 block text-xs font-medium text-slate-600" : "mb-1 block text-xs font-medium text-text-muted";
+  const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
   const update = (field, next) => onChange({ ...value, [field]: next });
-  return /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 gap-3 sm:grid-cols-6", children: [
-    /* @__PURE__ */ jsxs("div", { className: "sm:col-span-4", children: [
-      /* @__PURE__ */ jsxs("label", { className: labelClass, htmlFor: `${idPrefix}-line1`, children: [
-        "Street address",
-        required ? " *" : ""
-      ] }),
-      /* @__PURE__ */ jsx(
-        AddressAutocomplete2,
-        {
-          id: `${idPrefix}-line1`,
-          value: value.addressLine1,
-          onChange: (next) => update("addressLine1", next),
-          onAddressSelect: onChange,
-          variant: vendor ? "vendor" : "staff",
-          ariaLabel: `Street address${required ? " *" : ""}`,
-          placeholder: "Start typing or enter manually",
-          required,
-          autoComplete: "address-line1"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("label", { className: "sm:col-span-2", htmlFor: `${idPrefix}-line2`, children: [
-      /* @__PURE__ */ jsx("span", { className: labelClass, children: "Apartment or suite" }),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          id: `${idPrefix}-line2`,
-          className: inputClass,
-          value: value.addressLine2,
-          onChange: (event) => update("addressLine2", event.target.value),
-          autoComplete: "address-line2"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("label", { className: "sm:col-span-3", htmlFor: `${idPrefix}-city`, children: [
-      /* @__PURE__ */ jsxs("span", { className: labelClass, children: [
-        "City",
-        required ? " *" : ""
-      ] }),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          id: `${idPrefix}-city`,
-          className: inputClass,
-          value: value.city,
-          onChange: (event) => update("city", event.target.value),
-          autoComplete: "address-level2",
-          required
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("label", { className: "sm:col-span-1", htmlFor: `${idPrefix}-state`, children: [
-      /* @__PURE__ */ jsxs("span", { className: labelClass, children: [
-        "State",
-        required ? " *" : ""
-      ] }),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          id: `${idPrefix}-state`,
-          className: inputClass,
-          value: value.state,
-          onChange: (event) => update("state", event.target.value.toUpperCase()),
-          autoComplete: "address-level1",
-          maxLength: 2,
-          required
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("label", { className: "sm:col-span-2", htmlFor: `${idPrefix}-postal`, children: [
-      /* @__PURE__ */ jsxs("span", { className: labelClass, children: [
-        "ZIP code",
-        required ? " *" : ""
-      ] }),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          id: `${idPrefix}-postal`,
-          className: inputClass,
-          value: value.postalCode,
-          onChange: (event) => update("postalCode", event.target.value),
-          autoComplete: "postal-code",
-          inputMode: "numeric",
-          required
-        }
-      )
-    ] }),
+  return /* @__PURE__ */ jsxs("div", { className: cn("grid grid-cols-1 gap-3 sm:grid-cols-6", vendor && "light"), children: [
+    /* @__PURE__ */ jsx(
+      FormField,
+      {
+        className: "sm:col-span-4",
+        label: "Street address",
+        htmlFor: `${idPrefix}-line1`,
+        required,
+        children: /* @__PURE__ */ jsx(
+          AddressAutocomplete2,
+          {
+            id: `${idPrefix}-line1`,
+            value: value.addressLine1,
+            onChange: (next) => update("addressLine1", next),
+            onAddressSelect: onChange,
+            variant: vendor ? "vendor" : "staff",
+            ariaLabel: "Street address",
+            placeholder: "Start typing or enter manually",
+            required,
+            autoComplete: "address-line1"
+          }
+        )
+      }
+    ),
+    /* @__PURE__ */ jsx(FormField, { className: "sm:col-span-2", label: "Apartment or suite", htmlFor: `${idPrefix}-line2`, children: /* @__PURE__ */ jsx(
+      Input,
+      {
+        id: `${idPrefix}-line2`,
+        className: inputClass,
+        value: value.addressLine2,
+        onChange: (event) => update("addressLine2", event.target.value),
+        autoComplete: "address-line2"
+      }
+    ) }),
+    /* @__PURE__ */ jsx(FormField, { className: "sm:col-span-3", label: "City", htmlFor: `${idPrefix}-city`, required, children: /* @__PURE__ */ jsx(
+      Input,
+      {
+        id: `${idPrefix}-city`,
+        className: inputClass,
+        value: value.city,
+        onChange: (event) => update("city", event.target.value),
+        autoComplete: "address-level2",
+        required
+      }
+    ) }),
+    /* @__PURE__ */ jsx(FormField, { className: "sm:col-span-1", label: "State", htmlFor: `${idPrefix}-state`, required, children: /* @__PURE__ */ jsx(
+      Input,
+      {
+        id: `${idPrefix}-state`,
+        className: inputClass,
+        value: value.state,
+        onChange: (event) => update("state", event.target.value.toUpperCase()),
+        autoComplete: "address-level1",
+        maxLength: 2,
+        required
+      }
+    ) }),
+    /* @__PURE__ */ jsx(FormField, { className: "sm:col-span-2", label: "ZIP code", htmlFor: `${idPrefix}-postal`, required, children: /* @__PURE__ */ jsx(
+      Input,
+      {
+        id: `${idPrefix}-postal`,
+        className: inputClass,
+        value: value.postalCode,
+        onChange: (event) => update("postalCode", event.target.value),
+        autoComplete: "postal-code",
+        inputMode: "numeric",
+        required
+      }
+    ) }),
     /* @__PURE__ */ jsx("input", { type: "hidden", name: "country", value: value.country || "US" })
   ] });
 }

@@ -7,7 +7,7 @@ interface LabelProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
 }
 
 /**
- * A form control's label, styled to match `FormField`. Use it on its own when
+ * A form control's label, the one `FormField` draws. Use it on its own when
  * the control's layout does not fit `FormField`'s label-above-control stack.
  */
 const Label = forwardRef<HTMLLabelElement, LabelProps>(

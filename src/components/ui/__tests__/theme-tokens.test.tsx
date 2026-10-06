@@ -75,6 +75,13 @@ const THEME_CRITICAL = [
   "popover.tsx",
   "hover-card.tsx",
   "table.tsx",
+  "button.tsx",
+  "form-field.tsx",
+  "structured-address-input.tsx",
+  "alert.tsx",
+  "tag.tsx",
+  "dismiss-button.tsx",
+  "calendar-chrome.tsx",
 ];
 
 describe("no fixed palette utilities in theme-critical components", () => {

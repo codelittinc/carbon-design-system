@@ -18,9 +18,7 @@ import {
   CHART_SERIES_LIMIT,
   CHART_TICK_CATEGORY,
   CHART_TICK_VALUE,
-  ChartDataTable,
   ChartEmpty,
-  ChartLegend,
   ChartSkeleton,
   ChartTooltipContent,
   type ChartDatum,
@@ -28,11 +26,10 @@ import {
   type ChartStateProps,
   type ChartTooltipRenderer,
   type ChartValueFormatter,
-  capSeries,
   formatChartValue,
-  resolveSeriesColors,
   seriesColor,
 } from "./chart";
+import { ChartFooter, useChartSeries } from "./chart-series";
 
 export interface BarChartProps extends ChartStateProps {
   data: ChartDatum[];
@@ -137,25 +134,9 @@ export function BarChart({
   emptyTitle,
   emptyDescription,
   className,
-}: BarChartProps) {
-  const allSeries = capSeries(series, "BarChart");
-  const [hidden, setHidden] = React.useState<Set<string>>(() => new Set());
-
-  /*
-   * Recharts keeps chart data in a Redux store, and Redux Toolkit's immer
-   * deep-freezes state in development — which would freeze the caller's own
-   * array and row objects in place. Handing it a copy keeps that internal
-   * detail from leaking out onto props the consumer still owns. Everything
-   * outside the plot (the table, click payloads) keeps using the original rows.
-   */
-  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
-
-  const visibleSeries = React.useMemo(
-    () => allSeries.filter((s) => !hidden.has(s.key)),
-    [allSeries, hidden],
-  );
-
-  const allColors = resolveSeriesColors(allSeries);
+}: BarChartProps): React.ReactElement {
+  const seriesState = useChartSeries(series, data, "BarChart");
+  const { allSeries, visibleSeries, colors: allColors, plotData } = seriesState;
   const isHorizontal = orientation === "horizontal";
   const perCategory = colorBy === "category" && allSeries.length === 1;
 
@@ -214,18 +195,6 @@ export function BarChart({
   if (!data.length || !allSeries.length) {
     return <ChartEmpty height={height} title={emptyTitle} description={emptyDescription} />;
   }
-
-  const toggle = (index: number) => {
-    const key = allSeries[index]?.key;
-    if (!key) return;
-    setHidden((prev) => {
-      const next = new Set(prev);
-      // Keep at least one series plotted — an empty chart is not a useful state.
-      if (next.has(key)) next.delete(key);
-      else if (prev.size < allSeries.length - 1) next.add(key);
-      return next;
-    });
-  };
 
   /* Rounded 4px cap on the data end only; the baseline end stays square. */
   const capFor = (isLastInStack: boolean): [number, number, number, number] => {
@@ -356,24 +325,14 @@ export function BarChart({
         </ResponsiveContainer>
       </div>
 
-      {showLegend && (
-        <ChartLegend
-          className="mt-3"
-          items={allSeries.map((s, i) => ({
-            label: s.label,
-            color: allColors[i],
-            inactive: hidden.has(s.key),
-          }))}
-          onItemClick={toggleableSeries ? toggle : undefined}
-        />
-      )}
-
-      <ChartDataTable
-        caption={tableCaption ?? `${allSeries.map((s) => s.label).join(", ")} by ${categoryLabel}`}
-        categoryLabel={categoryLabel}
-        categories={data.map((row) => String(row[categoryKey] ?? ""))}
-        series={allSeries}
+      <ChartFooter
+        state={seriesState}
+        showLegend={showLegend}
+        toggleable={toggleableSeries}
         data={data}
+        categoryKey={categoryKey}
+        categoryLabel={categoryLabel}
+        tableCaption={tableCaption}
         valueFormatter={valueFormatter}
       />
     </div>

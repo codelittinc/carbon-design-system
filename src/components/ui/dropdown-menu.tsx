@@ -3,6 +3,7 @@
 import { forwardRef } from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/cn";
+import { floatingMotionClass, floatingSurfaceClass, optionRowClass, optionRowFocusClass } from "@/lib/ui-classes";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -16,10 +17,7 @@ const DropdownMenuContent = forwardRef<
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
-      className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        className,
-      )}
+      className={cn(floatingSurfaceClass, floatingMotionClass, "min-w-[8rem] overflow-hidden p-1", className)}
       {...props}
     />
   </DropdownMenuPrimitive.Portal>
@@ -32,10 +30,7 @@ const DropdownMenuItem = forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
-    className={cn(
-      "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary outline-none transition-colors focus:bg-surface-overlay focus:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className,
-    )}
+    className={cn(optionRowClass, optionRowFocusClass, className)}
     {...props}
   />
 ));

@@ -1,4 +1,7 @@
+import type { ReactElement } from "react";
 import { cn } from "@/lib/cn";
+import { eyebrowClass } from "@/lib/ui-classes";
+import { Card } from "./card";
 import { Skeleton } from "./skeleton";
 
 interface StatCardProps {
@@ -15,10 +18,10 @@ interface StatCardProps {
  * KPI/metric tile: an uppercase label, a large monospace value, and an optional
  * trend-colored sub-line. Shows a skeleton in place of the value while loading.
  */
-export function StatCard({ label, value, sub, trend, loading, className }: StatCardProps) {
+export function StatCard({ label, value, sub, trend, loading, className }: StatCardProps): ReactElement {
   return (
-    <div className={cn("rounded-lg border border-border-subtle bg-surface p-4", className)}>
-      <p className="text-[11px] font-medium uppercase tracking-widest text-text-faint">{label}</p>
+    <Card padding="none" className={cn("p-4", className)}>
+      <p className={eyebrowClass}>{label}</p>
       {loading ? (
         <Skeleton className="mt-2 h-7 w-24" />
       ) : (
@@ -38,6 +41,6 @@ export function StatCard({ label, value, sub, trend, loading, className }: StatC
           {sub}
         </p>
       )}
-    </div>
+    </Card>
   );
 }

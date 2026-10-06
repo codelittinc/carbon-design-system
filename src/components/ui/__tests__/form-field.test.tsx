@@ -75,4 +75,60 @@ describe("FormField", () => {
     );
     expect(container.firstChild).toHaveClass("mt-4");
   });
+
+  it("hides the required marker from the accessible name", () => {
+    render(
+      <FormField label="Email" htmlFor="email" required>
+        <input id="email" />
+      </FormField>,
+    );
+    expect(screen.getByText("*")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
+  });
+
+  it("describes the control with its hint", () => {
+    render(
+      <FormField label="Email" htmlFor="email" hint="We never share it">
+        <input id="email" />
+      </FormField>,
+    );
+    const input = screen.getByRole("textbox", { name: "Email" });
+    expect(input).toHaveAccessibleDescription("We never share it");
+    expect(input).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("describes the control with its error, marks it invalid and announces it", () => {
+    render(
+      <FormField label="Email" htmlFor="email" error="Enter an email" hint="We never share it">
+        <input id="email" />
+      </FormField>,
+    );
+    const input = screen.getByRole("textbox", { name: "Email" });
+    expect(input).toHaveAccessibleDescription("Enter an email");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter an email");
+  });
+
+  it("keeps a description the control already had", () => {
+    render(
+      <>
+        <span id="own">Format: name@domain</span>
+        <FormField label="Email" htmlFor="email" hint="We never share it">
+          <input id="email" aria-describedby="own" />
+        </FormField>
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" })).toHaveAccessibleDescription(
+      "Format: name@domain We never share it",
+    );
+  });
+
+  it("links the message without htmlFor too", () => {
+    render(
+      <FormField label="Email" error="Enter an email">
+        <input aria-label="Email" />
+      </FormField>,
+    );
+    expect(screen.getByRole("textbox", { name: "Email" })).toHaveAccessibleDescription("Enter an email");
+  });
 });

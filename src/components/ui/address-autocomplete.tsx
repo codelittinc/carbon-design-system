@@ -45,12 +45,11 @@ interface AddressAutocompleteProps {
 }
 
 /**
- * Off-token palette for the public (logged-out) surface, layered over `Input`.
- * Uses `focus-visible:` so tailwind-merge replaces Input's accent ring instead of
- * stacking a second one; a text input matches `:focus-visible` on any focus.
+ * The public (logged-out) surface is always dark, whatever the app's theme.
+ * The `dark` class scopes the theme's dark tokens onto the input itself, so it
+ * keeps that scheme with the tokens rather than a palette of its own.
  */
-const PUBLIC_CLASS =
-  "h-9 border-gray-700 bg-gray-800 py-0 text-white shadow-none placeholder:text-gray-500 focus:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500";
+const PUBLIC_CLASS = "dark h-9 py-0 shadow-none";
 
 export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address...", className, variant = "staff" }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);

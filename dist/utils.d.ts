@@ -3,6 +3,12 @@ import { ClassValue } from 'clsx';
 declare function cn(...inputs: ClassValue[]): string;
 
 declare function formatMoney(value: string | number | null | undefined): string;
+/**
+ * `"Sep 12, 2026"`. A date-only `"2026-09-12"` is a calendar day and is shown
+ * as that day wherever the reader is; `new Date()` would read it as midnight
+ * UTC and show Sep 11 in the Americas. A full timestamp is an instant, shown in
+ * the reader's zone.
+ */
 declare function formatDate(iso: string | null | undefined): string;
 declare function formatPeriodLabel(month: number, year: number): string;
 

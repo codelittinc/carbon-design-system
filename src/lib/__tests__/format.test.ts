@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { formatDate, formatMoney, formatPeriodLabel } from "../format";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatAmount, formatDate, formatMoney, formatPeriodLabel, shortMonthName } from "../format";
 
 describe("formatMoney", () => {
   it("returns $0.00 for null, undefined, empty, and NaN inputs", () => {
@@ -38,6 +38,36 @@ describe("formatDate", () => {
     // Local (no Z) so the calendar day is timezone-stable.
     expect(formatDate("2026-07-25T00:00:00")).toBe("Jul 25, 2026");
     expect(formatDate("2026-01-01T12:00:00")).toBe("Jan 1, 2026");
+  });
+
+  describe("west of UTC", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("shows a date-only string as that calendar day, not the day before", () => {
+      // new Date("2026-09-12") is midnight UTC: Sep 11 in Chicago.
+      vi.stubEnv("TZ", "America/Chicago");
+      expect(formatDate("2026-09-12")).toBe("Sep 12, 2026");
+      expect(formatDate("2026-01-01")).toBe("Jan 1, 2026");
+    });
+  });
+});
+
+describe("formatAmount", () => {
+  it("is formatMoney's number, with or without the symbol", () => {
+    expect(formatAmount(1234.5)).toBe("$1,234.50");
+    expect(formatAmount(-1234.5)).toBe("($1,234.50)");
+    expect(formatAmount(1234.5, { symbol: false })).toBe("1,234.50");
+    expect(formatAmount(-5, { symbol: false })).toBe("(5.00)");
+  });
+});
+
+describe("shortMonthName", () => {
+  it("names every month", () => {
+    expect(Array.from({ length: 12 }, (_, i) => shortMonthName(i + 1))).toEqual([
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]);
   });
 });
 

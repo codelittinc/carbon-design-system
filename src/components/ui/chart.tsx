@@ -1,5 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/cn";
+import { Button } from "./button";
+import { Card } from "./card";
 import { Skeleton } from "./skeleton";
 import { EmptyState } from "./empty-state";
 
@@ -119,9 +121,9 @@ export function ChartCard({
   footer,
   className,
   children,
-}: ChartCardProps) {
+}: ChartCardProps): React.ReactElement {
   return (
-    <div className={cn("rounded-lg border border-border-subtle bg-surface p-4", className)}>
+    <Card padding="none" className={cn("p-4", className)}>
       {(title || subtitle || action) && (
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -137,7 +139,7 @@ export function ChartCard({
       )}
       {children}
       {footer && <div className="mt-3 text-xs text-text-secondary">{footer}</div>}
-    </div>
+    </Card>
   );
 }
 
@@ -162,7 +164,7 @@ export interface ChartLegendProps {
  * beside the swatch is what a colorblind reader goes by. Text stays in the ink
  * tokens; only the swatch takes the series color.
  */
-export function ChartLegend({ items, onItemClick, className }: ChartLegendProps) {
+export function ChartLegend({ items, onItemClick, className }: ChartLegendProps): React.ReactElement {
   return (
     <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className)}>
       {items.map((item, i) => {
@@ -181,19 +183,22 @@ export function ChartLegend({ items, onItemClick, className }: ChartLegendProps)
         return (
           <li key={`${item.label}-${i}`} className="min-w-0 text-xs">
             {onItemClick ? (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => onItemClick(i)}
                 aria-pressed={!item.inactive}
                 /*
                  * Negative margins pull the padding back out of the layout, so
                  * the hit target grows past the 16px text line without moving
-                 * the legend. A swatch-sized target is too small to hit.
+                 * the legend. A swatch-sized target is too small to hit. The
+                 * legend's own type size and colours, not a button's.
                  */
-                className="-mx-1.5 -my-1 flex min-w-0 items-center gap-1.5 rounded-sm px-1.5 py-1 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="-mx-1.5 -my-1 h-auto gap-1.5 rounded-sm px-1.5 py-1 text-xs font-normal"
               >
                 {content}
-              </button>
+              </Button>
             ) : (
               <span className="flex min-w-0 items-center gap-1.5">{content}</span>
             )}
@@ -276,7 +281,7 @@ export function ChartTooltipContent({
   valueFormatter = formatChartValue,
   labelFormatter,
   render,
-}: ChartTooltipContentProps) {
+}: ChartTooltipContentProps): React.ReactElement | null {
   if (!active || !payload?.length) return null;
 
   if (render) {
@@ -376,7 +381,7 @@ export function ChartDataTable({
   series,
   data,
   valueFormatter = formatChartValue,
-}: ChartDataTableProps) {
+}: ChartDataTableProps): React.ReactElement {
   return (
     <table className="sr-only">
       <caption>{caption}</caption>
@@ -419,7 +424,7 @@ export interface ChartStateProps {
 }
 
 /** Skeleton stand-in sized to the chart's own height, to avoid layout shift. */
-export function ChartSkeleton({ height }: { height: number }) {
+export function ChartSkeleton({ height }: { height: number }): React.ReactElement {
   return <Skeleton className="w-full rounded-md" style={{ height }} />;
 }
 
@@ -431,7 +436,7 @@ export function ChartEmpty({
   height: number;
   title?: string;
   description?: string;
-}) {
+}): React.ReactElement {
   return (
     <div className="flex items-center justify-center" style={{ minHeight: height }}>
       <EmptyState className="py-0" title={title} description={description} />

@@ -6,27 +6,53 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
+// src/lib/calendar.ts
+function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+function parseDateKey(key) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(key);
+  if (!match) return null;
+  const date = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  return date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.year, date.month) ? date : null;
+}
+function formatCalendarDate(date, options) {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(date.year, date.month - 1, date.day))
+  );
+}
+function formatDateKey(key, options) {
+  const date = parseDateKey(key);
+  return date ? formatCalendarDate(date, options) : key;
+}
+
 // src/lib/format.ts
+function formatAmount(value, { symbol = true } = {}) {
+  const abs = Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const body = symbol ? `$${abs}` : abs;
+  return value < 0 ? `(${body})` : body;
+}
 function formatMoney(value) {
   if (value == null || value === "") return "$0.00";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "$0.00";
-  const abs = Math.abs(num);
-  const formatted = abs.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-  if (num < 0) return `($${formatted})`;
-  return `$${formatted}`;
+  return formatAmount(num);
 }
+var DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 function formatDate(iso) {
   if (!iso) return "\u2014";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const options = { month: "short", day: "numeric", year: "numeric" };
+  if (DATE_ONLY.test(iso)) return formatDateKey(iso, options);
+  return new Date(iso).toLocaleDateString("en-US", options);
+}
+function shortMonthName(month) {
+  return formatCalendarDate({ year: 2e3, month, day: 1 }, { month: "short" });
 }
 function formatPeriodLabel(month, year) {
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[month - 1]} ${year}`;
+  return `${shortMonthName(month)} ${year}`;
 }
 
 // src/lib/rich-text.ts
