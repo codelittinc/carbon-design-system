@@ -63,7 +63,7 @@ interface CommandPaletteProps {
  * Binds ⌘K / Ctrl+K on `document` while mounted — unless something nearer the
  * target already handled the press (`defaultPrevented`), so a focused control
  * with its own ⌘K, such as `RichTextEditor`'s link shortcut, keeps it — closes
- * on Escape and on a click outside, and **renders into `document.body`** — the last of those is not
+ * on Escape (wherever focus is while it is open) and on a click outside, and **renders into `document.body`** — the last of those is not
  * cosmetic. The panel positions itself with `fixed`, and a `backdrop-filter`
  * anywhere in its ancestry (a translucent app header, say) makes that ancestor
  * the containing block for fixed descendants, so an in-place palette silently
@@ -90,6 +90,14 @@ export function CommandPalette({
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         onOpenChange(!open);
+        return;
+      }
+      // The panel's own handler only sees Escape while focus is inside it.
+      // Focus can leave without the palette closing (a click on the panel's
+      // padding drops it to <body>), and Escape must still close it then.
+      if (open && e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
       }
     }
     document.addEventListener("keydown", handleKeyDown);

@@ -8,6 +8,16 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.17.2] - 2026-10-06
+
+### Fixed
+
+- **`CommandPalette`**: Escape now closes the palette wherever focus is while
+  it is open. It used to work only while focus was inside the panel, so once
+  focus dropped to `<body>` (a click on the panel's padding, say) Escape did
+  nothing. An Escape the panel or a nearer control already handled is left
+  alone, so one press still closes only one thing. No API change.
+
 ## [1.17.1] - 2026-10-06
 
 ### Fixed
