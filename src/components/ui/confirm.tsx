@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactElement, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +47,20 @@ interface Pending extends ConfirmOptions {
 export function ConfirmProvider({ children }: { children: ReactNode }): ReactElement {
   const [pending, setPending] = useState<Pending | null>(null);
   const pendingRef = useRef<Pending | null>(null);
+  // What had focus when `confirm()` was called, to give it back on close. A
+  // ref, not part of `pending`: `settle` clears that before the dialog
+  // unmounts and `onCloseAutoFocus` runs.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  // Unmounted with a question open (a route change, say): the dialog is gone,
+  // so the answer is "no", and the caller's await does not hang forever.
+  useEffect(
+    () => () => {
+      pendingRef.current?.resolve(false);
+      pendingRef.current = null;
+    },
+    [],
+  );
 
   const settle = useCallback((confirmed: boolean) => {
     pendingRef.current?.resolve(confirmed);
@@ -50,6 +73,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactEle
       new Promise<boolean>((resolve) => {
         // A second confirm while one is open answers the first "no".
         pendingRef.current?.resolve(false);
+        // There is no AlertDialogTrigger for Radix to return focus to, so
+        // remember what the caller's click or key press left focused.
+        const active = document.activeElement;
+        returnFocusRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
         const next = { ...options, resolve };
         pendingRef.current = next;
         setPending(next);
@@ -68,14 +95,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }): ReactEle
         }}
       >
         {pending && (
-          <AlertDialogContent>
+          <AlertDialogContent
+            onCloseAutoFocus={(event) => {
+              // Back to the control that asked, if it is still on the page
+              // (a deleted row's button may not be), instead of <body>.
+              event.preventDefault();
+              const el = returnFocusRef.current;
+              returnFocusRef.current = null;
+              if (el?.isConnected) el.focus();
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>{pending.title}</AlertDialogTitle>
               {pending.description && <AlertDialogDescription>{pending.description}</AlertDialogDescription>}
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{pending.cancelLabel ?? "Cancel"}</AlertDialogCancel>
-              <AlertDialogAction destructive={pending.destructive} onClick={() => settle(true)}>
+              <AlertDialogAction tone={pending.destructive ? "destructive" : "default"} onClick={() => settle(true)}>
                 {pending.confirmLabel ?? "Confirm"}
               </AlertDialogAction>
             </AlertDialogFooter>

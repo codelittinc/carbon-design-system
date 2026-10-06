@@ -363,9 +363,9 @@ interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
      */
     asChild?: boolean;
     /**
-     * Leaves the app: opens in a new tab (`target="_blank"`, `rel="noopener
-     * noreferrer"`) and shows the external icon, with "(opens in a new tab)"
-     * for a screen reader.
+     * Leaves the app: opens in a new tab (`target="_blank"`, with `noopener
+     * noreferrer` added to any `rel` you pass) and shows the external icon, with
+     * "(opens in a new tab)" for a screen reader.
      */
     external?: boolean;
 }
@@ -577,7 +577,7 @@ type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
  * `""`. Without a `value=""` item, `""` still means "nothing chosen" and shows
  * the placeholder, as in Radix.
  */
-declare function Select({ value, defaultValue, onValueChange, name, children, ...props }: SelectProps): ReactElement;
+declare function Select({ value, defaultValue, onValueChange, name, disabled, form, children, ...props }: SelectProps): ReactElement;
 declare const SelectGroup: react.ForwardRefExoticComponent<SelectPrimitive.SelectGroupProps & react.RefAttributes<HTMLDivElement>>;
 declare const SelectValue: react.ForwardRefExoticComponent<SelectPrimitive.SelectValueProps & react.RefAttributes<HTMLSpanElement>>;
 /**
@@ -661,8 +661,11 @@ declare const AlertDialogFooter: typeof DialogFooter;
 declare const AlertDialogTitle: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
 declare const AlertDialogDescription: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogDescriptionProps & react.RefAttributes<HTMLParagraphElement>, "ref"> & react.RefAttributes<HTMLParagraphElement>>;
 interface AlertDialogActionProps extends React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action> {
-    /** Draws the action as a destructive button: for a delete, a removal. */
-    destructive?: boolean;
+    /**
+     * `"destructive"` draws the action as the solid destructive button, for a
+     * delete or a removal: the same prop and look as `Button`'s `tone`.
+     */
+    tone?: "default" | "destructive";
 }
 declare const AlertDialogAction: react.ForwardRefExoticComponent<AlertDialogActionProps & react.RefAttributes<HTMLButtonElement>>;
 declare const AlertDialogCancel: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogCancelProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
@@ -710,6 +713,10 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
  * A bar filled to `value` (of `max`, 100 by default). A `progressbar` to
  * assistive tech: give it an `aria-label` (or `aria-labelledby`) saying what
  * is filling up.
+ *
+ * `value` is clamped to `[0, max]`, so 120 of 100 hours is a full bar (and
+ * `aria-valuenow` 100) rather than one drawn past its track; say the overrun
+ * in the text beside it. A `max` that is not above 0 is taken as 100.
  */
 declare const Progress: react.ForwardRefExoticComponent<ProgressProps & react.RefAttributes<HTMLDivElement>>;
 
@@ -1175,8 +1182,8 @@ interface FormFieldProps {
  * `aria-required` when `required` (unless the control already sets `required`
  * or `aria-required`).
  *
- * A `Select` is a Radix Root, which renders nothing of its own, so the props
- * go to the `SelectTrigger` among its direct children instead. A trigger
+ * A `Select` renders no element of its own (it wraps Radix's Root), so the
+ * props go to the `SelectTrigger` among its direct children instead. A trigger
  * nested deeper (inside a wrapper of your own) is not found: pass it
  * `aria-describedby`, `aria-invalid` and `aria-required` yourself.
  */

@@ -184,11 +184,11 @@ export function DataTable<TData, TValue>({
     initialState: { pagination: { pageSize } },
   });
 
-  // Mount already starts on page 1, so only *changes* to the signature reset.
   // A footer row (totals, say) when any column defines a `footer`: TanStack's
   // own column option, rendered with the column's alignment and classes.
   const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== undefined);
 
+  // Mount already starts on page 1, so only *changes* to the signature reset.
   const seen = useRef(resetPageOn);
   useEffect(() => {
     if (!driven || Object.is(seen.current, resetPageOn)) return;

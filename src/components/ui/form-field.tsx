@@ -60,8 +60,8 @@ function withFieldState(
  * `aria-required` when `required` (unless the control already sets `required`
  * or `aria-required`).
  *
- * A `Select` is a Radix Root, which renders nothing of its own, so the props
- * go to the `SelectTrigger` among its direct children instead. A trigger
+ * A `Select` renders no element of its own (it wraps Radix's Root), so the
+ * props go to the `SelectTrigger` among its direct children instead. A trigger
  * nested deeper (inside a wrapper of your own) is not found: pass it
  * `aria-describedby`, `aria-invalid` and `aria-required` yourself.
  */

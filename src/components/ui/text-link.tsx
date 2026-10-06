@@ -4,6 +4,15 @@ import { forwardRef, type AnchorHTMLAttributes } from "react";
 import { Slot, Slottable } from "@radix-ui/react-slot";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { linkTextClass } from "@/lib/ui-classes";
+
+/** `rel` with `noopener noreferrer` added, keeping whatever the caller set. */
+function externalRel(rel: string | undefined): string {
+  const tokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
+  tokens.add("noopener");
+  tokens.add("noreferrer");
+  return [...tokens].join(" ");
+}
 
 interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   /**
@@ -12,9 +21,9 @@ interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
    */
   asChild?: boolean;
   /**
-   * Leaves the app: opens in a new tab (`target="_blank"`, `rel="noopener
-   * noreferrer"`) and shows the external icon, with "(opens in a new tab)"
-   * for a screen reader.
+   * Leaves the app: opens in a new tab (`target="_blank"`, with `noopener
+   * noreferrer` added to any `rel` you pass) and shows the external icon, with
+   * "(opens in a new tab)" for a screen reader.
    */
   external?: boolean;
 }
@@ -31,9 +40,10 @@ const TextLink = forwardRef<HTMLAnchorElement, TextLinkProps>(
       <Comp
         ref={ref}
         target={external ? "_blank" : target}
-        rel={external ? "noopener noreferrer" : rel}
+        rel={external ? externalRel(rel) : rel}
         className={cn(
-          "inline-flex items-baseline gap-1 rounded-sm font-medium text-accent-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+          linkTextClass,
+          "inline-flex items-baseline gap-1 rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
           className,
         )}
         {...props}

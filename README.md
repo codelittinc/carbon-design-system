@@ -144,7 +144,9 @@ import { Button, SearchIcon, TrashIcon } from "@codelittinc/carbon-design-system
 <Button variant="ghost" size="icon" aria-label="Delete"><TrashIcon size={14} /></Button>
 ```
 
-Each is its own module, so unused icons are tree-shaken. They render `aria-hidden`: name the
+The set is short and curated, so an app ships these icons rather than all of lucide. They come
+from the package's single bundle, so unimported ones are dropped only if your bundler tree-shakes
+re-exports (a Next client boundary may keep the whole list). They render `aria-hidden`: name the
 control around an icon-only button. The list lives in
 [`src/components/ui/icons.ts`](src/components/ui/icons.ts); add an icon there rather than
 importing `lucide-react` in the app.

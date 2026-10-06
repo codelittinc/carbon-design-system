@@ -4,8 +4,13 @@
  * hand-drawing SVGs.
  *
  * Named exports with an `Icon` suffix — `SearchIcon`, not `Search` — so none
- * shadows a browser global (`File`) or a component (`Search`). Import only
- * what you use; each is its own module, so the rest is tree-shaken away.
+ * shadows a browser global (`File`) or a component (`Search`).
+ *
+ * The list is short on purpose: an app gets these icons, not all of lucide.
+ * They are re-exported from the package's one `"use client"` bundle, not from
+ * a module each, so do not count on the ones you leave unimported being
+ * dropped: a bundler that tree-shakes re-exports drops them, but a client
+ * boundary (Next's app router) can ship the whole list.
  *
  * Every icon is an `<svg>` taking `size`, `className`, `strokeWidth` and the
  * SVG attributes. Lucide marks it `aria-hidden`, so an icon that is the only

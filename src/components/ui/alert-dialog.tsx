@@ -55,15 +55,18 @@ const AlertDialogDescription = forwardRef<
 AlertDialogDescription.displayName = "AlertDialogDescription";
 
 interface AlertDialogActionProps extends React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action> {
-  /** Draws the action as a destructive button: for a delete, a removal. */
-  destructive?: boolean;
+  /**
+   * `"destructive"` draws the action as the solid destructive button, for a
+   * delete or a removal: the same prop and look as `Button`'s `tone`.
+   */
+  tone?: "default" | "destructive";
 }
 
 const AlertDialogAction = forwardRef<React.ComponentRef<typeof AlertDialogPrimitive.Action>, AlertDialogActionProps>(
-  ({ className, destructive = false, ...props }, ref) => (
+  ({ className, tone = "default", ...props }, ref) => (
     <AlertDialogPrimitive.Action
       ref={ref}
-      className={cn(buttonVariants({ variant: destructive ? "destructive" : "default" }), className)}
+      className={cn(buttonVariants({ tone }), className)}
       {...props}
     />
   ),

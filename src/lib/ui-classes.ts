@@ -82,3 +82,9 @@ export type Tone = keyof typeof toneFillClass;
 
 /** The row hover every table uses: a reading aid, clickable row or not. */
 export const tableRowHoverClass = "hover:bg-table-row-hover";
+
+/**
+ * A link's look: accent text, underlined on hover. `TextLink` and
+ * `Button variant="link"` both draw it, so the two never drift apart.
+ */
+export const linkTextClass = "text-accent-text underline-offset-4 hover:underline";

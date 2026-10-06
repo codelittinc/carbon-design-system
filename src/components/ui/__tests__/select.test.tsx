@@ -154,6 +154,41 @@ describe("Select", () => {
       expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("All statuses");
     });
 
+    it("submits nothing while disabled, like a disabled field", () => {
+      render(
+        <form aria-label="Filters">
+          <Select value="" name="status" disabled>
+            <SelectTrigger aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All statuses</SelectItem>
+            </SelectContent>
+          </Select>
+        </form>,
+      );
+      const form = screen.getByRole("form", { name: "Filters" }) as HTMLFormElement;
+      expect([...new FormData(form).getAll("status")]).toEqual([]);
+    });
+
+    it("submits with the form named by form=, from outside it", () => {
+      render(
+        <>
+          <form id="filters" aria-label="Filters" />
+          <Select value="" name="status" form="filters">
+            <SelectTrigger aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All statuses</SelectItem>
+            </SelectContent>
+          </Select>
+        </>,
+      );
+      const form = screen.getByRole("form", { name: "Filters" }) as HTMLFormElement;
+      expect([...new FormData(form).getAll("status")]).toEqual([""]);
+    });
+
     it("submits \"\" in a form, never an internal value", () => {
       render(<Status value="" name="status" />);
       const form = screen.getByRole("form", { name: "Filters" }) as HTMLFormElement;

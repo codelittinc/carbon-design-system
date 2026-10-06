@@ -4,6 +4,18 @@ import { Children, forwardRef, isValidElement, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
+import { linkTextClass } from "@/lib/ui-classes";
+
+/**
+ * The solid destructive button, for `variant="destructive"` and
+ * `tone="destructive"` on the default variant alike. The error tokens with
+ * their theme.css values as fallbacks: a consumer with its own theme may not
+ * define `--color-error-solid` / `--color-error-foreground`, and a token
+ * utility for a variable that is not there compiles to nothing, leaving a
+ * transparent button.
+ */
+const destructiveSolidClass =
+  "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap min-w-0 [&>svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -11,15 +23,10 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        // The error tokens with their theme.css values as fallbacks: a consumer
-        // with its own theme may not define `--color-error-solid` /
-        // `--color-error-foreground`, and a token utility for a variable that is
-        // not there compiles to nothing, leaving a transparent button.
-        destructive:
-          "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
+        destructive: destructiveSolidClass,
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
-        link: "text-accent-text underline-offset-4 hover:underline",
+        link: linkTextClass,
       },
       size: {
         sm: "h-7 px-2.5 text-xs",
@@ -45,7 +52,7 @@ const buttonVariants = cva(
       {
         variant: "default",
         tone: "destructive",
-        className: "bg-error-solid text-error-foreground hover:bg-error",
+        className: destructiveSolidClass,
       },
       {
         variant: "outline",

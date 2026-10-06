@@ -13,6 +13,10 @@ import { PageHeader } from "../page-header";
 import { SearchSelect } from "../search-select";
 import { StatCard } from "../stat-card";
 import { TextLink } from "../text-link";
+import { linkTextClass } from "@/lib/ui-classes";
+
+/** The solid destructive fill, with its fallback for a theme without the token. */
+const SOLID_DESTRUCTIVE = "bg-[var(--color-error-solid,#dc2626)]";
 
 describe("CardHeader", () => {
   it("renders the title as an h2 by default, with description and actions", () => {
@@ -46,6 +50,29 @@ describe("TextLink", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("keeps a caller's rel when external, adding noopener noreferrer", () => {
+    render(
+      <TextLink href="https://example.com" external rel="nofollow noopener">
+        Docs
+      </TextLink>,
+    );
+    const rel = screen.getByRole("link", { name: /Docs/ }).getAttribute("rel")!.split(" ");
+    expect(rel.sort()).toEqual(["nofollow", "noopener", "noreferrer"]);
+  });
+
+  it("shares one link style with Button variant=\"link\"", () => {
+    render(
+      <>
+        <TextLink href="/a">Inline</TextLink>
+        <Button variant="link">As button</Button>
+      </>,
+    );
+    const classes = linkTextClass.split(" ");
+    expect(classes.length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Inline" })).toHaveClass(...classes);
+    expect(screen.getByRole("button", { name: "As button" })).toHaveClass(...classes);
   });
 
   it("styles a router link with asChild", () => {
@@ -89,6 +116,11 @@ describe("Button tone", () => {
     expect(ghost).toHaveClass("text-error-text", "hover:bg-error-soft");
     expect(ghost).not.toHaveClass("text-text-secondary");
     expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("border-error-border", "text-error-text");
+  });
+
+  it("is the solid destructive button on the default variant, fallbacks included", () => {
+    render(<Button tone="destructive">Delete</Button>);
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass(SOLID_DESTRUCTIVE);
   });
 });
 
@@ -154,19 +186,44 @@ describe("SearchSelect additions", () => {
     render(<SearchSelect ariaLabel="Fruit" value={null} onChange={() => {}} onSearch={() => {}} options={[]} disabled />);
     expect(screen.getByRole("button", { name: "Fruit" })).toBeDisabled();
   });
+
+  it("closes when disabled while open, and stays closed when enabled again", () => {
+    const props = {
+      ariaLabel: "Fruit",
+      value: null,
+      onChange: () => {},
+      onSearch: () => {},
+      options: [{ value: "a", label: "Apple" }],
+    };
+    const { rerender } = render(<SearchSelect {...props} />);
+    const trigger = screen.getByRole("button", { name: "Fruit" });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    rerender(<SearchSelect {...props} disabled />);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    rerender(<SearchSelect {...props} />);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
 });
 
-describe("AlertDialogAction destructive", () => {
-  it("draws the destructive button", () => {
+describe("AlertDialogAction tone", () => {
+  it("draws the destructive button for tone=\"destructive\", as Button does", () => {
     render(
       <AlertDialog open>
         <AlertDialogContent>
           <AlertDialogTitle>Delete?</AlertDialogTitle>
-          <AlertDialogAction destructive>Delete</AlertDialogAction>
+          <AlertDialogAction tone="destructive">Delete</AlertDialogAction>
+          <AlertDialogAction>Keep</AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>,
     );
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-error-solid");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass(SOLID_DESTRUCTIVE);
+    expect(screen.getByRole("button", { name: "Keep" })).toHaveClass("bg-accent");
+    expect(screen.getByRole("button", { name: "Keep" })).not.toHaveClass(SOLID_DESTRUCTIVE);
   });
 });
 
@@ -193,7 +250,7 @@ describe("useConfirm", () => {
     const onAnswer = await ask({ title: "Delete this row?", confirmLabel: "Delete", destructive: true });
     const dialog = screen.getByRole("alertdialog", { name: "Delete this row?" });
     const action = within(dialog).getByRole("button", { name: "Delete" });
-    expect(action).toHaveClass("bg-error-solid");
+    expect(action).toHaveClass(SOLID_DESTRUCTIVE);
     await act(async () => {
       fireEvent.click(action);
     });
@@ -207,6 +264,76 @@ describe("useConfirm", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     });
+    expect(onAnswer).toHaveBeenCalledWith(false);
+  });
+
+  describe("returns focus to what was focused when confirm() was called", () => {
+    async function askFromFocused() {
+      const onAnswer = vi.fn();
+      render(
+        <ConfirmProvider>
+          <Asker options={{ title: "Delete this row?", confirmLabel: "Delete" }} onAnswer={onAnswer} />
+        </ConfirmProvider>,
+      );
+      const opener = screen.getByRole("button", { name: "Delete row" });
+      opener.focus();
+      await act(async () => {
+        fireEvent.click(opener);
+      });
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(document.activeElement).not.toBe(opener);
+      return { opener, onAnswer };
+    }
+
+    /** Radix moves focus on close after a tick, once the dialog has unmounted. */
+    const afterClose = () => act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    it("after the action", async () => {
+      const { opener, onAnswer } = await askFromFocused();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      });
+      expect(onAnswer).toHaveBeenCalledWith(true);
+      await afterClose();
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it("after Cancel", async () => {
+      const { opener, onAnswer } = await askFromFocused();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      });
+      expect(onAnswer).toHaveBeenCalledWith(false);
+      await afterClose();
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it("after Escape", async () => {
+      const { opener, onAnswer } = await askFromFocused();
+      await act(async () => {
+        fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+      });
+      expect(onAnswer).toHaveBeenCalledWith(false);
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      await afterClose();
+      expect(document.activeElement).toBe(opener);
+    });
+  });
+
+  it("answers a pending confirm \"no\" when the provider unmounts", async () => {
+    const onAnswer = vi.fn();
+    const { unmount } = render(
+      <ConfirmProvider>
+        <Asker options={{ title: "Delete?" }} onAnswer={onAnswer} />
+      </ConfirmProvider>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete row" }));
+    });
+    unmount();
+    await act(async () => {});
     expect(onAnswer).toHaveBeenCalledWith(false);
   });
 

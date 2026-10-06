@@ -144,6 +144,12 @@ export function SearchSelect({
   // Start open when auto-focusing so the search input is rendered on the first
   // paint and can receive focus (the input only exists in the DOM while open).
   const [open, setOpen] = useState(autoFocus);
+  // Disabling closes the list for good: enabling it again does not reopen it.
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+  // The list as shown. `open` can lag a render behind `disabled`.
+  const expanded = open && !disabled;
   const [query, setQuery] = useState("");
   // Index of the keyboard-active option (-1 = none). Distinct from the selected
   // value: it tracks where arrow-key focus is within the current list.
@@ -373,10 +379,10 @@ export function SearchSelect({
         id={id}
         type="button"
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={expanded}
         aria-label={ariaLabel}
         aria-describedby={required ? requiredHintId : undefined}
-        aria-controls={open ? listboxId : undefined}
+        aria-controls={expanded ? listboxId : undefined}
         disabled={disabled}
         onKeyDown={handleKeyDown}
         onClick={() => (open ? closeList() : openList(-1))}
@@ -422,7 +428,7 @@ export function SearchSelect({
         </span>
       )}
 
-      {open && !disabled && (
+      {expanded && (
         <div
           className={cn(
             floatingSurfaceClass,

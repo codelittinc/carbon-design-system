@@ -102,7 +102,7 @@ export const Destructive: StoryObj = {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-500">
+            <AlertDialogAction tone="destructive">
               {t("deletePermanently")}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -470,20 +470,25 @@ function buildExtensions(config) {
   }
   return extensions;
 }
+
+// src/lib/ui-classes.ts
+var floatingSurfaceClass = "z-50 rounded-lg border border-border bg-surface-raised shadow-lg";
+var floatingMotionClass = "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+var optionRowClass = "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-secondary outline-none transition-colors";
+var optionRowFocusClass = "focus:bg-surface-overlay focus:text-text-primary data-[highlighted]:bg-surface-overlay data-[highlighted]:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+var fieldChromeClass = "w-full min-w-0 rounded-md border border-border bg-surface-raised text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50";
+var linkTextClass = "text-accent-text underline-offset-4 hover:underline";
+var destructiveSolidClass = "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]";
 var buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap min-w-0 [&>svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        // The error tokens with their theme.css values as fallbacks: a consumer
-        // with its own theme may not define `--color-error-solid` /
-        // `--color-error-foreground`, and a token utility for a variable that is
-        // not there compiles to nothing, leaving a transparent button.
-        destructive: "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
+        destructive: destructiveSolidClass,
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
-        link: "text-accent-text underline-offset-4 hover:underline"
+        link: linkTextClass
       },
       size: {
         sm: "h-7 px-2.5 text-xs",
@@ -509,7 +514,7 @@ var buttonVariants = cva(
       {
         variant: "default",
         tone: "destructive",
-        className: "bg-error-solid text-error-foreground hover:bg-error"
+        className: destructiveSolidClass
       },
       {
         variant: "outline",
@@ -708,13 +713,6 @@ var Label = forwardRef(
   )
 );
 Label.displayName = "Label";
-
-// src/lib/ui-classes.ts
-var floatingSurfaceClass = "z-50 rounded-lg border border-border bg-surface-raised shadow-lg";
-var floatingMotionClass = "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
-var optionRowClass = "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-secondary outline-none transition-colors";
-var optionRowFocusClass = "focus:bg-surface-overlay focus:text-text-primary data-[highlighted]:bg-surface-overlay data-[highlighted]:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
-var fieldChromeClass = "w-full min-w-0 rounded-md border border-border bg-surface-raised text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50";
 var EMPTY_VALUE = "\0carbon-select-empty";
 var EmptyItemContext = createContext(null);
 function Select({
@@ -722,6 +720,8 @@ function Select({
   defaultValue,
   onValueChange,
   name,
+  disabled,
+  form,
   children,
   ...props
 }) {
@@ -738,6 +738,8 @@ function Select({
       SelectPrimitive.Root,
       {
         ...props,
+        disabled,
+        form,
         value: current === void 0 ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current,
         onValueChange: (next) => {
           const mapped = next === EMPTY_VALUE ? "" : next;
@@ -748,7 +750,10 @@ function Select({
         children
       }
     ),
-    hasEmptyItem && name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "" })
+    hasEmptyItem && name && // `disabled` and `form` as Radix's own field would have them: a
+    // disabled Select submits nothing, and `form` ties it to a form
+    // elsewhere in the page.
+    /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "", disabled, form })
   ] });
 }
 var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(

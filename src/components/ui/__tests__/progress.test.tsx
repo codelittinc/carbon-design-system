@@ -44,4 +44,26 @@ describe("Progress", () => {
     const indicator = screen.getByRole("progressbar").firstElementChild as HTMLElement;
     expect(indicator).toHaveStyle({ width: "25%" });
   });
+
+  it("clamps a value over max to a full bar, for Radix and the width", () => {
+    render(<Progress value={150} max={100} aria-label="Hours" />);
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "100");
+    expect(bar.firstElementChild).toHaveStyle({ width: "100%" });
+  });
+
+  it("clamps a negative value to an empty bar", () => {
+    render(<Progress value={-5} aria-label="Hours" />);
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "0");
+    expect(bar.firstElementChild).toHaveStyle({ width: "0%" });
+  });
+
+  it("treats max={0} as 100 rather than dividing by zero", () => {
+    render(<Progress value={40} max={0} aria-label="Hours" />);
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuemax", "100");
+    expect(bar).toHaveAttribute("aria-valuenow", "40");
+    expect(bar.firstElementChild).toHaveStyle({ width: "40%" });
+  });
 });

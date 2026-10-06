@@ -55,6 +55,8 @@ function Select({
   defaultValue,
   onValueChange,
   name,
+  disabled,
+  form,
   children,
   ...props
 }: SelectProps): ReactElement {
@@ -73,6 +75,8 @@ function Select({
     <EmptyItemContext.Provider value={register}>
       <SelectPrimitive.Root
         {...props}
+        disabled={disabled}
+        form={form}
         value={current === undefined ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current}
         onValueChange={(next) => {
           const mapped = next === EMPTY_VALUE ? "" : next;
@@ -86,7 +90,10 @@ function Select({
         {children}
       </SelectPrimitive.Root>
       {hasEmptyItem && name && (
-        <input type="hidden" name={name} value={current ?? ""} />
+        // `disabled` and `form` as Radix's own field would have them: a
+        // disabled Select submits nothing, and `form` ties it to a form
+        // elsewhere in the page.
+        <input type="hidden" name={name} value={current ?? ""} disabled={disabled} form={form} />
       )}
     </EmptyItemContext.Provider>
   );

@@ -26,22 +26,31 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
  * A bar filled to `value` (of `max`, 100 by default). A `progressbar` to
  * assistive tech: give it an `aria-label` (or `aria-labelledby`) saying what
  * is filling up.
+ *
+ * `value` is clamped to `[0, max]`, so 120 of 100 hours is a full bar (and
+ * `aria-valuenow` 100) rather than one drawn past its track; say the overrun
+ * in the text beside it. A `max` that is not above 0 is taken as 100.
  */
 const Progress = forwardRef<React.ComponentRef<typeof ProgressPrimitive.Root>, ProgressProps>(
-  ({ className, value, max = 100, tone = "accent", ...props }, ref) => (
-    <ProgressPrimitive.Root
-      ref={ref}
-      value={value}
-      max={max}
-      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className)}
-      {...props}
-    >
-      <ProgressPrimitive.Indicator
-        className={cn("h-full transition-all", toneClasses[tone])}
-        style={{ width: `${((value ?? 0) / max) * 100}%` }}
-      />
-    </ProgressPrimitive.Root>
-  ),
+  ({ className, value, max = 100, tone = "accent", ...props }, ref) => {
+    const safeMax = max > 0 ? max : 100;
+    // null / undefined stay as they are: Radix reads them as indeterminate.
+    const clamped = value == null ? value : Math.min(Math.max(value, 0), safeMax);
+    return (
+      <ProgressPrimitive.Root
+        ref={ref}
+        value={clamped}
+        max={safeMax}
+        className={cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className)}
+        {...props}
+      >
+        <ProgressPrimitive.Indicator
+          className={cn("h-full transition-all", toneClasses[tone])}
+          style={{ width: `${((clamped ?? 0) / safeMax) * 100}%` }}
+        />
+      </ProgressPrimitive.Root>
+    );
+  },
 );
 Progress.displayName = "Progress";
 

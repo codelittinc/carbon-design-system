@@ -525,6 +525,7 @@ var toneBorderClass = {
   warning: "border-border"
 };
 var tableRowHoverClass = "hover:bg-table-row-hover";
+var linkTextClass = "text-accent-text underline-offset-4 hover:underline";
 var Input = forwardRef(
   ({ className, type, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -604,20 +605,17 @@ function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typ
     }
   );
 }
+var destructiveSolidClass = "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]";
 var buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors cursor-pointer whitespace-nowrap min-w-0 [&>svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        // The error tokens with their theme.css values as fallbacks: a consumer
-        // with its own theme may not define `--color-error-solid` /
-        // `--color-error-foreground`, and a token utility for a variable that is
-        // not there compiles to nothing, leaving a transparent button.
-        destructive: "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
+        destructive: destructiveSolidClass,
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
-        link: "text-accent-text underline-offset-4 hover:underline"
+        link: linkTextClass
       },
       size: {
         sm: "h-7 px-2.5 text-xs",
@@ -643,7 +641,7 @@ var buttonVariants = cva(
       {
         variant: "default",
         tone: "destructive",
-        className: "bg-error-solid text-error-foreground hover:bg-error"
+        className: destructiveSolidClass
       },
       {
         variant: "outline",
@@ -1337,6 +1335,12 @@ function StatusIndicator({
     showLabel && /* @__PURE__ */ jsx("span", { className: "text-sm text-text-secondary", children: label })
   ] });
 }
+function externalRel(rel) {
+  const tokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
+  tokens.add("noopener");
+  tokens.add("noreferrer");
+  return [...tokens].join(" ");
+}
 var TextLink = forwardRef(
   ({ asChild = false, external = false, className, children, target, rel, ...props }, ref) => {
     const Comp = asChild ? Slot : "a";
@@ -1345,9 +1349,10 @@ var TextLink = forwardRef(
       {
         ref,
         target: external ? "_blank" : target,
-        rel: external ? "noopener noreferrer" : rel,
+        rel: external ? externalRel(rel) : rel,
         className: cn(
-          "inline-flex items-baseline gap-1 rounded-sm font-medium text-accent-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+          linkTextClass,
+          "inline-flex items-baseline gap-1 rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
           className
         ),
         ...props,
@@ -1441,11 +1446,11 @@ var AlertDialogDescription = forwardRef(({ className, ...props }, ref) => /* @__
 ));
 AlertDialogDescription.displayName = "AlertDialogDescription";
 var AlertDialogAction = forwardRef(
-  ({ className, destructive = false, ...props }, ref) => /* @__PURE__ */ jsx(
+  ({ className, tone = "default", ...props }, ref) => /* @__PURE__ */ jsx(
     AlertDialogPrimitive.Action,
     {
       ref,
-      className: cn(buttonVariants({ variant: destructive ? "destructive" : "default" }), className),
+      className: cn(buttonVariants({ tone }), className),
       ...props
     }
   )
@@ -1464,6 +1469,14 @@ var ConfirmContext = createContext(null);
 function ConfirmProvider({ children }) {
   const [pending2, setPending] = useState(null);
   const pendingRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  useEffect(
+    () => () => {
+      pendingRef.current?.resolve(false);
+      pendingRef.current = null;
+    },
+    []
+  );
   const settle = useCallback((confirmed) => {
     pendingRef.current?.resolve(confirmed);
     pendingRef.current = null;
@@ -1472,6 +1485,8 @@ function ConfirmProvider({ children }) {
   const confirm = useCallback(
     (options) => new Promise((resolve) => {
       pendingRef.current?.resolve(false);
+      const active = document.activeElement;
+      returnFocusRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
       const next = { ...options, resolve };
       pendingRef.current = next;
       setPending(next);
@@ -1487,16 +1502,27 @@ function ConfirmProvider({ children }) {
         onOpenChange: (open) => {
           if (!open) settle(false);
         },
-        children: pending2 && /* @__PURE__ */ jsxs(AlertDialogContent, { children: [
-          /* @__PURE__ */ jsxs(AlertDialogHeader, { children: [
-            /* @__PURE__ */ jsx(AlertDialogTitle, { children: pending2.title }),
-            pending2.description && /* @__PURE__ */ jsx(AlertDialogDescription, { children: pending2.description })
-          ] }),
-          /* @__PURE__ */ jsxs(AlertDialogFooter, { children: [
-            /* @__PURE__ */ jsx(AlertDialogCancel, { children: pending2.cancelLabel ?? "Cancel" }),
-            /* @__PURE__ */ jsx(AlertDialogAction, { destructive: pending2.destructive, onClick: () => settle(true), children: pending2.confirmLabel ?? "Confirm" })
-          ] })
-        ] })
+        children: pending2 && /* @__PURE__ */ jsxs(
+          AlertDialogContent,
+          {
+            onCloseAutoFocus: (event) => {
+              event.preventDefault();
+              const el = returnFocusRef.current;
+              returnFocusRef.current = null;
+              if (el?.isConnected) el.focus();
+            },
+            children: [
+              /* @__PURE__ */ jsxs(AlertDialogHeader, { children: [
+                /* @__PURE__ */ jsx(AlertDialogTitle, { children: pending2.title }),
+                pending2.description && /* @__PURE__ */ jsx(AlertDialogDescription, { children: pending2.description })
+              ] }),
+              /* @__PURE__ */ jsxs(AlertDialogFooter, { children: [
+                /* @__PURE__ */ jsx(AlertDialogCancel, { children: pending2.cancelLabel ?? "Cancel" }),
+                /* @__PURE__ */ jsx(AlertDialogAction, { tone: pending2.destructive ? "destructive" : "default", onClick: () => settle(true), children: pending2.confirmLabel ?? "Confirm" })
+              ] })
+            ]
+          }
+        )
       }
     )
   ] });
@@ -1732,6 +1758,8 @@ function Select({
   defaultValue,
   onValueChange,
   name,
+  disabled,
+  form,
   children,
   ...props
 }) {
@@ -1748,6 +1776,8 @@ function Select({
       SelectPrimitive.Root,
       {
         ...props,
+        disabled,
+        form,
         value: current === void 0 ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current,
         onValueChange: (next) => {
           const mapped = next === EMPTY_VALUE ? "" : next;
@@ -1758,7 +1788,10 @@ function Select({
         children
       }
     ),
-    hasEmptyItem && name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "" })
+    hasEmptyItem && name && // `disabled` and `form` as Radix's own field would have them: a
+    // disabled Select submits nothing, and `form` ties it to a form
+    // elsewhere in the page.
+    /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "", disabled, form })
   ] });
 }
 var SelectGroup = SelectPrimitive.Group;
@@ -1961,23 +1994,27 @@ var toneClasses = {
   info: "bg-info"
 };
 var Progress = forwardRef(
-  ({ className, value, max = 100, tone = "accent", ...props }, ref) => /* @__PURE__ */ jsx(
-    ProgressPrimitive.Root,
-    {
-      ref,
-      value,
-      max,
-      className: cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className),
-      ...props,
-      children: /* @__PURE__ */ jsx(
-        ProgressPrimitive.Indicator,
-        {
-          className: cn("h-full transition-all", toneClasses[tone]),
-          style: { width: `${(value ?? 0) / max * 100}%` }
-        }
-      )
-    }
-  )
+  ({ className, value, max = 100, tone = "accent", ...props }, ref) => {
+    const safeMax = max > 0 ? max : 100;
+    const clamped = value == null ? value : Math.min(Math.max(value, 0), safeMax);
+    return /* @__PURE__ */ jsx(
+      ProgressPrimitive.Root,
+      {
+        ref,
+        value: clamped,
+        max: safeMax,
+        className: cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className),
+        ...props,
+        children: /* @__PURE__ */ jsx(
+          ProgressPrimitive.Indicator,
+          {
+            className: cn("h-full transition-all", toneClasses[tone]),
+            style: { width: `${(clamped ?? 0) / safeMax * 100}%` }
+          }
+        )
+      }
+    );
+  }
 );
 Progress.displayName = "Progress";
 var Tabs = TabsPrimitive.Root;
@@ -2767,6 +2804,10 @@ function SearchSelect({
   createLabel = (input) => `Create "${input}"`
 }) {
   const [open, setOpen] = useState(autoFocus);
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+  const expanded = open && !disabled;
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef(null);
@@ -2922,10 +2963,10 @@ function SearchSelect({
         id,
         type: "button",
         "aria-haspopup": "listbox",
-        "aria-expanded": open,
+        "aria-expanded": expanded,
         "aria-label": ariaLabel,
         "aria-describedby": required ? requiredHintId : void 0,
-        "aria-controls": open ? listboxId : void 0,
+        "aria-controls": expanded ? listboxId : void 0,
         disabled,
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),
@@ -2962,7 +3003,7 @@ function SearchSelect({
       }
     ),
     required && /* @__PURE__ */ jsx("span", { id: requiredHintId, className: "sr-only", children: requiredLabel }),
-    open && !disabled && /* @__PURE__ */ jsxs(
+    expanded && /* @__PURE__ */ jsxs(
       "div",
       {
         className: cn(
