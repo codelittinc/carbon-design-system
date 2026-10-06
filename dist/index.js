@@ -2294,6 +2294,11 @@ function CommandPalette({
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         onOpenChange(!open);
+        return;
+      }
+      if (open && e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
       }
     }
     document.addEventListener("keydown", handleKeyDown);

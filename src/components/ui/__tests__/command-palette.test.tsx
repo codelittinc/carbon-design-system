@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CommandGroup, CommandItem, CommandPalette } from "../command-palette";
@@ -118,9 +118,40 @@ describe("CommandPalette", () => {
     );
     fireEvent.keyDown(screen.getByPlaceholderText(INPUT_PLACEHOLDER), { key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    // Once: the document-level fallback must not close it a second time.
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
     // The palette is portalled, so `outer` is not an ancestor in the DOM — the
     // assertion that matters is that nothing else was asked to close too.
     expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("closes on Escape after focus has left the palette", () => {
+    const onOpenChange = vi.fn();
+    render(<CommandPalette open onOpenChange={onOpenChange}>{null}</CommandPalette>);
+    act(() => (document.activeElement as HTMLElement | null)?.blur());
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("leaves an Escape outside the palette that something else already handled", () => {
+    const onOpenChange = vi.fn();
+    render(<CommandPalette open onOpenChange={onOpenChange}>{null}</CommandPalette>);
+    act(() => (document.activeElement as HTMLElement | null)?.blur());
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    event.preventDefault();
+    act(() => {
+      document.body.dispatchEvent(event);
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("ignores Escape while closed", () => {
+    const onOpenChange = vi.fn();
+    render(<CommandPalette open={false} onOpenChange={onOpenChange}>{null}</CommandPalette>);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it("takes a controlled query, so the consumer can render only what it shows", () => {
