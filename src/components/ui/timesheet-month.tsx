@@ -6,16 +6,15 @@
  * `TimesheetTable` renders these.
  */
 
-import { useEffect, useRef, type ReactElement } from "react";
+import { forwardRef, useEffect, useRef, useState, type ReactElement } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   WEEKDAY_LABELS,
   dateKey,
-  formatCalendarDate,
+  formatDateKey,
   isWeekend,
   monthWeeks,
-  parseDateKey,
   type YearMonth,
 } from "@/lib/calendar";
 import {
@@ -32,17 +31,64 @@ import { Card } from "./card";
 import { Input } from "./input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 
-/**
- * The hours field, shared with the weekly grid. A number input with its
- * spinner hidden: a quarter-hour step is typed, not clicked.
- */
-export const hoursInputClass =
-  "h-8 px-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-
+/** "Mon, Sep 14, 2026" (or "Monday, …") from a "2026-09-14" key. */
 export function dayLabel(date: string, weekday: "long" | "short" = "short"): string {
-  const day = parseDateKey(date);
-  return day ? formatCalendarDate(day, { weekday, month: "short", day: "numeric", year: "numeric" }) : date;
+  return formatDateKey(date, { weekday, month: "short", day: "numeric", year: "numeric" });
 }
+
+/** Up to 24 with two decimals, or a step on the way there ("", "7", "7."). */
+const HOURS_DRAFT = /^\d{0,2}(\.\d{0,2})?$/;
+
+type HoursInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> & {
+  value: number | null | undefined;
+  /** The text typed, once it reads as hours; `TimesheetTable` parses it. */
+  onValueChange: (value: string) => void;
+};
+
+/**
+ * The hours field, in the weekly grid, the month calendar and the day panel.
+ * A text input with a decimal keypad (as `MoneyInput`), not `type="number"`:
+ * a number input has no caret position, so the grid's Left/Right arrows could
+ * never tell when the caret is at the edge. While focused it keeps the text as
+ * typed, so "7." survives on the way to "7.5"; anything that cannot become
+ * 0–24 hours is not taken.
+ */
+export const HoursInput = forwardRef<HTMLInputElement, HoursInputProps>(
+  ({ value, onValueChange, onFocus, onBlur, className, ...props }, ref): ReactElement => {
+    const [draft, setDraft] = useState<string | null>(null);
+    // The draft shows only while it still reads as the value, so a value
+    // changed from outside (a revert, a refetch) is never hidden behind it.
+    const draftHours = draft === null ? undefined : draft === "" || draft === "." ? null : parseFloat(draft);
+    const shown = draft !== null && draftHours === (value ?? null) ? draft : value == null ? "" : String(value);
+    return (
+      <Input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        value={shown}
+        onChange={(e) => {
+          const next = e.target.value.trim();
+          if (!HOURS_DRAFT.test(next) || parseFloat(next) > 24) return;
+          setDraft(next);
+          onValueChange(next === "." ? "" : next);
+        }}
+        onFocus={(e) => {
+          setDraft(value == null ? "" : String(value));
+          e.target.select();
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setDraft(null);
+          onBlur?.(e);
+        }}
+        className={cn("h-8 px-1 text-center tabular-nums", className)}
+        {...props}
+      />
+    );
+  },
+);
+HoursInput.displayName = "HoursInput";
 
 function isTimeOffDay(date: string, timeOffs: TimesheetTimeOff[]): boolean {
   // endsAt is the return date, so it is exclusive.
@@ -57,6 +103,8 @@ interface MonthlyCalendarGridProps {
   today: string;
   selectedDay: string | null;
   onDaySelect: (date: string) => void;
+  /** Closes the inline editor (Escape), handing focus back to its day. */
+  onClose: () => void;
   onCellChange: (contractId: number, date: string, value: string) => void;
 }
 
@@ -73,15 +121,22 @@ export function MonthlyCalendarGrid({
   today,
   selectedDay,
   onDaySelect,
+  onClose,
   onCellChange,
 }: MonthlyCalendarGridProps): ReactElement {
   const inlineInputRef = useRef<HTMLInputElement>(null);
+  const dayButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  // The day whose inline editor Escape just closed, to focus its button again.
+  const returnFocusTo = useRef<string | null>(null);
 
   useEffect(() => {
     if (selectedDay && inlineInputRef.current) {
       inlineInputRef.current.focus();
       inlineInputRef.current.select();
+    } else if (!selectedDay && returnFocusTo.current) {
+      dayButtonRefs.current[returnFocusTo.current]?.focus();
     }
+    returnFocusTo.current = null;
   }, [selectedDay]);
 
   const cells = monthWeeks(month).flat();
@@ -153,21 +208,20 @@ export function MonthlyCalendarGrid({
                 className={cn("min-h-[72px] p-2 ring-2 ring-inset ring-accent", background)}
               >
                 {header}
-                <Input
+                <HoursInput
                   ref={inlineInputRef}
-                  type="number"
-                  step="0.25"
-                  min="0"
-                  max="24"
                   aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}`}
-                  value={gridData[cellKey(contract.id, date)] ?? ""}
-                  onChange={(e) => onCellChange(contract.id, date, e.target.value)}
-                  onFocus={(e) => e.target.select()}
+                  value={gridData[cellKey(contract.id, date)]}
+                  onValueChange={(value) => onCellChange(contract.id, date, value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") onDaySelect(date);
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      returnFocusTo.current = date;
+                      onClose();
+                    }
                   }}
                   placeholder={"–"}
-                  className={cn(hoursInputClass, "mt-1 h-7")}
+                  className="mt-1 h-7"
                 />
               </div>
             );
@@ -176,6 +230,9 @@ export function MonthlyCalendarGrid({
           return (
             <Button
               key={date}
+              ref={(el) => {
+                dayButtonRefs.current[date] = el;
+              }}
               type="button"
               variant="ghost"
               aria-pressed={isSelected}
@@ -292,22 +349,16 @@ export function DayDetailPanel({
                   <ContractName contract={contract} />
                 </TableCell>
                 <TableCell>
-                  <Input
+                  <HoursInput
                     ref={(el) => {
                       inputRefs.current[idx] = el;
                     }}
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    max="24"
                     aria-label={`Hours for ${contract.projectName} on ${dayLabel(selectedDay)}`}
-                    value={gridData[cellKey(contract.id, selectedDay)] ?? ""}
+                    value={gridData[cellKey(contract.id, selectedDay)]}
                     disabled={!contractCoversDay(contract, selectedDay)}
-                    onChange={(e) => onCellChange(contract.id, selectedDay, e.target.value)}
-                    onFocus={(e) => e.target.select()}
+                    onValueChange={(value) => onCellChange(contract.id, selectedDay, value)}
                     onKeyDown={(e) => handleKeyDown(e, idx)}
                     placeholder={contractCoversDay(contract, selectedDay) ? "–" : ""}
-                    className={hoursInputClass}
                   />
                 </TableCell>
               </TableRow>

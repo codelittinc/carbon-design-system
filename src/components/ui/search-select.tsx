@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useId, type ReactElement } from "react";
 import { Search, X, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useCreateOption } from "./use-create-option";
 
 interface SearchSelectOption {
   value: string;
@@ -88,7 +89,10 @@ interface SearchSelectProps {
    * trimmed query has no option with exactly that label (ignoring case), and is
    * hidden while `loading`. Called with the trimmed query; select the new
    * record yourself (`value`, and an `options` entry for its label). The list
-   * closes once it resolves.
+   * closes once it resolves. While it is pending the option is disabled, so a
+   * second Enter or click cannot create twice. If it rejects, the list stays
+   * open with the query for another try, and the rejection is swallowed:
+   * report the error yourself (a toast) before rethrowing.
    */
   onCreate?: (input: string) => void | Promise<void>;
   /** Text of the create option. Defaults to `Create "<input>"`. */
@@ -229,13 +233,14 @@ export function SearchSelect({
     [onChange, closeList, cancelPendingSearch],
   );
 
+  const { creating, create } = useCreateOption(onCreate);
   const handleCreate = useCallback(async () => {
-    if (!onCreate || !trimmed) return;
     cancelPendingSearch();
-    await onCreate(trimmed);
-    setQuery("");
-    closeList();
-  }, [onCreate, trimmed, cancelPendingSearch, closeList]);
+    await create(trimmed, () => {
+      setQuery("");
+      closeList();
+    });
+  }, [create, trimmed, cancelPendingSearch, closeList]);
 
   const handleClear = useCallback(
     (e: React.MouseEvent) => {
@@ -451,6 +456,7 @@ export function SearchSelect({
                 id={optionId(options.length)}
                 role="option"
                 aria-selected={false}
+                aria-disabled={creating || undefined}
                 type="button"
                 tabIndex={-1}
                 onClick={() => void handleCreate()}
@@ -458,6 +464,7 @@ export function SearchSelect({
                 className={cn(
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
                   activeIndex === options.length && "bg-surface-overlay",
+                  creating && "cursor-wait opacity-50",
                   optionClassName,
                 )}
               >

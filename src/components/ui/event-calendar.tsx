@@ -8,10 +8,10 @@ import {
   compareMonths,
   dateKey,
   formatCalendarDate,
+  formatDateKey,
   isWeekend,
   monthLabel,
   monthWeeks,
-  parseDateKey,
   shiftMonth,
   todayIn,
   type YearMonth,
@@ -39,15 +39,9 @@ export interface EventCalendarProps<T> {
    * Defaults to "Show 2 more items on July 14".
    */
   overflowAriaLabel?: (isoDate: string, count: number) => string;
-  /** Accessible name of the grid. Defaults to "Calendar, July 2026". */
+  /** Accessible name of the table. Defaults to "Calendar, July 2026". */
   ariaLabel?: string;
   className?: string;
-}
-
-/** "Tue, Jul 14" style, from a "2026-07-14" key. */
-function formatKey(isoDate: string, options: Intl.DateTimeFormatOptions): string {
-  const date = parseDateKey(isoDate);
-  return date ? formatCalendarDate(date, options) : isoDate;
 }
 
 /**
@@ -82,11 +76,11 @@ export function EventCalendar<T>({
   const titleOf =
     overflowPopoverTitle ??
     ((isoDate: string, count: number) =>
-      `${formatKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} — ${count} ${count === 1 ? "item" : "items"}`);
+      `${formatDateKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} — ${count} ${count === 1 ? "item" : "items"}`);
   const ariaLabelOf =
     overflowAriaLabel ??
     ((isoDate: string, count: number) =>
-      `Show ${count} more items on ${formatKey(isoDate, { month: "long", day: "numeric" })}`);
+      `Show ${count} more items on ${formatDateKey(isoDate, { month: "long", day: "numeric" })}`);
 
   return (
     <div className={className}>
@@ -134,11 +128,18 @@ export function EventCalendar<T>({
         )}
 
         <div className="overflow-x-auto">
-          <div className="min-w-[700px]">
-            <div className="grid grid-cols-7">
+          {/*
+            A table, not a grid: the days hold buttons and chips reached with
+            Tab, and there is no arrow-key movement between them, which
+            role="grid" would promise. CSS grid lays it out, so the table
+            semantics are roles: table > row > columnheader / cell.
+          */}
+          <div role="table" aria-label={ariaLabel ?? `Calendar, ${monthTitle}`} className="min-w-[700px]">
+            <div role="row" className="grid grid-cols-7">
               {WEEKDAY_LABELS.map((label) => (
                 <div
                   key={label}
+                  role="columnheader"
                   className="py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted"
                 >
                   {label}
@@ -146,16 +147,14 @@ export function EventCalendar<T>({
               ))}
             </div>
 
-            {/* Weeks are role="row" so the grid structure is valid: grid > row > gridcell. */}
             <div
-              role="grid"
-              aria-label={ariaLabel ?? `Calendar, ${monthTitle}`}
+              role="rowgroup"
               className="divide-y divide-border overflow-hidden rounded-lg border border-border"
             >
               {weeks.map((week, w) => (
                 <div key={w} role="row" className="grid grid-cols-7 divide-x divide-border">
                   {week.map((cell, d) => {
-                    if (!cell) return <div key={`blank-${d}`} role="gridcell" className="bg-bg" />;
+                    if (!cell) return <div key={`blank-${d}`} role="cell" className="bg-bg" />;
 
                     const iso = dateKey(cell);
                     const items = itemsByDate.get(iso) || [];
@@ -166,7 +165,7 @@ export function EventCalendar<T>({
                     return (
                       <div
                         key={iso}
-                        role="gridcell"
+                        role="cell"
                         aria-label={formatCalendarDate(cell, { weekday: "long", month: "long", day: "numeric" })}
                         aria-current={isToday ? "date" : undefined}
                         className={cn(

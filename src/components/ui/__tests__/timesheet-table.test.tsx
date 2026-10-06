@@ -73,7 +73,7 @@ function renderTable(api: TimesheetApi, props: Partial<React.ComponentProps<type
 }
 
 const cell = (project: string, day: string) =>
-  screen.getByRole("spinbutton", { name: `Hours for ${project} on ${day}` }) as HTMLInputElement;
+  screen.getByLabelText(`Hours for ${project} on ${day}`) as HTMLInputElement;
 
 describe("TimesheetTable", () => {
   it("fetches the week and renders the grid from the api", async () => {
@@ -225,6 +225,176 @@ describe("TimesheetTable", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("TimesheetTable save, revert and dirty state", () => {
+  it("stays on the period with the edits kept when the save before navigating fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const api = mockApi({ saveTimesheet: vi.fn().mockRejectedValue(new Error("Locked period")) });
+    renderTable(api);
+    await screen.findByText("Daily Total");
+
+    fireEvent.change(cell("Backstage", "Wed, Sep 16, 2026"), { target: { value: "5" } });
+
+    for (const control of [
+      () => screen.getByRole("button", { name: "Next" }),
+      () => screen.getByRole("button", { name: "Prev" }),
+      () => screen.getByRole("button", { name: "Today" }),
+      () => screen.getByRole("radio", { name: "Monthly" }),
+    ]) {
+      await act(async () => {
+        fireEvent.click(control());
+      });
+      expect(screen.getByText("Sep 14 – Sep 20, 2026")).toBeInTheDocument();
+      expect(cell("Backstage", "Wed, Sep 16, 2026").value).toBe("5");
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    }
+    expect(api.saveTimesheet).toHaveBeenCalledTimes(4);
+    expect(api.fetchTimeEntries).toHaveBeenCalledOnce();
+    expect(screen.getByRole("radio", { name: "Weekly" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps edits when the parent re-renders with fresh inline api, headers and onNavigate", async () => {
+    const api = mockApi();
+    const firstNavigate = vi.fn();
+    const { rerender } = renderTable(api, { apiHeaders: { "X-A": "1" }, onNavigate: firstNavigate });
+    await screen.findByText("Daily Total");
+    fireEvent.change(cell("Backstage", "Wed, Sep 16, 2026"), { target: { value: "4" } });
+
+    const secondNavigate = vi.fn();
+    rerender(
+      <TimesheetTable
+        userId={7}
+        userFullName="Jane Smith"
+        contracts={CONTRACTS}
+        api={{ ...api }}
+        apiHeaders={{ "X-A": "1" }}
+        onNavigate={secondNavigate}
+        initialWeek={WEEK}
+      />,
+    );
+    await act(async () => {});
+
+    expect(api.fetchTimeEntries).toHaveBeenCalledOnce();
+    expect(cell("Backstage", "Wed, Sep 16, 2026").value).toBe("4");
+    expect(firstNavigate).toHaveBeenCalledOnce();
+    expect(secondNavigate).not.toHaveBeenCalled();
+
+    // The latest callbacks are the ones used from then on.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    });
+    expect(secondNavigate).toHaveBeenLastCalledWith({ view: "weekly", week: "2026-09-21" });
+  });
+
+  it("leaves the grid dirty with Save after a failed revert, and Save resends it", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const saveTimesheet = vi
+      .fn()
+      .mockResolvedValueOnce({ success: true, upserted: 1, deleted: 0 })
+      .mockRejectedValueOnce(new Error("Network down"))
+      .mockResolvedValue({ success: true, upserted: 1, deleted: 0 });
+    const api = mockApi({ saveTimesheet });
+    renderTable(api);
+    await screen.findByText("Daily Total");
+
+    fireEvent.change(cell("Backstage", "Wed, Sep 16, 2026"), { target: { value: "3" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+    });
+
+    // The server still has 3; the grid shows the reverted value, unsaved.
+    expect(cell("Backstage", "Wed, Sep 16, 2026").value).toBe("");
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(saveTimesheet).toHaveBeenLastCalledWith([{ contractId: 1, date: "2026-09-16", hours: null }]);
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("is not dirty after typing into an empty cell and clearing it again", async () => {
+    renderTable(mockApi());
+    await screen.findByText("Daily Total");
+    const wed = cell("Backstage", "Wed, Sep 16, 2026");
+    fireEvent.change(wed, { target: { value: "5" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    fireEvent.change(wed, { target: { value: "" } });
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+});
+
+describe("TimesheetTable keyboard", () => {
+  it("moves between weekly cells with ArrowLeft and ArrowRight from the value's edge", async () => {
+    renderTable(mockApi());
+    await screen.findByText("Daily Total");
+
+    const tue = cell("Backstage", "Tue, Sep 15, 2026");
+    tue.focus();
+    fireEvent.keyDown(tue, { key: "ArrowRight" });
+    expect(cell("Backstage", "Wed, Sep 16, 2026")).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowLeft" });
+    expect(tue).toHaveFocus();
+
+    // Mid-value, the caret moves instead.
+    fireEvent.change(tue, { target: { value: "12" } });
+    tue.setSelectionRange(1, 1);
+    fireEvent.keyDown(tue, { key: "ArrowRight" });
+    expect(tue).toHaveFocus();
+  });
+
+  it("takes a decimal typed a character at a time, and ignores anything else", async () => {
+    renderTable(mockApi());
+    await screen.findByText("Daily Total");
+    const wed = cell("Backstage", "Wed, Sep 16, 2026");
+    expect(wed).toHaveAttribute("inputmode", "decimal");
+    wed.focus();
+    fireEvent.change(wed, { target: { value: "7." } });
+    expect(wed.value).toBe("7.");
+    fireEvent.change(wed, { target: { value: "7.5" } });
+    expect(wed.value).toBe("7.5");
+    fireEvent.change(wed, { target: { value: "7.5a" } });
+    expect(wed.value).toBe("7.5");
+    fireEvent.change(wed, { target: { value: "30" } });
+    expect(wed.value).toBe("7.5");
+    fireEvent.blur(wed);
+    expect(wed.value).toBe("7.5");
+  });
+
+  it("closes the monthly inline input on Escape and returns focus to the day", async () => {
+    renderTable(mockApi(), { defaultView: "monthly", initialMonth: "2026-09" });
+    // From the 17th, only the Backstage contract covers the day.
+    const day = await screen.findByRole("button", { name: /^Thu, Sep 17, 2026/ });
+    fireEvent.click(day);
+    const input = cell("Backstage", "Thu, Sep 17, 2026");
+    expect(input).toHaveFocus();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByLabelText("Hours for Backstage on Thu, Sep 17, 2026")).not.toBeInTheDocument();
+    const again = screen.getByRole("button", { name: /^Thu, Sep 17, 2026/ });
+    expect(again).toHaveAttribute("aria-pressed", "false");
+    expect(again).toHaveFocus();
+  });
+});
+
+describe("TimesheetTable time off", () => {
+  it("lists time off with its dates written out", async () => {
+    const api = mockApi({
+      fetchExpectedHours: vi.fn(async () => ({
+        expectedHours: 32,
+        ptoHours: 8,
+        timeOffs: [{ id: 1, type: "Vacation", startsAt: "2026-09-17T00:00:00.000Z", endsAt: "2026-09-18" }],
+      })),
+    });
+    renderTable(api);
+    const row = (await screen.findByText("Vacation")).closest("tr")!;
+    expect(within(row).getByText("Thu, Sep 17")).toBeInTheDocument();
+    expect(within(row).getByText("Fri, Sep 18")).toBeInTheDocument();
   });
 });
 

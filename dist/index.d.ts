@@ -190,7 +190,10 @@ interface MultiSelectProps {
      * Offers to create the typed value. It shows as the last option whenever the
      * trimmed search has no option with exactly that label (ignoring case), and
      * is called with the trimmed search. Add the new option to `options` and its
-     * value to `value` yourself; the search clears once it resolves.
+     * value to `value` yourself; the search clears once it resolves. While it is
+     * pending the option is disabled, so a second Enter or press cannot create
+     * twice. If it rejects, the search stays for another try, and the rejection
+     * is swallowed: report the error yourself (a toast) before rethrowing.
      */
     onCreate?: (input: string) => void | Promise<void>;
     /** Text of the create option. Defaults to `Create "<input>"`. */
@@ -564,8 +567,12 @@ type HoverCardProps = React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.R
  * click on the trigger PINS it open until a second click, Escape or a click
  * outside, which is also how a touch screen opens it.
  *
- * Radix's hover card underneath. Use `Popover` for content that only opens on
- * click, and `Tooltip` for a line of text naming a control.
+ * The trigger carries `aria-expanded` and, while open, `aria-controls`.
+ *
+ * **For preview content only.** The card is not in the Tab order (Radix keeps
+ * a hover card out of it), so a keyboard user cannot reach a link or button
+ * inside it. Put interactive content in a `Popover`, which takes focus. Use
+ * `Tooltip` for a line of text naming a control.
  */
 declare function HoverCard({ open: controlledOpen, defaultOpen, onOpenChange, openDelay, closeDelay, ...props }: HoverCardProps): ReactElement;
 /** The trigger. Pass `asChild` to make your own `Button` or `CategoryChip` it. */
@@ -911,7 +918,10 @@ interface SearchSelectProps {
      * trimmed query has no option with exactly that label (ignoring case), and is
      * hidden while `loading`. Called with the trimmed query; select the new
      * record yourself (`value`, and an `options` entry for its label). The list
-     * closes once it resolves.
+     * closes once it resolves. While it is pending the option is disabled, so a
+     * second Enter or click cannot create twice. If it rejects, the list stays
+     * open with the query for another try, and the rejection is swallowed:
+     * report the error yourself (a toast) before rethrowing.
      */
     onCreate?: (input: string) => void | Promise<void>;
     /** Text of the create option. Defaults to `Create "<input>"`. */
@@ -1514,6 +1524,12 @@ declare function parseDateKey(key: string): CalendarDate | null;
  * so the reader's zone cannot move the day.
  */
 declare function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFormatOptions): string;
+/**
+ * A `"2026-09-03"` key (or an ISO instant, by its date part) written out with
+ * `formatCalendarDate`. Anything that is not a real day comes back unchanged,
+ * so a bad value shows as itself rather than as "Invalid Date".
+ */
+declare function formatDateKey(key: string, options: Intl.DateTimeFormatOptions): string;
 /** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
 declare function monthOfKey(key: string): YearMonth | null;
 /** Today, in the READER's zone — the only sensible place to open a picker. */
@@ -1589,7 +1605,7 @@ interface EventCalendarProps<T> {
      * Defaults to "Show 2 more items on July 14".
      */
     overflowAriaLabel?: (isoDate: string, count: number) => string;
-    /** Accessible name of the grid. Defaults to "Calendar, July 2026". */
+    /** Accessible name of the table. Defaults to "Calendar, July 2026". */
     ariaLabel?: string;
     className?: string;
 }
@@ -1689,11 +1705,17 @@ interface TimesheetTableProps {
     userId: number;
     userFullName: string;
     contracts: TimesheetContract[];
-    /** Overrides for any of the API methods; the rest use `createDefaultApi`. */
+    /**
+     * Overrides for any of the API methods; the rest use `createDefaultApi`.
+     * Read on each call, so an inline object is fine: a new one never refetches.
+     */
     api?: Partial<TimesheetApi>;
-    /** Passed to `createDefaultApi`. */
+    /** Passed to `createDefaultApi`. Changing it refetches the period. */
     baseUrl?: string;
-    /** Passed to `createDefaultApi`, so they go on every default request. */
+    /**
+     * Passed to `createDefaultApi`, so they go on every default request. Read on
+     * each call, like `api`.
+     */
     apiHeaders?: Record<string, string>;
     defaultView?: TimesheetViewMode;
     onViewChange?: (view: TimesheetViewMode) => void;
@@ -1887,4 +1909,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };

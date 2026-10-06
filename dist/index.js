@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, useMemo } from 'react';
+import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment, useLayoutEffect, useMemo } from 'react';
 import { jsx, jsxs, Fragment as Fragment$1 } from 'react/jsx-runtime';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -784,6 +784,26 @@ function Pagination({
     }
   );
 }
+function useCreateOption(onCreate) {
+  const inFlight = useRef(false);
+  const [creating, setCreating] = useState(false);
+  async function create(input, onSuccess) {
+    if (!onCreate || !input || inFlight.current) return;
+    inFlight.current = true;
+    setCreating(true);
+    let created = false;
+    try {
+      await onCreate(input);
+      created = true;
+    } catch {
+    } finally {
+      inFlight.current = false;
+      setCreating(false);
+    }
+    if (created) onSuccess();
+  }
+  return { creating, create };
+}
 function MultiSelect({
   value,
   onChange,
@@ -822,11 +842,12 @@ function MultiSelect({
     updateSearch("");
     setHighlighted(-1);
   }
-  async function create() {
-    if (!onCreate || !trimmed) return;
-    await onCreate(trimmed);
-    updateSearch("");
-    setHighlighted(-1);
+  const { creating, create: createOption } = useCreateOption(onCreate);
+  function create() {
+    return createOption(trimmed, () => {
+      updateSearch("");
+      setHighlighted(-1);
+    });
   }
   useEffect(() => {
     if (!open) return;
@@ -968,6 +989,7 @@ function MultiSelect({
             {
               role: "option",
               "aria-selected": false,
+              "aria-disabled": creating || void 0,
               onMouseDown: (e) => {
                 e.preventDefault();
                 void create();
@@ -975,7 +997,8 @@ function MultiSelect({
               onMouseEnter: () => setHighlighted(filtered.length),
               className: cn(
                 "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
-                highlighted === filtered.length && "bg-surface-overlay"
+                highlighted === filtered.length && "bg-surface-overlay",
+                creating && "cursor-wait opacity-50"
               ),
               children: [
                 /* @__PURE__ */ jsx(Plus, { size: 12, "aria-hidden": "true", className: "shrink-0" }),
@@ -1734,12 +1757,15 @@ function HoverCard({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const [pinned, setPinned] = useState(false);
   const triggerRef = useRef(null);
+  const contentId = useId();
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = (next) => {
     if (controlledOpen === void 0) setUncontrolledOpen(next);
     onOpenChange?.(next);
   };
   const controls = {
+    open,
+    contentId,
     triggerRef,
     togglePin: () => {
       setPinned(!pinned);
@@ -1765,10 +1791,12 @@ function HoverCard({
   ) });
 }
 var HoverCardTrigger = forwardRef(({ onClick, ...props }, ref) => {
-  const { triggerRef, togglePin } = usePinControls("HoverCardTrigger");
+  const { open, contentId, triggerRef, togglePin } = usePinControls("HoverCardTrigger");
   return /* @__PURE__ */ jsx(
     HoverCardPrimitive.Trigger,
     {
+      "aria-expanded": open,
+      "aria-controls": open ? contentId : void 0,
       ...props,
       ref: (el) => {
         triggerRef.current = el;
@@ -1784,11 +1812,12 @@ var HoverCardTrigger = forwardRef(({ onClick, ...props }, ref) => {
 });
 HoverCardTrigger.displayName = "HoverCardTrigger";
 var HoverCardContent = forwardRef(({ className, align = "center", sideOffset = 4, onEscapeKeyDown, onPointerDownOutside, ...props }, ref) => {
-  const { triggerRef, dismiss } = usePinControls("HoverCardContent");
+  const { contentId, triggerRef, dismiss } = usePinControls("HoverCardContent");
   return /* @__PURE__ */ jsx(HoverCardPrimitive.Portal, { children: /* @__PURE__ */ jsx(
     HoverCardPrimitive.Content,
     {
       ref,
+      id: contentId,
       align,
       sideOffset,
       onEscapeKeyDown: (e) => {
@@ -2448,13 +2477,14 @@ function SearchSelect({
     },
     [onChange, closeList, cancelPendingSearch]
   );
+  const { creating, create } = useCreateOption(onCreate);
   const handleCreate = useCallback(async () => {
-    if (!onCreate || !trimmed) return;
     cancelPendingSearch();
-    await onCreate(trimmed);
-    setQuery("");
-    closeList();
-  }, [onCreate, trimmed, cancelPendingSearch, closeList]);
+    await create(trimmed, () => {
+      setQuery("");
+      closeList();
+    });
+  }, [create, trimmed, cancelPendingSearch, closeList]);
   const handleClear = useCallback(
     (e) => {
       e.stopPropagation();
@@ -2628,6 +2658,7 @@ function SearchSelect({
                 id: optionId(options.length),
                 role: "option",
                 "aria-selected": false,
+                "aria-disabled": creating || void 0,
                 type: "button",
                 tabIndex: -1,
                 onClick: () => void handleCreate(),
@@ -2635,6 +2666,7 @@ function SearchSelect({
                 className: cn(
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
                   activeIndex === options.length && "bg-surface-overlay",
+                  creating && "cursor-wait opacity-50",
                   optionClassName
                 ),
                 children: [
@@ -3562,6 +3594,10 @@ function formatCalendarDate(date, options) {
     new Date(Date.UTC(date.year, date.month - 1, date.day))
   );
 }
+function formatDateKey(key, options) {
+  const date = parseDateKey(key);
+  return date ? formatCalendarDate(date, options) : key;
+}
 function monthOfKey(key) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
   if (!match) return null;
@@ -3649,10 +3685,6 @@ function MonthCalendar({
     ] })
   ] });
 }
-function formatKey(isoDate, options) {
-  const date = parseDateKey(isoDate);
-  return date ? formatCalendarDate(date, options) : isoDate;
-}
 function EventCalendar({
   month,
   onMonthChange,
@@ -3671,8 +3703,8 @@ function EventCalendar({
   const currentMonth = { year: today.year, month: today.month };
   const monthTitle = monthLabel(month);
   const weeks = monthWeeks(month);
-  const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${formatKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
-  const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${formatKey(isoDate, { month: "long", day: "numeric" })}`);
+  const titleOf = overflowPopoverTitle ?? ((isoDate, count) => `${formatDateKey(isoDate, { weekday: "short", month: "short", day: "numeric" })} \u2014 ${count} ${count === 1 ? "item" : "items"}`);
+  const ariaLabelOf = overflowAriaLabel ?? ((isoDate, count) => `Show ${count} more items on ${formatDateKey(isoDate, { month: "long", day: "numeric" })}`);
   return /* @__PURE__ */ jsxs("div", { className, children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4", children: [
       /* @__PURE__ */ jsx("h2", { className: "text-lg font-semibold text-text-primary", "aria-live": "polite", children: monthTitle }),
@@ -3715,10 +3747,11 @@ function EventCalendar({
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "relative pt-4", children: [
       loading && /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-20 flex items-center justify-center bg-bg/60", children: /* @__PURE__ */ jsx(Spinner, { size: "sm" }) }),
-      /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("div", { className: "min-w-[700px]", children: [
-        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-7", children: WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs("div", { role: "table", "aria-label": ariaLabel ?? `Calendar, ${monthTitle}`, className: "min-w-[700px]", children: [
+        /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7", children: WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
           "div",
           {
+            role: "columnheader",
             className: "py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted",
             children: label
           },
@@ -3727,11 +3760,10 @@ function EventCalendar({
         /* @__PURE__ */ jsx(
           "div",
           {
-            role: "grid",
-            "aria-label": ariaLabel ?? `Calendar, ${monthTitle}`,
+            role: "rowgroup",
             className: "divide-y divide-border overflow-hidden rounded-lg border border-border",
             children: weeks.map((week, w) => /* @__PURE__ */ jsx("div", { role: "row", className: "grid grid-cols-7 divide-x divide-border", children: week.map((cell, d) => {
-              if (!cell) return /* @__PURE__ */ jsx("div", { role: "gridcell", className: "bg-bg" }, `blank-${d}`);
+              if (!cell) return /* @__PURE__ */ jsx("div", { role: "cell", className: "bg-bg" }, `blank-${d}`);
               const iso = dateKey(cell);
               const items = itemsByDate.get(iso) || [];
               const visible = items.slice(0, maxVisibleItems);
@@ -3740,7 +3772,7 @@ function EventCalendar({
               return /* @__PURE__ */ jsxs(
                 "div",
                 {
-                  role: "gridcell",
+                  role: "cell",
                   "aria-label": formatCalendarDate(cell, { weekday: "long", month: "long", day: "numeric" }),
                   "aria-current": isToday ? "date" : void 0,
                   className: cn(
@@ -3849,14 +3881,59 @@ function parseCellKey(key) {
   const [contractIdStr, date] = key.split("::");
   return { contractId: parseInt(contractIdStr), date };
 }
+function diffGrids(before, after) {
+  const changed = [];
+  for (const key of /* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const hours = after[key] ?? null;
+    if (hours !== (before[key] ?? null)) {
+      const { contractId, date } = parseCellKey(key);
+      changed.push({ contractId, date, hours });
+    }
+  }
+  return changed;
+}
 function contractCoversDay(contract, date) {
   return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);
 }
-var hoursInputClass = "h-8 px-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 function dayLabel(date, weekday = "short") {
-  const day = parseDateKey(date);
-  return day ? formatCalendarDate(day, { weekday, month: "short", day: "numeric", year: "numeric" }) : date;
+  return formatDateKey(date, { weekday, month: "short", day: "numeric", year: "numeric" });
 }
+var HOURS_DRAFT = /^\d{0,2}(\.\d{0,2})?$/;
+var HoursInput = forwardRef(
+  ({ value, onValueChange, onFocus, onBlur, className, ...props }, ref) => {
+    const [draft, setDraft] = useState(null);
+    const draftHours = draft === null ? void 0 : draft === "" || draft === "." ? null : parseFloat(draft);
+    const shown = draft !== null && draftHours === (value ?? null) ? draft : value == null ? "" : String(value);
+    return /* @__PURE__ */ jsx(
+      Input,
+      {
+        ref,
+        type: "text",
+        inputMode: "decimal",
+        autoComplete: "off",
+        value: shown,
+        onChange: (e) => {
+          const next = e.target.value.trim();
+          if (!HOURS_DRAFT.test(next) || parseFloat(next) > 24) return;
+          setDraft(next);
+          onValueChange(next === "." ? "" : next);
+        },
+        onFocus: (e) => {
+          setDraft(value == null ? "" : String(value));
+          e.target.select();
+          onFocus?.(e);
+        },
+        onBlur: (e) => {
+          setDraft(null);
+          onBlur?.(e);
+        },
+        className: cn("h-8 px-1 text-center tabular-nums", className),
+        ...props
+      }
+    );
+  }
+);
+HoursInput.displayName = "HoursInput";
 function isTimeOffDay(date, timeOffs) {
   return timeOffs.some((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
 }
@@ -3868,14 +3945,20 @@ function MonthlyCalendarGrid({
   today,
   selectedDay,
   onDaySelect,
+  onClose,
   onCellChange
 }) {
   const inlineInputRef = useRef(null);
+  const dayButtonRefs = useRef({});
+  const returnFocusTo = useRef(null);
   useEffect(() => {
     if (selectedDay && inlineInputRef.current) {
       inlineInputRef.current.focus();
       inlineInputRef.current.select();
+    } else if (!selectedDay && returnFocusTo.current) {
+      dayButtonRefs.current[returnFocusTo.current]?.focus();
     }
+    returnFocusTo.current = null;
   }, [selectedDay]);
   const cells = monthWeeks(month).flat();
   const dayTotal = (date) => contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
@@ -3924,22 +4007,21 @@ function MonthlyCalendarGrid({
             children: [
               header,
               /* @__PURE__ */ jsx(
-                Input,
+                HoursInput,
                 {
                   ref: inlineInputRef,
-                  type: "number",
-                  step: "0.25",
-                  min: "0",
-                  max: "24",
                   "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
-                  value: gridData[cellKey(contract.id, date)] ?? "",
-                  onChange: (e) => onCellChange(contract.id, date, e.target.value),
-                  onFocus: (e) => e.target.select(),
+                  value: gridData[cellKey(contract.id, date)],
+                  onValueChange: (value) => onCellChange(contract.id, date, value),
                   onKeyDown: (e) => {
-                    if (e.key === "Escape") onDaySelect(date);
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      returnFocusTo.current = date;
+                      onClose();
+                    }
                   },
                   placeholder: "\u2013",
-                  className: cn(hoursInputClass, "mt-1 h-7")
+                  className: "mt-1 h-7"
                 }
               )
             ]
@@ -3950,6 +4032,9 @@ function MonthlyCalendarGrid({
       return /* @__PURE__ */ jsxs(
         Button,
         {
+          ref: (el) => {
+            dayButtonRefs.current[date] = el;
+          },
           type: "button",
           variant: "ghost",
           "aria-pressed": isSelected,
@@ -4028,23 +4113,17 @@ function DayDetailPanel({
             children: [
               /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(ContractName, { contract }) }),
               /* @__PURE__ */ jsx(TableCell, { children: /* @__PURE__ */ jsx(
-                Input,
+                HoursInput,
                 {
                   ref: (el) => {
                     inputRefs.current[idx] = el;
                   },
-                  type: "number",
-                  step: "0.25",
-                  min: "0",
-                  max: "24",
                   "aria-label": `Hours for ${contract.projectName} on ${dayLabel(selectedDay)}`,
-                  value: gridData[cellKey(contract.id, selectedDay)] ?? "",
+                  value: gridData[cellKey(contract.id, selectedDay)],
                   disabled: !contractCoversDay(contract, selectedDay),
-                  onChange: (e) => onCellChange(contract.id, selectedDay, e.target.value),
-                  onFocus: (e) => e.target.select(),
+                  onValueChange: (value) => onCellChange(contract.id, selectedDay, value),
                   onKeyDown: (e) => handleKeyDown(e, idx),
-                  placeholder: contractCoversDay(contract, selectedDay) ? "\u2013" : "",
-                  className: hoursInputClass
+                  placeholder: contractCoversDay(contract, selectedDay) ? "\u2013" : ""
                 }
               ) })
             ]
@@ -4159,14 +4238,26 @@ function TimesheetTable({
   title = "My Timesheets",
   className
 }) {
+  const latest = useRef({ apiOverrides, baseUrl, apiHeaders, onNavigate });
+  useLayoutEffect(() => {
+    latest.current = { apiOverrides, baseUrl, apiHeaders, onNavigate };
+  });
   const api = useMemo(() => {
-    const defaultApi = createDefaultApi(baseUrl, apiHeaders);
-    return {
-      fetchTimeEntries: apiOverrides?.fetchTimeEntries ?? defaultApi.fetchTimeEntries,
-      fetchExpectedHours: apiOverrides?.fetchExpectedHours ?? defaultApi.fetchExpectedHours,
-      saveTimesheet: apiOverrides?.saveTimesheet ?? defaultApi.saveTimesheet
+    const resolve = () => {
+      const { apiOverrides: overrides, baseUrl: url, apiHeaders: headers } = latest.current;
+      const defaultApi = createDefaultApi(url, headers);
+      return {
+        fetchTimeEntries: overrides?.fetchTimeEntries ?? defaultApi.fetchTimeEntries,
+        fetchExpectedHours: overrides?.fetchExpectedHours ?? defaultApi.fetchExpectedHours,
+        saveTimesheet: overrides?.saveTimesheet ?? defaultApi.saveTimesheet
+      };
     };
-  }, [apiOverrides, baseUrl, apiHeaders]);
+    return {
+      fetchTimeEntries: (params) => resolve().fetchTimeEntries(params),
+      fetchExpectedHours: (params) => resolve().fetchExpectedHours(params),
+      saveTimesheet: (entries) => resolve().saveTimesheet(entries)
+    };
+  }, [baseUrl]);
   const [viewMode, setViewMode] = useState(defaultView);
   const [weekStart, setWeekStart] = useState(
     () => startOfWeek(initialWeek && parseDateKey(initialWeek) || todayIn())
@@ -4196,7 +4287,7 @@ function TimesheetTable({
     (c) => c.projectActive && datePart(c.startDate) <= rangeEnd && datePart(c.endDate) >= rangeStart
   );
   const selectedDayContracts = selectedDay ? contracts.filter((c) => c.projectActive && contractCoversDay(c, selectedDay)) : [];
-  const isDirty = JSON.stringify(gridData) !== JSON.stringify(originalData);
+  const isDirty = diffGrids(originalData, gridData).length > 0;
   const clearTimer = (ref) => {
     if (ref.current) {
       clearTimeout(ref.current);
@@ -4215,7 +4306,7 @@ function TimesheetTable({
       ]);
       const newGrid = {};
       for (const entry of entriesRes.timeEntries) {
-        newGrid[cellKey(entry.contractId, entry.date.split("T")[0])] = entry.hours;
+        newGrid[cellKey(entry.contractId, datePart(entry.date))] = entry.hours;
       }
       setGridData(newGrid);
       setOriginalData(newGrid);
@@ -4237,10 +4328,10 @@ function TimesheetTable({
     fetchEntries();
   }, [fetchEntries]);
   useEffect(() => {
-    if (!onNavigate) return;
-    const params = viewMode === "monthly" ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) } : { view: "weekly", week: dateKey(weekStart) };
-    onNavigate(params);
-  }, [viewMode, weekStart, month, onNavigate]);
+    latest.current.onNavigate?.(
+      viewMode === "monthly" ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) } : { view: "weekly", week: dateKey(weekStart) }
+    );
+  }, [viewMode, weekStart, month]);
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (isDirty) e.preventDefault();
@@ -4261,15 +4352,7 @@ function TimesheetTable({
   };
   const persistDiff = useCallback(
     async (snapshotBefore, gridNow) => {
-      const changedEntries = [];
-      const allKeys = /* @__PURE__ */ new Set([...Object.keys(gridNow), ...Object.keys(snapshotBefore)]);
-      for (const key of allKeys) {
-        const currentVal = gridNow[key] ?? null;
-        if (currentVal !== (snapshotBefore[key] ?? null)) {
-          const { contractId, date } = parseCellKey(key);
-          changedEntries.push({ contractId, date, hours: currentVal });
-        }
-      }
+      const changedEntries = diffGrids(snapshotBefore, gridNow);
       if (changedEntries.length === 0) return false;
       await api.saveTimesheet(changedEntries);
       return true;
@@ -4280,11 +4363,11 @@ function TimesheetTable({
     clearTimer(autoSaveTimerRef);
     const snapshotBefore = originalData;
     const gridNow = gridData;
-    if (JSON.stringify(gridNow) === JSON.stringify(snapshotBefore)) return;
+    if (diffGrids(snapshotBefore, gridNow).length === 0) return true;
     setSaving(true);
     try {
       const saved = await persistDiff(snapshotBefore, gridNow);
-      if (!saved) return;
+      if (!saved) return true;
       setOriginalData({ ...gridNow });
       setRevertSnapshot(snapshotBefore);
       clearTimer(revertHideTimerRef);
@@ -4292,16 +4375,18 @@ function TimesheetTable({
         setRevertSnapshot(null);
         revertHideTimerRef.current = null;
       }, REVERT_WINDOW_MS);
+      return true;
     } catch (error) {
       console.error("Error auto-saving timesheet:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save timesheet");
+      return false;
     } finally {
       setSaving(false);
     }
   }, [originalData, gridData, persistDiff]);
   const flushPendingAutoSave = useCallback(async () => {
     clearTimer(autoSaveTimerRef);
-    if (isDirty) await performAutoSave();
+    return isDirty ? performAutoSave() : true;
   }, [isDirty, performAutoSave]);
   const handleRevert = useCallback(async () => {
     if (!revertSnapshot) return;
@@ -4311,10 +4396,10 @@ function TimesheetTable({
     clearTimer(autoSaveTimerRef);
     const currentSaved = originalData;
     setGridData(snapshot);
-    setOriginalData(snapshot);
     setSaving(true);
     try {
       await persistDiff(currentSaved, snapshot);
+      setOriginalData(snapshot);
     } catch (error) {
       console.error("Error reverting timesheet:", error);
       toast.error(error instanceof Error ? error.message : "Failed to revert changes");
@@ -4353,7 +4438,7 @@ function TimesheetTable({
     }, 0);
   };
   const goToPrev = async () => {
-    await flushPendingAutoSave();
+    if (!await flushPendingAutoSave()) return;
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, -7));
     } else {
@@ -4362,7 +4447,7 @@ function TimesheetTable({
     }
   };
   const goToNext = async () => {
-    await flushPendingAutoSave();
+    if (!await flushPendingAutoSave()) return;
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, 7));
     } else {
@@ -4371,7 +4456,7 @@ function TimesheetTable({
     }
   };
   const goToToday = async () => {
-    await flushPendingAutoSave();
+    if (!await flushPendingAutoSave()) return;
     if (viewMode === "weekly") {
       setWeekStart(startOfWeek(todayIn()));
     } else {
@@ -4381,7 +4466,7 @@ function TimesheetTable({
   };
   const handleViewModeChange = async (mode) => {
     if (mode === viewMode) return;
-    await flushPendingAutoSave();
+    if (!await flushPendingAutoSave()) return;
     if (mode === "monthly") {
       setMonth(monthOf(weekStart));
       setSelectedDay(null);
@@ -4400,7 +4485,7 @@ function TimesheetTable({
       targetContract = Math.min(activeContracts.length - 1, contractIdx + 1);
     } else if (e.key === "ArrowLeft" && e.currentTarget.selectionStart === 0) {
       targetDay = Math.max(0, dayIdx - 1);
-    } else if (e.key === "ArrowRight" && e.currentTarget.selectionStart === e.currentTarget.value.length) {
+    } else if (e.key === "ArrowRight" && e.currentTarget.selectionEnd === e.currentTarget.value.length) {
       targetDay = Math.min(6, dayIdx + 1);
     } else {
       return;
@@ -4498,26 +4583,18 @@ function TimesheetTable({
                       {
                         className: cn("px-1 py-2", date === today && "bg-accent-muted"),
                         children: /* @__PURE__ */ jsx(
-                          Input,
+                          HoursInput,
                           {
                             ref: (el) => {
                               inputRefs.current[key] = el;
                             },
-                            type: "number",
-                            step: "0.25",
-                            min: "0",
-                            max: "24",
                             "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
-                            value: value ?? "",
+                            value,
                             disabled: isOutside,
-                            onChange: (e) => handleCellChange(contract.id, date, e.target.value),
-                            onFocus: (e) => e.target.select(),
+                            onValueChange: (next) => handleCellChange(contract.id, date, next),
                             onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
                             placeholder: isOutside ? "" : "\u2013",
-                            className: cn(
-                              hoursInputClass,
-                              dayIdx >= 5 && !value && "bg-surface"
-                            )
+                            className: cn(dayIdx >= 5 && !value && "bg-surface")
                           }
                         )
                       },
@@ -4575,6 +4652,7 @@ function TimesheetTable({
             today,
             selectedDay,
             onDaySelect: setSelectedDay,
+            onClose: () => setSelectedDay(null),
             onCellChange: handleCellChange
           }
         ),
@@ -4597,10 +4675,7 @@ function TimeOffList({
   timeOffs,
   viewMode
 }) {
-  const fmt = (iso) => {
-    const date = parseDateKey(iso);
-    return date ? formatCalendarDate(date, { weekday: "short", month: "short", day: "numeric" }) : iso;
-  };
+  const fmt = (iso) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
     /* @__PURE__ */ jsxs("h2", { className: "px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted", children: [
       "Time Off This ",
@@ -5390,4 +5465,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };

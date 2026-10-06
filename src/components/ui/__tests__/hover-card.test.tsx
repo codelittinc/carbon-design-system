@@ -106,4 +106,20 @@ describe("HoverCard", () => {
     fireEvent.pointerDown(screen.getByText("Elsewhere"));
     expect(screen.queryByText("Chip details")).not.toBeInTheDocument();
   });
+
+  it("tells assistive tech whether the card is open, and which element it is", () => {
+    render(<Example />);
+    const trigger = screen.getByRole("button", { name: "Chip" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).not.toHaveAttribute("aria-controls");
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const content = screen.getByText("Chip details");
+    expect(content.id).not.toBe("");
+    expect(trigger).toHaveAttribute("aria-controls", content.id);
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
 });

@@ -150,6 +150,23 @@ export function parseCellKey(key: string): { contractId: number; date: string } 
   return { contractId: parseInt(contractIdStr), date };
 }
 
+/**
+ * The cells that differ between two grids, as the entries `saveTimesheet`
+ * takes. A missing cell and a `null` one are the same (no hours), so typing a
+ * value and clearing it again is no change.
+ */
+export function diffGrids(before: TimesheetGridData, after: TimesheetGridData): TimesheetEntry[] {
+  const changed: TimesheetEntry[] = [];
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const hours = after[key] ?? null;
+    if (hours !== (before[key] ?? null)) {
+      const { contractId, date } = parseCellKey(key);
+      changed.push({ contractId, date, hours });
+    }
+  }
+  return changed;
+}
+
 /** Whether a contract covers a day, both ends inclusive. */
 export function contractCoversDay(contract: TimesheetContract, date: string): boolean {
   return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);

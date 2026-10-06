@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Input } from "./input";
+import { useCreateOption } from "./use-create-option";
 
 export interface MultiSelectOption {
   value: string;
@@ -36,7 +37,10 @@ interface MultiSelectProps {
    * Offers to create the typed value. It shows as the last option whenever the
    * trimmed search has no option with exactly that label (ignoring case), and
    * is called with the trimmed search. Add the new option to `options` and its
-   * value to `value` yourself; the search clears once it resolves.
+   * value to `value` yourself; the search clears once it resolves. While it is
+   * pending the option is disabled, so a second Enter or press cannot create
+   * twice. If it rejects, the search stays for another try, and the rejection
+   * is swallowed: report the error yourself (a toast) before rethrowing.
    */
   onCreate?: (input: string) => void | Promise<void>;
   /** Text of the create option. Defaults to `Create "<input>"`. */
@@ -105,11 +109,12 @@ export function MultiSelect({
     setHighlighted(-1);
   }
 
-  async function create() {
-    if (!onCreate || !trimmed) return;
-    await onCreate(trimmed);
-    updateSearch("");
-    setHighlighted(-1);
+  const { creating, create: createOption } = useCreateOption(onCreate);
+  function create() {
+    return createOption(trimmed, () => {
+      updateSearch("");
+      setHighlighted(-1);
+    });
   }
 
   useEffect(() => {
@@ -265,6 +270,7 @@ export function MultiSelect({
             <li
               role="option"
               aria-selected={false}
+              aria-disabled={creating || undefined}
               onMouseDown={(e) => {
                 e.preventDefault();
                 void create();
@@ -273,6 +279,7 @@ export function MultiSelect({
               className={cn(
                 "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-accent-text",
                 highlighted === filtered.length && "bg-surface-overlay",
+                creating && "cursor-wait opacity-50",
               )}
             >
               <Plus size={12} aria-hidden="true" className="shrink-0" />

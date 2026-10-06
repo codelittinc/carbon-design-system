@@ -175,3 +175,39 @@ describe("MultiSelect create and server search", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith("");
   });
 });
+
+describe("MultiSelect onCreate while pending", () => {
+  it("creates once for a double Enter or double press, and disables the row meanwhile", async () => {
+    let resolve!: () => void;
+    const onCreate = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    render(<MultiSelect ariaLabel="Tags" value={[]} onChange={() => {}} options={OPTIONS} onCreate={onCreate} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Dora" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const row = screen.getByRole("option", { name: 'Create "Dora"' });
+    fireEvent.mouseDown(row);
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+
+    await act(async () => resolve());
+    expect(input).toHaveValue("");
+  });
+
+  it("swallows a rejected create and keeps the search for another try", async () => {
+    const onCreate = vi.fn().mockRejectedValueOnce(new Error("taken")).mockResolvedValue(undefined);
+    render(<MultiSelect ariaLabel="Tags" value={[]} onChange={() => {}} options={OPTIONS} onCreate={onCreate} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Dora" } });
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("option", { name: 'Create "Dora"' }));
+    });
+    expect(input).toHaveValue("Dora");
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("option", { name: 'Create "Dora"' }));
+    });
+    expect(onCreate).toHaveBeenCalledTimes(2);
+    expect(input).toHaveValue("");
+  });
+});

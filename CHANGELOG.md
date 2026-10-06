@@ -28,6 +28,26 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
   "Today" is the reader's local day (as in `MonthCalendar`), not the UTC one,
   so in the Americas the current day no longer flips to tomorrow in the
   evening.
+
+  Fixed against the Backstage version:
+  - A failed save no longer loses edits on Prev, Next, Today or a view
+    switch: the table stays on the period, the grid stays unsaved with Save,
+    and the error toast is shown.
+  - `api`, `apiHeaders` and `onNavigate` can be passed inline. They are read
+    when used, so a parent re-render no longer refetches and wipes the edits,
+    and `onNavigate` fires only when the period changes. A new `baseUrl`
+    still refetches.
+  - A failed Revert leaves the reverted values on screen, unsaved, with Save,
+    instead of looking saved.
+  - Typing into an empty cell and clearing it again is no longer an unsaved
+    change.
+  - The hours cells are text inputs with a decimal keypad (as `MoneyInput`),
+    not number inputs, so Left and Right at the edge of a value move between
+    weekly cells, as they always meant to. Only 0–24 with up to two decimals
+    is taken. Tests that found them by the `spinbutton` role should use
+    `textbox` (or the label).
+  - Escape in the month view's inline hours field closes it and puts focus
+    back on the day.
 - **`EventCalendar`**: a month grid of items per day (who is off, what is
   due), generic over the item type, with a "+N more" popover past
   `maxVisibleItems`. The Backstage design system's `MonthCalendar` under a new
@@ -36,7 +56,8 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
   (`{ year, month }`) and `onMonthChange` gets one, where the old component
   took `"YYYY-MM"` strings. **Weeks start on Monday**, and days outside the
   month are blank (the old one started on Sunday and showed the neighbouring
-  months' days).
+  months' days). It is a `role="table"` (rows, `columnheader` weekdays and
+  `cell` days), not a `grid`: the days are reached with Tab, not arrow keys.
 - **`CategoryChip`**: a small clickable chip whose fill is split into one
   color band per category, with a white label. A `Button` underneath, so focus
   and disabled states match every other button. Forwards its ref.
@@ -50,7 +71,10 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
 - **`HoverCard`** (`HoverCardTrigger`, `HoverCardContent`): a preview that
   opens on hover or keyboard focus, on Radix's hover card. A click on the
   trigger pins it open until a second click, Escape or a click outside, which
-  is also how it opens on a touch screen. Adds the `@radix-ui/react-hover-card`
+  is also how it opens on a touch screen. The trigger has `aria-expanded`, and
+  `aria-controls` while open. **For preview content only:** the card is not
+  in the Tab order, so a keyboard user cannot reach a link or button in it.
+  Put interactive content in a `Popover`. Adds the `@radix-ui/react-hover-card`
   dependency.
 - **`Table`** (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`,
   `TableHead`, `TableCell`): the table elements, styled once. `DataTable` and
@@ -63,7 +87,9 @@ Carbon did not. Each is built on the semantic tokens, so it works in both themes
 from the same layout, `monthWeeks(month)` in `lib/calendar`, and every grid
 starts its week on Monday. There is no option to change that. New calendar
 exports for anyone laying out days: `monthWeeks`, `WEEKDAY_LABELS`, `addDays`,
-`startOfWeek`, `isWeekend`, `parseDateKey` and `formatCalendarDate`.
+`startOfWeek`, `isWeekend`, `parseDateKey`, `formatCalendarDate` and
+`formatDateKey` (a `"2026-09-14"` key or ISO instant written out, or the
+string unchanged if it is not a day).
 `MonthCalendar` looks and behaves as before.
 
 ### Categorical colors
@@ -130,6 +156,10 @@ checkbox with `for`/`id`. No API change.
   after the options, and in `SearchSelect` Enter on it creates the value and,
   like Enter anywhere in the open list (1.15.5), never submits a surrounding
   form.
+- One create at a time: while `onCreate` is pending the option is disabled,
+  so a second Enter, click or press does nothing. If it rejects, the typed
+  text stays for another try and the rejection is swallowed, so report the
+  error yourself (a toast) in `onCreate`.
 - **`MultiSelect`** gained `onSearchChange(query)` for server-side search
   (it then shows `options` as given, without filtering them) and `loading`.
 - **`SearchSelect`** gained `emptyMessage`, shown when there are no options

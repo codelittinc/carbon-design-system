@@ -11,6 +11,7 @@ import {
   monthOfKey,
   monthWeeks,
   parseDateKey,
+  formatDateKey,
   shiftMonth,
   startOfWeek,
   todayIn,
@@ -167,5 +168,16 @@ describe("formatCalendarDate", () => {
     expect(
       formatCalendarDate({ year: 2026, month: 9, day: 14 }, { weekday: "short", month: "short", day: "numeric" }),
     ).toBe("Mon, Sep 14");
+  });
+});
+
+describe("formatDateKey", () => {
+  it("writes a key or an ISO instant out by its date part, in any zone", () => {
+    expect(formatDateKey("2026-09-14", { weekday: "short", month: "short", day: "numeric" })).toBe("Mon, Sep 14");
+    expect(formatDateKey("2026-09-14T23:30:00.000Z", { month: "long", day: "numeric" })).toBe("September 14");
+  });
+
+  it("hands back what it was given when that is not a day", () => {
+    expect(formatDateKey("soon", { month: "short" })).toBe("soon");
   });
 });

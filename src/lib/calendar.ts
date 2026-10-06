@@ -131,6 +131,16 @@ export function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFor
   );
 }
 
+/**
+ * A `"2026-09-03"` key (or an ISO instant, by its date part) written out with
+ * `formatCalendarDate`. Anything that is not a real day comes back unchanged,
+ * so a bad value shows as itself rather than as "Invalid Date".
+ */
+export function formatDateKey(key: string, options: Intl.DateTimeFormatOptions): string {
+  const date = parseDateKey(key);
+  return date ? formatCalendarDate(date, options) : key;
+}
+
 /** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
 export function monthOfKey(key: string): YearMonth | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);

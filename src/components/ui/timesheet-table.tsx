@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -9,6 +9,7 @@ import {
   dateKey,
   daysInMonth,
   formatCalendarDate,
+  formatDateKey,
   monthLabel,
   monthOfKey,
   parseDateKey,
@@ -23,10 +24,10 @@ import {
   contractCoversDay,
   createDefaultApi,
   datePart,
+  diffGrids,
   parseCellKey,
   type TimesheetApi,
   type TimesheetContract,
-  type TimesheetEntry,
   type TimesheetGridData,
   type TimesheetTimeOff,
   type TimesheetViewMode,
@@ -35,7 +36,6 @@ import { Alert } from "./alert";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Card } from "./card";
-import { Input } from "./input";
 import { PageHeader } from "./page-header";
 import { SegmentedControl } from "./segmented-control";
 import { Spinner } from "./spinner";
@@ -44,9 +44,9 @@ import { toast } from "./toast";
 import {
   ContractName,
   DayDetailPanel,
+  HoursInput,
   MonthlyCalendarGrid,
   dayLabel,
-  hoursInputClass,
 } from "./timesheet-month";
 
 export {
@@ -66,11 +66,17 @@ export interface TimesheetTableProps {
   userId: number;
   userFullName: string;
   contracts: TimesheetContract[];
-  /** Overrides for any of the API methods; the rest use `createDefaultApi`. */
+  /**
+   * Overrides for any of the API methods; the rest use `createDefaultApi`.
+   * Read on each call, so an inline object is fine: a new one never refetches.
+   */
   api?: Partial<TimesheetApi>;
-  /** Passed to `createDefaultApi`. */
+  /** Passed to `createDefaultApi`. Changing it refetches the period. */
   baseUrl?: string;
-  /** Passed to `createDefaultApi`, so they go on every default request. */
+  /**
+   * Passed to `createDefaultApi`, so they go on every default request. Read on
+   * each call, like `api`.
+   */
   apiHeaders?: Record<string, string>;
   defaultView?: TimesheetViewMode;
   onViewChange?: (view: TimesheetViewMode) => void;
@@ -186,14 +192,33 @@ export function TimesheetTable({
   title = "My Timesheets",
   className,
 }: TimesheetTableProps): ReactElement {
+  // The latest props, read when a request is made. Callers pass `api`,
+  // `apiHeaders` and `onNavigate` inline, so their identity changes on every
+  // parent render; keyed on it, each render refetched and wiped the edits.
+  const latest = useRef({ apiOverrides, baseUrl, apiHeaders, onNavigate });
+  useLayoutEffect(() => {
+    latest.current = { apiOverrides, baseUrl, apiHeaders, onNavigate };
+  });
+
+  // Stable, apart from `baseUrl`: a different server is a reason to refetch.
   const api = useMemo<TimesheetApi>(() => {
-    const defaultApi = createDefaultApi(baseUrl, apiHeaders);
-    return {
-      fetchTimeEntries: apiOverrides?.fetchTimeEntries ?? defaultApi.fetchTimeEntries,
-      fetchExpectedHours: apiOverrides?.fetchExpectedHours ?? defaultApi.fetchExpectedHours,
-      saveTimesheet: apiOverrides?.saveTimesheet ?? defaultApi.saveTimesheet,
+    const resolve = (): TimesheetApi => {
+      const { apiOverrides: overrides, baseUrl: url, apiHeaders: headers } = latest.current;
+      const defaultApi = createDefaultApi(url, headers);
+      return {
+        fetchTimeEntries: overrides?.fetchTimeEntries ?? defaultApi.fetchTimeEntries,
+        fetchExpectedHours: overrides?.fetchExpectedHours ?? defaultApi.fetchExpectedHours,
+        saveTimesheet: overrides?.saveTimesheet ?? defaultApi.saveTimesheet,
+      };
     };
-  }, [apiOverrides, baseUrl, apiHeaders]);
+    return {
+      fetchTimeEntries: (params) => resolve().fetchTimeEntries(params),
+      fetchExpectedHours: (params) => resolve().fetchExpectedHours(params),
+      saveTimesheet: (entries) => resolve().saveTimesheet(entries),
+    };
+    // baseUrl is read through `latest`; it is a dependency only to refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseUrl]);
 
   const [viewMode, setViewMode] = useState<TimesheetViewMode>(defaultView);
   const [weekStart, setWeekStart] = useState<CalendarDate>(() =>
@@ -236,7 +261,7 @@ export function TimesheetTable({
     ? contracts.filter((c) => c.projectActive && contractCoversDay(c, selectedDay))
     : [];
 
-  const isDirty = JSON.stringify(gridData) !== JSON.stringify(originalData);
+  const isDirty = diffGrids(originalData, gridData).length > 0;
 
   const clearTimer = (ref: React.RefObject<ReturnType<typeof setTimeout> | null>) => {
     if (ref.current) {
@@ -259,7 +284,7 @@ export function TimesheetTable({
 
       const newGrid: TimesheetGridData = {};
       for (const entry of entriesRes.timeEntries) {
-        newGrid[cellKey(entry.contractId, entry.date.split("T")[0])] = entry.hours;
+        newGrid[cellKey(entry.contractId, datePart(entry.date))] = entry.hours;
       }
 
       setGridData(newGrid);
@@ -284,14 +309,14 @@ export function TimesheetTable({
   }, [fetchEntries]);
 
   // Tell the page which period is showing, so it can keep the URL in step.
+  // Only when the period changes: a new `onNavigate` is not a navigation.
   useEffect(() => {
-    if (!onNavigate) return;
-    const params: Record<string, string> =
+    latest.current.onNavigate?.(
       viewMode === "monthly"
         ? { view: "monthly", month: dateKey({ ...month, day: 1 }).slice(0, 7) }
-        : { view: "weekly", week: dateKey(weekStart) };
-    onNavigate(params);
-  }, [viewMode, weekStart, month, onNavigate]);
+        : { view: "weekly", week: dateKey(weekStart) },
+    );
+  }, [viewMode, weekStart, month]);
 
   // Warn before leaving with unsaved changes.
   useEffect(() => {
@@ -318,15 +343,7 @@ export function TimesheetTable({
   /** Sends the cells that differ between the two grids. False when none do. */
   const persistDiff = useCallback(
     async (snapshotBefore: TimesheetGridData, gridNow: TimesheetGridData): Promise<boolean> => {
-      const changedEntries: TimesheetEntry[] = [];
-      const allKeys = new Set([...Object.keys(gridNow), ...Object.keys(snapshotBefore)]);
-      for (const key of allKeys) {
-        const currentVal = gridNow[key] ?? null;
-        if (currentVal !== (snapshotBefore[key] ?? null)) {
-          const { contractId, date } = parseCellKey(key);
-          changedEntries.push({ contractId, date, hours: currentVal });
-        }
-      }
+      const changedEntries = diffGrids(snapshotBefore, gridNow);
       if (changedEntries.length === 0) return false;
       await api.saveTimesheet(changedEntries);
       return true;
@@ -334,15 +351,19 @@ export function TimesheetTable({
     [api],
   );
 
-  const performAutoSave = useCallback(async () => {
+  /**
+   * Saves the edits. False when the save failed (its toast is up and the grid
+   * stays dirty), so navigation can stay put instead of loading over them.
+   */
+  const performAutoSave = useCallback(async (): Promise<boolean> => {
     clearTimer(autoSaveTimerRef);
     const snapshotBefore = originalData;
     const gridNow = gridData;
-    if (JSON.stringify(gridNow) === JSON.stringify(snapshotBefore)) return;
+    if (diffGrids(snapshotBefore, gridNow).length === 0) return true;
     setSaving(true);
     try {
       const saved = await persistDiff(snapshotBefore, gridNow);
-      if (!saved) return;
+      if (!saved) return true;
       setOriginalData({ ...gridNow });
       setRevertSnapshot(snapshotBefore);
       clearTimer(revertHideTimerRef);
@@ -350,17 +371,20 @@ export function TimesheetTable({
         setRevertSnapshot(null);
         revertHideTimerRef.current = null;
       }, REVERT_WINDOW_MS);
+      return true;
     } catch (error: unknown) {
       console.error("Error auto-saving timesheet:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save timesheet");
+      return false;
     } finally {
       setSaving(false);
     }
   }, [originalData, gridData, persistDiff]);
 
-  const flushPendingAutoSave = useCallback(async () => {
+  /** Saves any edits first. False when that failed: stay on this period. */
+  const flushPendingAutoSave = useCallback(async (): Promise<boolean> => {
     clearTimer(autoSaveTimerRef);
-    if (isDirty) await performAutoSave();
+    return isDirty ? performAutoSave() : true;
   }, [isDirty, performAutoSave]);
 
   const handleRevert = useCallback(async () => {
@@ -371,10 +395,12 @@ export function TimesheetTable({
     clearTimer(autoSaveTimerRef);
     const currentSaved = originalData;
     setGridData(snapshot);
-    setOriginalData(snapshot);
     setSaving(true);
     try {
       await persistDiff(currentSaved, snapshot);
+      // Only now does the server have the snapshot. On a failure the grid
+      // shows it unsaved, with Save, against what the server still has.
+      setOriginalData(snapshot);
     } catch (error: unknown) {
       console.error("Error reverting timesheet:", error);
       toast.error(error instanceof Error ? error.message : "Failed to revert changes");
@@ -423,7 +449,7 @@ export function TimesheetTable({
   };
 
   const goToPrev = async () => {
-    await flushPendingAutoSave();
+    if (!(await flushPendingAutoSave())) return;
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, -7));
     } else {
@@ -432,7 +458,7 @@ export function TimesheetTable({
     }
   };
   const goToNext = async () => {
-    await flushPendingAutoSave();
+    if (!(await flushPendingAutoSave())) return;
     if (viewMode === "weekly") {
       setWeekStart((prev) => addDays(prev, 7));
     } else {
@@ -441,7 +467,7 @@ export function TimesheetTable({
     }
   };
   const goToToday = async () => {
-    await flushPendingAutoSave();
+    if (!(await flushPendingAutoSave())) return;
     if (viewMode === "weekly") {
       setWeekStart(startOfWeek(todayIn()));
     } else {
@@ -452,7 +478,7 @@ export function TimesheetTable({
 
   const handleViewModeChange = async (mode: TimesheetViewMode) => {
     if (mode === viewMode) return;
-    await flushPendingAutoSave();
+    if (!(await flushPendingAutoSave())) return;
     if (mode === "monthly") {
       setMonth(monthOf(weekStart));
       setSelectedDay(null);
@@ -481,7 +507,7 @@ export function TimesheetTable({
       targetDay = Math.max(0, dayIdx - 1);
     } else if (
       e.key === "ArrowRight" &&
-      e.currentTarget.selectionStart === e.currentTarget.value.length
+      e.currentTarget.selectionEnd === e.currentTarget.value.length
     ) {
       targetDay = Math.min(6, dayIdx + 1);
     } else {
@@ -626,25 +652,17 @@ export function TimesheetTable({
                                 key={date}
                                 className={cn("px-1 py-2", date === today && "bg-accent-muted")}
                               >
-                                <Input
+                                <HoursInput
                                   ref={(el) => {
                                     inputRefs.current[key] = el;
                                   }}
-                                  type="number"
-                                  step="0.25"
-                                  min="0"
-                                  max="24"
                                   aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}`}
-                                  value={value ?? ""}
+                                  value={value}
                                   disabled={isOutside}
-                                  onChange={(e) => handleCellChange(contract.id, date, e.target.value)}
-                                  onFocus={(e) => e.target.select()}
+                                  onValueChange={(next) => handleCellChange(contract.id, date, next)}
                                   onKeyDown={(e) => handleKeyDown(e, contractIdx, dayIdx)}
                                   placeholder={isOutside ? "" : "–"}
-                                  className={cn(
-                                    hoursInputClass,
-                                    dayIdx >= 5 && !value && "bg-surface",
-                                  )}
+                                  className={cn(dayIdx >= 5 && !value && "bg-surface")}
                                 />
                               </TableCell>
                             );
@@ -706,6 +724,7 @@ export function TimesheetTable({
                 today={today}
                 selectedDay={selectedDay}
                 onDaySelect={setSelectedDay}
+                onClose={() => setSelectedDay(null)}
                 onCellChange={handleCellChange}
               />
               {selectedDay && selectedDayContracts.length > 1 && (
@@ -734,10 +753,7 @@ function TimeOffList({
   timeOffs: TimesheetTimeOff[];
   viewMode: TimesheetViewMode;
 }): ReactElement {
-  const fmt = (iso: string) => {
-    const date = parseDateKey(iso);
-    return date ? formatCalendarDate(date, { weekday: "short", month: "short", day: "numeric" }) : iso;
-  };
+  const fmt = (iso: string) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return (
     <Card padding="sm">
       <h2 className="px-3 pb-3 pt-2 text-xs font-medium uppercase tracking-wider text-text-muted">

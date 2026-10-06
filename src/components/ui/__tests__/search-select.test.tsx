@@ -607,6 +607,53 @@ describe("SearchSelect onCreate", () => {
   });
 });
 
+describe("SearchSelect onCreate while pending", () => {
+  function open() {
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    return screen.getByRole("combobox");
+  }
+
+  it("creates once for a double Enter or double click, and disables the row meanwhile", async () => {
+    let resolve!: () => void;
+    const onCreate = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={[]} onCreate={onCreate} />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const row = screen.getByRole("option", { name: 'Create "Kiwi"' });
+    fireEvent.click(row);
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+
+    await act(async () => resolve());
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("swallows a rejected create and lets it be tried again", async () => {
+    const onCreate = vi.fn().mockRejectedValueOnce(new Error("taken")).mockResolvedValue(undefined);
+    render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={[]} onCreate={onCreate} />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: 'Create "Kiwi"' }));
+    });
+    // Still open with the query, ready for another try.
+    const row = screen.getByRole("option", { name: 'Create "Kiwi"' });
+    expect(row).not.toHaveAttribute("aria-disabled");
+    await act(async () => {
+      fireEvent.click(row);
+    });
+    expect(onCreate).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
 describe("SearchSelect emptyMessage", () => {
   it("replaces the default empty text", () => {
     const { unmount } = render(

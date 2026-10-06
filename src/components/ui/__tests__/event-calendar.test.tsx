@@ -40,25 +40,28 @@ describe("EventCalendar", () => {
   it("lays the month out Monday-first in whole weeks, blank outside the month", () => {
     renderCalendar();
     expect(screen.getByRole("heading", { name: "July 2026" })).toBeInTheDocument();
-    expect(screen.getAllByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/).map((el) => el.textContent)).toEqual([
+    // A table, not a grid: the days are not arrow-key navigable.
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Calendar, July 2026" });
+    expect(within(table).getAllByRole("columnheader").map((el) => el.textContent)).toEqual([
       "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
     ]);
-    const grid = screen.getByRole("grid", { name: "Calendar, July 2026" });
-    const rows = within(grid).getAllByRole("row");
+    const [header, ...rows] = within(table).getAllByRole("row");
+    expect(within(header).getAllByRole("columnheader")).toHaveLength(7);
     // 1 July 2026 is a Wednesday: 2 blanks + 31 days + 2 blanks = 35.
     expect(rows).toHaveLength(5);
-    const first = within(rows[0]).getAllByRole("gridcell");
+    const first = within(rows[0]).getAllByRole("cell");
     expect(first[0]).not.toHaveAccessibleName();
     expect(first[0]).toBeEmptyDOMElement();
     expect(first[2]).toHaveAccessibleName("Wednesday, July 1");
-    const last = within(rows[4]).getAllByRole("gridcell");
+    const last = within(rows[4]).getAllByRole("cell");
     expect(last[4]).toHaveAccessibleName("Friday, July 31");
     expect(last[5]).toBeEmptyDOMElement();
   });
 
   it("renders a day's items, folding the rest into +N more", () => {
     renderCalendar();
-    const day = screen.getByRole("gridcell", { name: "Tuesday, July 14" });
+    const day = screen.getByRole("cell", { name: "Tuesday, July 14" });
     expect(within(day).getByText("Ana")).toBeInTheDocument();
     expect(within(day).queryByText("Di")).not.toBeInTheDocument();
 
