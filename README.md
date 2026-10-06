@@ -66,11 +66,14 @@ semantic tokens below. **If you supply your own theme instead of importing
 | `text-success-text` · `text-error-text` · `text-info-text` | `--color-{success,error,info}-text` | Adaptive status text |
 | `bg-success-soft` · `bg-error-soft` · `bg-info-soft` | `--color-{success,error,info}-soft` | Soft status fills (badges, toasts) |
 | `border-success-border` · `border-error-border` | `--color-{success,error}-border` | Status borders (toasts) |
+| `bg-error-solid` · `text-error-foreground` | `--color-error-solid` · `--color-error-foreground` | The destructive button's fill and its text (fixed in both themes, like the status colours) |
 
 Each token pair (soft fill + text) is tuned to clear WCAG AA (≥4.5:1) in **both** themes. The
 raw `carbon-*` foundation scale and the amber accent ramp stay fixed by design; the
-theme-independent `public`/`vendor` variants of the address inputs intentionally pin their own
-color scheme and do not read these tokens.
+theme-independent `public`/`vendor` variants of the address inputs intentionally pin their color
+scheme: `public` is always dark and `vendor` always light. They do it with these same tokens,
+scoped by the `dark` / `light` class on the field, and write out only the vendor portal's emerald
+brand accent, which has no token.
 
 ## Internationalization (English & Spanish)
 

@@ -62,7 +62,7 @@ declare const badgeVariants: (props?: ({
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {
 }
-declare function Badge({ className, variant, ...props }: BadgeProps): react.JSX.Element;
+declare function Badge({ className, variant, ...props }: BadgeProps): ReactElement;
 
 interface TagProps extends VariantProps<typeof badgeVariants> {
     children: React.ReactNode;
@@ -77,7 +77,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
  * A `Badge` that can be removed — a chosen value in a multi-value field, an
  * applied filter. Shares Badge's variants, so the two sit together.
  */
-declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): react.JSX.Element;
+declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
     padding?: "none" | "sm" | "lg" | "md" | null | undefined;
@@ -93,6 +93,10 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<t
 /**
  * A bordered surface that groups related content. `padding` picks a step on the
  * spacing scale; `hoverable` adds a hover state for cards that are clickable.
+ *
+ * Every card in the package is this one (`StatCard` and `ChartCard` compose
+ * it), so cards share one border: the `border` token. `border-subtle` is for
+ * rules inside a card (table rows), not for the card's own edge.
  */
 declare const Card: react.ForwardRefExoticComponent<CardProps & react.RefAttributes<HTMLDivElement>>;
 
@@ -112,7 +116,7 @@ interface AlertProps extends VariantProps<typeof alertVariants> {
  * failed to save, a section that could not load. For a transient confirmation
  * use `toast`.
  */
-declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): react.JSX.Element;
+declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): ReactElement;
 
 declare const sizeClasses$1: {
     readonly sm: "h-4 w-4 border-2";
@@ -139,7 +143,7 @@ interface LabelProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
     required?: boolean;
 }
 /**
- * A form control's label, styled to match `FormField`. Use it on its own when
+ * A form control's label, the one `FormField` draws. Use it on its own when
  * the control's layout does not fit `FormField`'s label-above-control stack.
  */
 declare const Label: react.ForwardRefExoticComponent<LabelProps & react.RefAttributes<HTMLLabelElement>>;
@@ -157,8 +161,11 @@ interface PaginationProps {
 /**
  * Page controls for a list split into pages. Renders nothing when there is only
  * one page.
+ *
+ * Every button is `type="button"`, so paging a list inside a `<form>` never
+ * submits it.
  */
-declare function Pagination({ page, totalPages, onPageChange, totalItems, pageSize, className, }: PaginationProps): react.JSX.Element | null;
+declare function Pagination({ page, totalPages, onPageChange, totalItems, pageSize, className, }: PaginationProps): ReactElement | null;
 
 interface MultiSelectOption {
     value: string;
@@ -503,19 +510,19 @@ declare const DialogContent: react.ForwardRefExoticComponent<Omit<DialogPrimitiv
  * never engages without it. It is an easy thing to write out by hand and get
  * subtly wrong.
  */
-declare function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
-declare function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
+declare function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
+declare function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
 declare const DialogTitle: react.ForwardRefExoticComponent<Omit<DialogPrimitive.DialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
-declare function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>): react.JSX.Element;
-declare function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
+declare function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>): ReactElement;
+declare function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
 
 declare const AlertDialog: react.FC<AlertDialogPrimitive.AlertDialogProps>;
 declare const AlertDialogTrigger: react.ForwardRefExoticComponent<AlertDialogPrimitive.AlertDialogTriggerProps & react.RefAttributes<HTMLButtonElement>>;
 declare const AlertDialogContent: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
-declare function AlertDialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
+declare const AlertDialogHeader: typeof DialogHeader;
+declare const AlertDialogFooter: typeof DialogFooter;
 declare const AlertDialogTitle: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
 declare const AlertDialogDescription: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogDescriptionProps & react.RefAttributes<HTMLParagraphElement>, "ref"> & react.RefAttributes<HTMLParagraphElement>>;
-declare function AlertDialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 declare const AlertDialogAction: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogActionProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 declare const AlertDialogCancel: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogCancelProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
@@ -534,10 +541,10 @@ interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof Dialog
     side?: "left" | "right";
 }
 declare const SheetContent: react.ForwardRefExoticComponent<SheetContentProps & react.RefAttributes<HTMLDivElement>>;
-declare function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
+declare function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
 declare const SheetTitle: react.ForwardRefExoticComponent<Omit<DialogPrimitive.DialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
-declare function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
-declare function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
+declare function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
+declare function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
 
 declare const Separator: react.ForwardRefExoticComponent<Omit<SeparatorPrimitive.SeparatorProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
@@ -612,7 +619,7 @@ declare const toast: ((t: ToastInput) => void) & {
 };
 declare function ToastProvider({ children }: {
     children: React.ReactNode;
-}): react.JSX.Element;
+}): ReactElement;
 
 interface EmptyStateProps {
     icon?: React.ReactNode;
@@ -955,11 +962,23 @@ interface FormFieldProps {
     children: React.ReactNode;
 }
 /**
- * Labelled form control wrapper: a small muted label above the control with
- * optional required marker, error, and hint text below. Pairs with the Input,
+ * Labelled form control wrapper: a `Label` above the control with an optional
+ * required marker, and an error or a hint below it. Pairs with the Input,
  * Select, Textarea, and MoneyInput primitives.
+ *
+ * When `children` is a single element, the field's state reaches the control
+ * itself, so a screen reader reads it with the field rather than leaving it
+ * stranded around it: `aria-describedby` pointing at the error or hint (added to
+ * any it already has), `aria-invalid` while there is an error, and
+ * `aria-required` when `required` (unless the control already sets `required`
+ * or `aria-required`).
+ *
+ * A `Select` is a Radix Root, which renders nothing of its own, so the props
+ * go to the `SelectTrigger` among its direct children instead. A trigger
+ * nested deeper (inside a wrapper of your own) is not found: pass it
+ * `aria-describedby`, `aria-invalid` and `aria-required` yourself.
  */
-declare function FormField({ label, htmlFor, required, error, hint, className, children, }: FormFieldProps): react.JSX.Element;
+declare function FormField({ label, htmlFor, required, error, hint, className, children, }: FormFieldProps): ReactElement;
 
 interface DefinitionListProps {
     /** Number of columns in the grid. Defaults to 2. */
@@ -1010,7 +1029,7 @@ interface StatCardProps {
  * KPI/metric tile: an uppercase label, a large monospace value, and an optional
  * trend-colored sub-line. Shows a skeleton in place of the value while loading.
  */
-declare function StatCard({ label, value, sub, trend, loading, className }: StatCardProps): react.JSX.Element;
+declare function StatCard({ label, value, sub, trend, loading, className }: StatCardProps): ReactElement;
 
 /**
  * Shared foundations for the CarbonOS chart components (BarChart, LineChart,
@@ -1092,7 +1111,7 @@ interface ChartCardProps {
  * </ChartCard>
  * ```
  */
-declare function ChartCard({ title, subtitle, action, footer, className, children, }: ChartCardProps): react.JSX.Element;
+declare function ChartCard({ title, subtitle, action, footer, className, children, }: ChartCardProps): react.ReactElement;
 interface ChartLegendItem {
     label: string;
     color: string;
@@ -1110,7 +1129,7 @@ interface ChartLegendProps {
  * beside the swatch is what a colorblind reader goes by. Text stays in the ink
  * tokens; only the swatch takes the series color.
  */
-declare function ChartLegend({ items, onItemClick, className }: ChartLegendProps): react.JSX.Element;
+declare function ChartLegend({ items, onItemClick, className }: ChartLegendProps): react.ReactElement;
 interface TooltipPayloadItem {
     name?: string | number;
     value?: number | string;
@@ -1155,7 +1174,7 @@ interface ChartTooltipContentProps {
  * Tooltip body. Values are monospaced so they stay column-aligned across rows,
  * matching the tabular-nums treatment used in tables.
  */
-declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, render, }: ChartTooltipContentProps): react.JSX.Element | null;
+declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, render, }: ChartTooltipContentProps): react.ReactElement | null;
 /** The hovered slice of a `DonutChart`, as a custom tooltip sees it. */
 interface DonutTooltipContext<TDatum = {
     label: string;
@@ -1190,7 +1209,7 @@ interface ChartDataTableProps {
  * contrast palette slots legitimate in light mode — the values are always
  * available in text somewhere.
  */
-declare function ChartDataTable({ caption, categoryLabel, categories, series, data, valueFormatter, }: ChartDataTableProps): react.JSX.Element;
+declare function ChartDataTable({ caption, categoryLabel, categories, series, data, valueFormatter, }: ChartDataTableProps): react.ReactElement;
 interface ChartStateProps {
     loading?: boolean;
     /** Heading for the empty state shown when `data` has no rows. */
@@ -1200,12 +1219,12 @@ interface ChartStateProps {
 /** Skeleton stand-in sized to the chart's own height, to avoid layout shift. */
 declare function ChartSkeleton({ height }: {
     height: number;
-}): react.JSX.Element;
+}): react.ReactElement;
 declare function ChartEmpty({ height, title, description, }: {
     height: number;
     title?: string;
     description?: string;
-}): react.JSX.Element;
+}): react.ReactElement;
 /** Tick style for a numeric axis. */
 declare const CHART_TICK_VALUE: {
     readonly fill: "var(--color-text-secondary)";
@@ -1307,7 +1326,7 @@ interface BarChartProps extends ChartStateProps {
  * Renders a visually hidden data table alongside the plot, so the values are
  * reachable by screen reader and in forced-colors mode.
  */
-declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
+declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.ReactElement;
 
 interface LineChartProps extends ChartStateProps {
     data: ChartDatum[];
@@ -1372,7 +1391,7 @@ interface LineChartProps extends ChartStateProps {
  * make the crossing point of the two lines meaningless — plot them as two
  * charts, or index both to a common base.
  */
-declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
+declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.ReactElement;
 
 interface DonutChartDatum {
     label: string;
@@ -1432,7 +1451,7 @@ interface DonutChartProps extends ChartStateProps {
  * close together, a bar chart is the honest form — the eye can compare bar
  * lengths far better than wedge angles.
  */
-declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, tooltipContent, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
+declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, tooltipContent, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.ReactElement;
 
 interface MonthYearRange {
     startMonth: number;
@@ -1451,7 +1470,7 @@ interface DateRangePickerProps {
  * Month/year range selector: a start month+year, the word "to", and an end
  * month+year. Controlled via a MonthYearRange value, used for report periods.
  */
-declare function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps): react.JSX.Element;
+declare function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps): ReactElement;
 
 /**
  * Calendar arithmetic — pure, zone-free, and no `Date` in any public shape.
@@ -1530,7 +1549,11 @@ declare function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFo
  * so a bad value shows as itself rather than as "Invalid Date".
  */
 declare function formatDateKey(key: string, options: Intl.DateTimeFormatOptions): string;
-/** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
+/**
+ * The month a `"2026-09-03"` key (or an ISO instant, by its date part) belongs
+ * to, or null if it is not a real day. Read by `parseDateKey`, so the two never
+ * disagree about what a key is.
+ */
 declare function monthOfKey(key: string): YearMonth | null;
 /** Today, in the READER's zone — the only sensible place to open a picker. */
 declare function todayIn(now?: Date): CalendarDate;
@@ -1584,7 +1607,7 @@ interface MonthCalendarProps {
  * the month arrow. That shipped in a consuming app: on a dialog whose submit
  * marked somebody for removal, paging to the next month did it.
  */
-declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, unavailableLabel, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): react.JSX.Element;
+declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, unavailableLabel, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): ReactElement;
 
 interface EventCalendarProps<T> {
     /** The month shown. Controlled, like `MonthCalendar`'s. */
@@ -1882,9 +1905,14 @@ interface StructuredAddressInputProps {
  * Full US postal-address form: a Places-backed street field that fills the rest
  * of the fields on selection, plus manual inputs for line 2, city, state, and
  * ZIP. Fully controlled via a {@link PostalAddressDraft}. The "staff" variant
- * uses the dark design tokens; "vendor" uses the light portal palette.
+ * follows the app's theme; "vendor" is always the light portal scheme (the
+ * theme's light tokens, scoped by the `light` class).
+ *
+ * Each field is a `FormField`, so a required one carries the marker beside its
+ * label, hidden from screen readers, and `required` on the input, which they
+ * announce instead.
  */
-declare function StructuredAddressInput({ value, onChange, variant, idPrefix, required, }: StructuredAddressInputProps): react.JSX.Element;
+declare function StructuredAddressInput({ value, onChange, variant, idPrefix, required, }: StructuredAddressInputProps): ReactElement;
 
 interface AddressAutocompleteProps {
     id?: string;

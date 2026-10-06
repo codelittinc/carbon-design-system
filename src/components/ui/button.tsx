@@ -11,7 +11,12 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        destructive: "bg-red-600 text-white hover:bg-red-500",
+        // The error tokens with their theme.css values as fallbacks: a consumer
+        // with its own theme may not define `--color-error-solid` /
+        // `--color-error-foreground`, and a token utility for a variable that is
+        // not there compiles to nothing, leaving a transparent button.
+        destructive:
+          "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
         link: "text-accent-text underline-offset-4 hover:underline",

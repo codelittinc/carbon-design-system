@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactElement } from "react";
 import { cn } from "@/lib/cn";
-import { Button } from "./button";
+import { alertVariants } from "./alert";
+import { DismissButton } from "./dismiss-button";
 
 type ToastVariant = "default" | "success" | "error" | "info" | "warning";
 
@@ -58,15 +58,18 @@ export const toast = Object.assign((t: ToastInput) => emit(t), {
     emit({ title, ...options, variant: "warning" }),
 });
 
-const variantClasses: Record<ToastVariant, string> = {
-  default: "border-border bg-surface-raised",
-  success: "border-success-border bg-success-soft",
-  error: "border-error-border bg-error-soft",
-  info: "border-border bg-info-soft",
-  warning: "border-border bg-accent-muted",
-};
+/**
+ * A toast is drawn as an `Alert` of its tone (an inline alert and a transient
+ * toast are different jobs, with the same colours). `default` is the one tone
+ * an alert has no use for: a plain raised surface.
+ */
+function toastClass(variant: ToastVariant = "default"): string {
+  return variant === "default"
+    ? "flex items-start gap-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-text-primary"
+    : alertVariants({ variant });
+}
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: { children: React.ReactNode }): ReactElement {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback((t: ToastInput) => {
@@ -99,27 +102,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={t.id}
             role={t.variant === "error" ? "alert" : "status"}
-            className={cn(
-              "flex w-80 items-start gap-3 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right",
-              variantClasses[t.variant ?? "default"],
-            )}
+            className={cn(toastClass(t.variant), "w-80 shadow-lg animate-in slide-in-from-right")}
           >
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">{t.title}</p>
-              {t.description && (
-                <p className="mt-0.5 text-xs text-text-muted">{t.description}</p>
-              )}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{t.title}</p>
+              {t.description && <p className="mt-0.5 text-xs">{t.description}</p>}
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Dismiss"
-              onClick={() => removeToast(t.id)}
-              className="-mr-1 -mt-0.5 h-6 w-6 text-text-muted hover:bg-transparent"
-            >
-              <X size={14} />
-            </Button>
+            <DismissButton label="Dismiss" onClick={() => removeToast(t.id)} className="-mr-1 -mt-0.5" />
           </div>
         ))}
       </div>

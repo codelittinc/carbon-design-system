@@ -141,16 +141,41 @@ export function formatDateKey(key: string, options: Intl.DateTimeFormatOptions):
   return date ? formatCalendarDate(date, options) : key;
 }
 
-/** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
+/**
+ * The month a `"2026-09-03"` key (or an ISO instant, by its date part) belongs
+ * to, or null if it is not a real day. Read by `parseDateKey`, so the two never
+ * disagree about what a key is.
+ */
 export function monthOfKey(key: string): YearMonth | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!match) return null;
-
-  const month = Number(match[2]);
-  return month >= 1 && month <= 12 ? { year: Number(match[1]), month } : null;
+  const date = parseDateKey(key);
+  return date ? { year: date.year, month: date.month } : null;
 }
 
 /** Today, in the READER's zone — the only sensible place to open a picker. */
 export function todayIn(now: Date = new Date()): CalendarDate {
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+}
+
+/* ─────────────────────────── Internal helpers ─────────────────────────── */
+// Used inside the package. `src/index.ts` names this module's public exports
+// one by one, so these stay out of the package's API.
+
+/** `"2026-09"`: how a month is keyed in a URL or a prop. */
+export function monthKey({ year, month }: YearMonth): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** A `"2026-09"` key back as a month, or null if it is not one. */
+export function parseMonthKey(key: string): YearMonth | null {
+  return monthOfKey(`${key}-01`);
+}
+
+/**
+ * The `"2026-09-03"` part of a date key or an ISO instant, for comparing days
+ * as text. A value that is not a real day is cut at its `T` and kept, so it
+ * still sorts where it did.
+ */
+export function datePart(iso: string): string {
+  const date = parseDateKey(iso);
+  return date ? dateKey(date) : iso.split("T")[0];
 }

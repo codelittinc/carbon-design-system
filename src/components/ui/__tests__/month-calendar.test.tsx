@@ -29,6 +29,20 @@ describe("MonthCalendar", () => {
     expect(screen.queryByRole("button", { name: "31 September 2026" })).not.toBeInTheDocument();
   });
 
+  it("draws the weekday letters in the muted text (AA), not the faint one", () => {
+    const { container } = render(
+      <MonthCalendar month={SEPT} onMonthChange={() => {}} selected={null} onSelect={() => {}} {...RANGE} />,
+    );
+    const letters = Array.from(container.querySelectorAll('span[aria-hidden="true"]')).filter(
+      (el) => /^[MTWFS]$/.test(el.textContent ?? ""),
+    );
+    expect(letters).toHaveLength(7);
+    for (const letter of letters) {
+      expect(letter).toHaveClass("text-text-muted");
+      expect(letter).not.toHaveClass("text-text-faint");
+    }
+  });
+
   it("knows how long February is in a leap year", () => {
     setup({ month: { year: 2028, month: 2 }, min: { year: 2028, month: 1 }, max: { year: 2028, month: 3 } });
     expect(screen.getByRole("button", { name: "29 February 2028" })).toBeInTheDocument();

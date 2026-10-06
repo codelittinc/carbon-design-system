@@ -1,12 +1,9 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { cn } from "@/lib/cn";
+import { shortMonthName } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
-
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 export interface MonthYearRange {
   startMonth: number;
@@ -23,7 +20,7 @@ interface DateRangePickerProps {
   className?: string;
 }
 
-const MONTH_OPTIONS = MONTH_NAMES.map((label, i) => ({ value: i + 1, label }));
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: shortMonthName(i + 1) }));
 
 /** Compact trigger sizing; fixed widths so the row doesn't shift as the value changes. */
 const triggerClass = "h-7 gap-1 px-2 text-xs";
@@ -61,7 +58,7 @@ function NumberSelect({
  * Month/year range selector: a start month+year, the word "to", and an end
  * month+year. Controlled via a MonthYearRange value, used for report periods.
  */
-export function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, years, className }: DateRangePickerProps): ReactElement {
   // A Radix Select shows nothing for a value with no matching item, so a saved
   // period from outside `years` would render as a blank trigger. Always offer
   // the selected years.

@@ -16,17 +16,13 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Fragment, useEffect, useId, useRef, useState, type ReactElement } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronRight as ChevronExpand,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight as ChevronExpand } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { tableRowHoverClass } from "@/lib/ui-classes";
 import { Button } from "./button";
+import { Pagination } from "./pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+import { TableEmptyRow } from "./table-empty-row";
 
 /**
  * Per-column presentation, set on a column's `meta`:
@@ -191,6 +187,15 @@ export function DataTable<TData, TValue>({
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
 
+  // A list that shrinks (a refetch after a delete, with `resetPageOn` holding
+  // the page) can leave the page past the last one: an empty body over
+  // "Showing 21–15 of 15". Move back to the last page that exists.
+  const pageIndex = table.getState().pagination.pageIndex;
+  const lastPage = Math.max(0, table.getPageCount() - 1);
+  useEffect(() => {
+    if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
+  }, [paginate, pageIndex, lastPage, table]);
+
   return (
     <div>
       {/* A table wider than its container scrolls inside its border rather
@@ -209,8 +214,19 @@ export function DataTable<TData, TValue>({
                   const meta = header.column.columnDef.meta;
                   const align = alignClasses[meta?.align ?? "left"];
                   const sorted = header.column.getIsSorted();
+                  const canSort = header.column.getCanSort();
                   const SortIcon =
                     sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+                  const sortIcon = (
+                    <SortIcon
+                      size={12}
+                      aria-hidden="true"
+                      className={sorted ? "text-text-secondary" : "text-text-faint"}
+                    />
+                  );
+                  const label = header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext());
                   return (
                     <TableHead
                       key={header.id}
@@ -221,23 +237,49 @@ export function DataTable<TData, TValue>({
                             ? "descending"
                             : undefined
                       }
-                      className={cn(
-                        align.header,
-                        header.column.getCanSort() && "cursor-pointer select-none",
-                        meta?.headerClassName,
-                      )}
-                      onClick={header.column.getToggleSortingHandler()}
+                      className={cn(align.header, meta?.headerClassName)}
                     >
                       <div className={cn("flex items-center gap-1", align.content)}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getCanSort() && (
-                          <SortIcon
-                            size={12}
-                            aria-hidden="true"
-                            className={sorted ? "text-text-secondary" : "text-text-faint"}
-                          />
+                        {!canSort ? (
+                          label
+                        ) : typeof label === "string" || typeof label === "number" ? (
+                          // A real button, so the sort is reachable with Tab and
+                          // Enter, not only a click on the cell. The heading's
+                          // own look: the button only adds the hover and ring.
+                          // It wraps like the heading it replaces: a long title
+                          // takes a second line rather than an ellipsis.
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className={cn(
+                              "-mx-1.5 h-auto min-h-6 gap-1 whitespace-normal px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider text-current",
+                              align.header,
+                            )}
+                          >
+                            {/* Its own element, so Button leaves it untruncated. */}
+                            <span className="min-w-0">{label}</span>
+                            {sortIcon}
+                          </Button>
+                        ) : (
+                          // A header the caller rendered may hold its own
+                          // control, and a button cannot hold another: the
+                          // header stays as given and the sort is a button
+                          // beside it.
+                          <>
+                            {label}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Sort by ${header.column.id}`}
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="h-6 w-6 text-current"
+                            >
+                              {sortIcon}
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableHead>
@@ -280,7 +322,7 @@ export function DataTable<TData, TValue>({
                         // selected row it would cover the selection instead of deepening
                         // it, and the pointer would appear to clear the one row state that
                         // has to stay readable under it.
-                        !row.getIsSelected() && "hover:bg-table-row-hover",
+                        !row.getIsSelected() && tableRowHoverClass,
                         // Last, so twMerge drops the stripe from a selected row: a row gets
                         // one background, and selection is the one that means something.
                         row.getIsSelected() && "bg-accent-muted",
@@ -345,43 +387,22 @@ export function DataTable<TData, TValue>({
                 );
               })
             ) : (
-              <TableRow className="border-0">
-                <TableCell colSpan={colCount} className="py-8 text-center text-text-muted">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={colCount}>{emptyMessage}</TableEmptyRow>
             )}
           </TableBody>
         </Table>
       </div>
 
-      {paginate && table.getPageCount() > 1 && (
-        <div className="flex items-center justify-between px-1 pt-3">
-          <span className="text-xs text-text-muted">
-            {table.getFilteredRowModel().rows.length} row(s)
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft size={14} />
-            </Button>
-            <span className="px-2 text-xs text-text-secondary">
-              {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
+      {paginate && (
+        // Renders nothing for a single page.
+        <Pagination
+          className="px-1 pt-3"
+          page={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          totalItems={table.getFilteredRowModel().rows.length}
+          pageSize={table.getState().pagination.pageSize}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       )}
     </div>
   );

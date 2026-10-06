@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef, isValidElement, useRef, useState, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId } from 'react';
+import { forwardRef, isValidElement, useRef, useState, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId, cloneElement } from 'react';
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Slice, Fragment as Fragment$1 } from '@tiptap/pm/model';
 import { clsx } from 'clsx';
@@ -10,11 +10,12 @@ import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
 import { StarterKit } from '@tiptap/starter-kit';
-import { LoaderCircle, ImagePlus, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, Link2, Check, Unlink, X } from 'lucide-react';
+import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, Link2, Unlink, X } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import * as SelectPrimitive from '@radix-ui/react-select';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
 
@@ -475,7 +476,11 @@ var buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-accent text-accent-foreground hover:bg-accent-hover",
-        destructive: "bg-red-600 text-white hover:bg-red-500",
+        // The error tokens with their theme.css values as fallbacks: a consumer
+        // with its own theme may not define `--color-error-solid` /
+        // `--color-error-foreground`, and a token utility for a variable that is
+        // not there compiles to nothing, leaving a transparent button.
+        destructive: "bg-[var(--color-error-solid,#dc2626)] text-[color:var(--color-error-foreground,#fafafa)] hover:bg-[var(--color-error,#ef4444)]",
         outline: "border border-border bg-transparent text-text-primary hover:bg-surface-overlay",
         ghost: "text-text-secondary hover:bg-surface-overlay hover:text-text-primary",
         link: "text-accent-text underline-offset-4 hover:underline"
@@ -565,7 +570,7 @@ function ariaShortcut(shortcut, apple) {
   ].filter(Boolean).join("+");
 }
 var ToolbarButton = forwardRef(
-  ({ label, tooltip, icon: Icon, iconClassName, shortcut, pressed, apple, className, onMouseDown, ...props }, ref) => /* @__PURE__ */ jsxs(Tooltip, { children: [
+  ({ label, tooltip, icon: Icon2, iconClassName, shortcut, pressed, apple, className, onMouseDown, ...props }, ref) => /* @__PURE__ */ jsxs(Tooltip, { children: [
     /* @__PURE__ */ jsx(TooltipTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
       Button,
       {
@@ -586,7 +591,7 @@ var ToolbarButton = forwardRef(
           className
         ),
         ...props,
-        children: /* @__PURE__ */ jsx(Icon, { size: 13, "aria-hidden": true, className: iconClassName })
+        children: /* @__PURE__ */ jsx(Icon2, { size: 13, "aria-hidden": true, className: iconClassName })
       }
     ) }),
     /* @__PURE__ */ jsxs(TooltipContent, { side: "top", children: [
@@ -659,23 +664,6 @@ var RichTextImageButton = forwardRef(
   }
 );
 RichTextImageButton.displayName = "RichTextImageButton";
-var Input = forwardRef(
-  ({ className, type, ...props }, ref) => {
-    return /* @__PURE__ */ jsx(
-      "input",
-      {
-        type,
-        className: cn(
-          "flex h-8 w-full rounded-md border border-border bg-surface-raised px-3 py-1 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        ),
-        ref,
-        ...props
-      }
-    );
-  }
-);
-Input.displayName = "Input";
 var Label = forwardRef(
   ({ className, required, children, ...props }, ref) => /* @__PURE__ */ jsxs(
     "label",
@@ -691,6 +679,136 @@ var Label = forwardRef(
   )
 );
 Label.displayName = "Label";
+
+// src/lib/ui-classes.ts
+var floatingSurfaceClass = "z-50 rounded-lg border border-border bg-surface-raised shadow-lg";
+var floatingMotionClass = "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+var optionRowClass = "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-secondary outline-none transition-colors";
+var optionRowFocusClass = "focus:bg-surface-overlay focus:text-text-primary data-[highlighted]:bg-surface-overlay data-[highlighted]:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+var fieldChromeClass = "w-full min-w-0 rounded-md border border-border bg-surface-raised text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50";
+var Select = SelectPrimitive.Root;
+var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
+  SelectPrimitive.Trigger,
+  {
+    ref,
+    className: cn(
+      fieldChromeClass,
+      "flex h-8 items-center justify-between gap-2 px-3",
+      "[&>span]:min-w-0 [&>span]:truncate",
+      className
+    ),
+    ...props,
+    children: [
+      children,
+      /* @__PURE__ */ jsx(SelectPrimitive.Icon, { asChild: true, children: /* @__PURE__ */ jsx(ChevronDown, { size: 14, className: "shrink-0 text-text-muted" }) })
+    ]
+  }
+));
+SelectTrigger.displayName = "SelectTrigger";
+var SelectContent = forwardRef(({ className, children, position = "popper", ...props }, ref) => /* @__PURE__ */ jsx(SelectPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+  SelectPrimitive.Content,
+  {
+    ref,
+    className: cn(
+      floatingSurfaceClass,
+      floatingMotionClass,
+      "relative max-h-72 min-w-[8rem] overflow-hidden",
+      position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+      className
+    ),
+    position,
+    ...props,
+    children: /* @__PURE__ */ jsx(
+      SelectPrimitive.Viewport,
+      {
+        className: cn(
+          "p-1",
+          position === "popper" && "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+        ),
+        children
+      }
+    )
+  }
+) }));
+SelectContent.displayName = "SelectContent";
+var SelectItem = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
+  SelectPrimitive.Item,
+  {
+    ref,
+    className: cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className),
+    ...props,
+    children: [
+      /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
+      /* @__PURE__ */ jsx(SelectPrimitive.ItemText, { children })
+    ]
+  }
+));
+SelectItem.displayName = "SelectItem";
+function withFieldState(control, { messageId, error, required }, ownRequired = control.props.required) {
+  const own = control.props["aria-describedby"];
+  const ownAriaRequired = control.props["aria-required"];
+  return cloneElement(control, {
+    ...messageId ? { "aria-describedby": own ? `${own} ${messageId}` : messageId } : {},
+    ...error ? { "aria-invalid": control.props["aria-invalid"] ?? true } : {},
+    // A native `required` is already announced, and a control that states its
+    // own `aria-required` keeps it.
+    ...required && ownAriaRequired === void 0 && !ownRequired ? { "aria-required": true } : {}
+  });
+}
+function FormField({
+  label,
+  htmlFor,
+  required,
+  error,
+  hint,
+  className,
+  children
+}) {
+  const generatedId = useId();
+  const baseId = htmlFor ?? generatedId;
+  const message = error ?? hint;
+  const messageId = message ? `${baseId}-${error ? "error" : "hint"}` : void 0;
+  const state = { messageId, error: Boolean(error), required: Boolean(required) };
+  let control = children;
+  if ((messageId || required) && isValidElement(children)) {
+    if (children.type === Select) {
+      const selectRequired = children.props.required;
+      control = cloneElement(
+        children,
+        void 0,
+        Children.map(
+          children.props.children,
+          (child) => isValidElement(child) && child.type === SelectTrigger ? withFieldState(child, state, selectRequired) : child
+        )
+      );
+    } else {
+      control = withFieldState(children, state);
+    }
+  }
+  return /* @__PURE__ */ jsxs("div", { className: cn("space-y-1", className), children: [
+    /* @__PURE__ */ jsx(Label, { htmlFor, required, children: label }),
+    control,
+    error ? /* @__PURE__ */ jsx("p", { id: messageId, role: "alert", className: "break-words text-xs text-error-text", children: error }) : hint ? /* @__PURE__ */ jsx("p", { id: messageId, className: "break-words text-xs text-text-muted", children: hint }) : null
+  ] });
+}
+var Input = forwardRef(
+  ({ className, type, ...props }, ref) => {
+    return /* @__PURE__ */ jsx(
+      "input",
+      {
+        type,
+        className: cn(
+          fieldChromeClass,
+          "flex h-8 px-3 py-1",
+          className
+        ),
+        ref,
+        ...props
+      }
+    );
+  }
+);
+Input.displayName = "Input";
 var Popover = PopoverPrimitive.Root;
 var PopoverTrigger = PopoverPrimitive.Trigger;
 var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
@@ -699,10 +817,7 @@ var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, 
     ref,
     align,
     sideOffset,
-    className: cn(
-      "z-50 w-72 rounded-lg border border-border bg-surface-raised p-4 shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-      className
-    ),
+    className: cn(floatingSurfaceClass, floatingMotionClass, "w-72 p-4 outline-none", className),
     ...props
   }
 ) }));
@@ -805,29 +920,32 @@ function LinkPanel({
   }
   const urlId = `${id}-url`;
   const textId = `${id}-text`;
-  const errorId = `${id}-error`;
   return /* @__PURE__ */ jsxs("div", { className: "space-y-3", children: [
     /* @__PURE__ */ jsxs("div", { children: [
-      /* @__PURE__ */ jsx(Label, { htmlFor: urlId, className: "mb-1", children: "URL" }),
       /* @__PURE__ */ jsx(
-        Input,
+        FormField,
         {
-          ref: urlRef,
-          id: urlId,
-          type: "text",
-          value: url,
-          onChange: (event) => {
-            setUrl(event.target.value);
-            setError(null);
-          },
-          onKeyDown: onFieldKeyDown,
-          placeholder: hrefs.length > 0 ? `https://example.com or ${hrefs[0]}` : "https://example.com",
-          className: cn(error && "border-error-border"),
-          "aria-invalid": error !== null,
-          "aria-describedby": error ? errorId : void 0
+          label: "URL",
+          htmlFor: urlId,
+          error: error ? linkHrefErrorMessage(error, { targets: hrefs }) : void 0,
+          children: /* @__PURE__ */ jsx(
+            Input,
+            {
+              ref: urlRef,
+              id: urlId,
+              type: "text",
+              value: url,
+              onChange: (event) => {
+                setUrl(event.target.value);
+                setError(null);
+              },
+              onKeyDown: onFieldKeyDown,
+              placeholder: hrefs.length > 0 ? `https://example.com or ${hrefs[0]}` : "https://example.com",
+              className: cn(error && "border-error-border")
+            }
+          )
         }
       ),
-      error && /* @__PURE__ */ jsx("p", { id: errorId, role: "alert", className: "mt-1 break-words text-xs text-error-text", children: linkHrefErrorMessage(error, { targets: hrefs }) }),
       targets.length > 0 && /* @__PURE__ */ jsx("div", { className: "mt-2 space-y-2", children: targets.map((target) => /* @__PURE__ */ jsxs("div", { children: [
         /* @__PURE__ */ jsx(
           Button,
@@ -846,23 +964,18 @@ function LinkPanel({
         target.description && /* @__PURE__ */ jsx("p", { className: "mt-1 break-words text-xs text-text-muted", children: target.description })
       ] }, target.href)) })
     ] }),
-    !opened.editing && opened.empty && /* @__PURE__ */ jsxs("div", { children: [
-      /* @__PURE__ */ jsx(Label, { htmlFor: textId, className: "mb-1", children: "Text to show (optional)" }),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          id: textId,
-          type: "text",
-          value: text,
-          onChange: (event) => setText(event.target.value),
-          onKeyDown: onFieldKeyDown
-        }
-      ),
-      /* @__PURE__ */ jsx("p", { className: "mt-1 break-words text-xs text-text-muted", children: "Leave blank to show the URL." })
-    ] }),
+    !opened.editing && opened.empty && /* @__PURE__ */ jsx(FormField, { label: "Text to show (optional)", htmlFor: textId, hint: "Leave blank to show the URL.", children: /* @__PURE__ */ jsx(
+      Input,
+      {
+        id: textId,
+        type: "text",
+        value: text,
+        onChange: (event) => setText(event.target.value),
+        onKeyDown: onFieldKeyDown
+      }
+    ) }),
     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-      opened.editing && // Ghost, not destructive: removing a link keeps its text, and the
-      // destructive variant is not themed.
+      opened.editing && // Ghost, not destructive: removing a link keeps its text.
       /* @__PURE__ */ jsxs(Button, { type: "button", variant: "ghost", size: "sm", onClick: remove, "aria-label": "Remove link", children: [
         /* @__PURE__ */ jsx(Unlink, { size: 13, "aria-hidden": true }),
         "Remove"

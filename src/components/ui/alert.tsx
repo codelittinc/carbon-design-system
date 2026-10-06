@@ -1,17 +1,20 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
+import type { ReactElement } from "react";
+import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
-import { Button } from "./button";
+import { toneBorderClass, toneFillClass } from "@/lib/ui-classes";
+import { DismissButton } from "./dismiss-button";
 
+// The status tones are shared with Toast and Badge (lib/ui-classes).
 const alertVariants = cva("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm", {
   variants: {
     variant: {
-      error: "border-error-border bg-error-soft text-error-text",
-      success: "border-success-border bg-success-soft text-success-text",
-      info: "border-border bg-info-soft text-info-text",
-      warning: "border-border bg-accent-muted text-accent-text",
+      error: cn(toneBorderClass.error, toneFillClass.error),
+      success: cn(toneBorderClass.success, toneFillClass.success),
+      info: cn(toneBorderClass.info, toneFillClass.info),
+      warning: cn(toneBorderClass.warning, toneFillClass.warning),
     },
   },
   defaultVariants: {
@@ -40,7 +43,7 @@ interface AlertProps extends VariantProps<typeof alertVariants> {
  * failed to save, a section that could not load. For a transient confirmation
  * use `toast`.
  */
-export function Alert({ variant, title, children, onDismiss, className }: AlertProps) {
+export function Alert({ variant, title, children, onDismiss, className }: AlertProps): ReactElement {
   const Icon = icons[variant ?? "error"];
   return (
     <div
@@ -52,19 +55,7 @@ export function Alert({ variant, title, children, onDismiss, className }: AlertP
         {title && <p className="font-medium">{title}</p>}
         {children && <div className={cn(title && "mt-0.5")}>{children}</div>}
       </div>
-      {onDismiss && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          // The alert's own colour, so it reads on every variant's tint.
-          className="-mr-1 -mt-0.5 h-6 w-6 text-current opacity-70 hover:bg-transparent hover:text-current hover:opacity-100"
-        >
-          <X size={14} />
-        </Button>
-      )}
+      {onDismiss && <DismissButton label="Dismiss" onClick={onDismiss} className="-mr-1 -mt-0.5" />}
     </div>
   );
 }

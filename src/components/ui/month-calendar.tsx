@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { ReactElement } from "react";
 import { cn } from "@/lib/cn";
+import { eyebrowClass } from "@/lib/ui-classes";
+import { Button } from "./button";
+import { PeriodNav } from "./calendar-chrome";
 import {
   WEEKDAY_LABELS,
   compareMonths,
@@ -74,7 +76,7 @@ export function MonthCalendar({
   max,
   className,
   "aria-label": ariaLabel = "Choose a day",
-}: MonthCalendarProps) {
+}: MonthCalendarProps): ReactElement {
   const cells = monthWeeks(month).flat();
 
   const canGoBack = compareMonths(month, min) > 0;
@@ -82,36 +84,24 @@ export function MonthCalendar({
 
   return (
     <div role="group" aria-label={ariaLabel} className={cn("w-[17.5rem] shrink-0", className)}>
-      <div className="mb-2 flex items-center justify-between">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Previous month"
-          disabled={!canGoBack}
-          onClick={() => onMonthChange(shiftMonth(month, -1))}
-        >
-          <ChevronLeft size={16} />
-        </Button>
-        <span className="text-sm font-medium text-text-primary">{monthLabel(month)}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Next month"
-          disabled={!canGoForward}
-          onClick={() => onMonthChange(shiftMonth(month, 1))}
-        >
-          <ChevronRight size={16} />
-        </Button>
-      </div>
+      <PeriodNav
+        layout="compact"
+        className="mb-2"
+        label={monthLabel(month)}
+        onPrevious={() => onMonthChange(shiftMonth(month, -1))}
+        onNext={() => onMonthChange(shiftMonth(month, 1))}
+        previousLabel="Previous month"
+        nextLabel="Next month"
+        previousDisabled={!canGoBack}
+        nextDisabled={!canGoForward}
+      />
 
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAY_LABELS.map((label) => (
           <span
             key={label}
             aria-hidden="true"
-            className="pb-1 text-center text-[10px] font-medium uppercase text-text-faint"
+            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal")}
           >
             {label[0]}
           </span>

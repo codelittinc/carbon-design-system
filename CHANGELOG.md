@@ -8,6 +8,129 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.17.3] - 2026-10-06
+
+### Fixed: copies of shared markup merged, with the bugs they carried
+
+No API changes: no export, prop or variant was added, renamed or removed. Some
+things look slightly different, and a few accessible names changed (listed
+under "Tests may need updating").
+
+- **`FormField`** draws `Label`, so its required `*` is hidden from screen
+  readers like `Label`'s. The error or hint now **describes the control**: a
+  single child element gets `aria-describedby` pointing at it (added to any it
+  already has), and `aria-invalid` while there is an error, which is also
+  announced (`role="alert"`). The ids come from `htmlFor`, or a generated id
+  without it. The error is `text-error-text` and the hint `text-text-muted`,
+  so both clear AA in the light theme. A `required` field also sets
+  `aria-required` on the control, unless it already sets `required` or
+  `aria-required` itself. With a `Select` child these props go to the
+  `SelectTrigger` among the `Select`'s direct children (the `Select` itself is
+  Radix's Root and renders nothing); a trigger nested deeper needs
+  `aria-describedby` / `aria-invalid` / `aria-required` passed by hand.
+- **`StructuredAddressInput`** builds each field from `FormField`. Required
+  fields no longer write `" *"` into the label text and the street field's
+  name: the field is named "City", not "City *", and its `required` state is
+  what a screen reader announces.
+- **`DataTable`** pages with `Pagination` ("Showing 1–25 of 57", numbered
+  pages) instead of its own pager. Its buttons have names, and none submits a
+  `<form>` around the table any more. The sort control is a button inside the
+  heading, so it is reachable from the keyboard; `aria-sort` stays on the
+  heading. A text header is the button, and wraps onto a second line as the
+  heading did (no ellipsis); a header the column renders itself (a function,
+  which may hold its own button or link) stays as given, with a small sort
+  button ("Sort by <column id>") beside it, so no button is nested in another.
+  When the data shrinks under the current page (a refetch with `resetPageOn`
+  holding the page), the table moves to the last page that exists instead of
+  showing an empty one.
+- **`Pagination`**: every button is `type="button"`.
+- **`Dialog` / `Sheet`**: the close X is a named button ("Close") instead of an
+  unnamed icon. **`AlertDialog`** gets Dialog's `85dvh` cap and flex column, and
+  its header and footer are Dialog's (with `shrink-0`), so a long confirmation
+  keeps its buttons on screen; put a `DialogBody` between them to scroll the
+  middle. The dialogs share one overlay and one surface.
+- **`Toast`** draws its success / error / info / warning toasts as the matching
+  `Alert` tone (the text takes the tone's colour too). `Alert`, `Toast` and
+  `Badge` read one tone map, and `Tag`, `Alert`, `Toast` and the dialog close
+  share one dismiss button.
+- **`Button` `destructive`** uses theme tokens: the new `--color-error-solid`
+  fill and `--color-error-foreground` text (fixed in both themes; red-600 as
+  before, hover red-500), with those values as fallbacks, so it stays red on a
+  theme that does not define them. **`Switch`**'s thumb is `carbon-50` instead of
+  `bg-white`.
+- **Address pickers**: the `public` and `vendor` variants of
+  `AddressAutocomplete` / `AddressCombobox` and `StructuredAddressInput` keep
+  their pinned schemes (public always dark, vendor always light), now drawn
+  with the theme's tokens scoped by the `dark` / `light` class; only the vendor
+  portal's emerald focus ring and highlight are written out.
+- **`ChartCard` and `StatCard`** are `Card`s, so every card has the same edge:
+  the `border` token (they used `border-subtle`). `StatCard`'s label is the
+  shared small-caps label (`text-xs`, `text-text-muted`).
+- **`ChartLegend`**'s toggles are `Button`s. `BarChart` and `LineChart` share
+  their series state and legend code, and `DonutChart` renders its
+  screen-reader table with `ChartDataTable`.
+- **`formatDate`** shows a date-only string as that calendar day wherever the
+  reader is: `"2026-09-12"` was "Sep 11, 2026" in the Americas. A full
+  timestamp is still shown in the reader's zone, so a calendar day that
+  arrives as midnight UTC (a Prisma `@db.Date` column,
+  `"2026-09-12T00:00:00.000Z"`) is still a day early there: pass its date key,
+  `value.slice(0, 10)`.
+- **`monthOfKey`** reads a key the way `parseDateKey` does: an ISO instant by its
+  date part, and a day that does not exist (`"2026-02-30"`) is `null`.
+- **`MoneyInput`** formats with the same code as `formatMoney`, and
+  `formatPeriodLabel` and `DateRangePicker` share one source of month names.
+- **Calendars**: `MonthCalendar`, `EventCalendar` and `TimesheetTable` share
+  one previous / next / today header, and `EventCalendar` and the timesheet's
+  month view one month grid. The timesheet's month is now a table (rows,
+  weekday column headers, a cell per day named by its date), as
+  `EventCalendar`'s is. The timesheet's header is the calendar's: the period as
+  a heading, then Today and two arrow buttons. Weekday headers are
+  `text-text-muted`, which clears AA, in `EventCalendar` and `MonthCalendar`
+  (whose weekday letters were `text-text-faint`) alike; the timesheet keeps
+  its dimmed Sat / Sun headers to match its dimmed weekend days.
+- **Tables**: one empty-row and one row-hover style for `DataTable` and the
+  timesheet tables.
+- **Shared looks**: one floating-panel surface (Popover, HoverCard, menus,
+  Select and the comboboxes' lists), one option row, one field box (Input,
+  Textarea, `SelectTrigger`, `SearchSelect`'s trigger) and one small-caps label.
+  Field focus rings are `focus-visible` throughout (`SelectTrigger` and
+  `SearchSelect` showed one after a mouse click), and `SearchSelect`'s trigger
+  has the fields' disabled style.
+
+### Custom themes: define the new tokens and scopes
+
+If your app supplies its own theme instead of importing
+`@codelittinc/carbon-design-system/styles`, define the two new tokens,
+`--color-error-solid` (the destructive fill) and `--color-error-foreground`
+(its text). `Button` falls back to red-600 and carbon-50 without them, but your
+own values win once they exist. The address pickers' `public` and `vendor`
+variants also need your theme's tokens scoped under `.dark` and `.light`
+classes, as `theme.css` does; without those scopes they follow the page's
+theme instead of keeping their fixed scheme.
+
+### Tests may need updating
+
+- The dialog and sheet close button: find it by role and name,
+  `getByRole("button", { name: "Close" })`.
+- `TimesheetTable`'s "Prev" / "Next" buttons are now "Previous week" / "Next
+  week" (or "… month" in the month view).
+- `DataTable`'s pager: "Previous page", "Next page" and "Page N"; the "N / M"
+  and "N row(s)" text is gone. Sort by clicking the button in the heading
+  (`getByRole("button", { name: /Name/ })`), not the heading cell; for a
+  header rendered by a function, the "Sort by <column id>" button.
+- `StructuredAddressInput`'s fields are named without the `*` ("City").
+
+### Internal
+
+- `test/composed-components.test.ts` checks every component file instead of an
+  opt-in list, and also flags a raw `<label>`, `role="option" | "button" |
+  "dialog"`, a `document` mousedown listener and a `fixed inset-0` overlay. The
+  four hand-rolled comboboxes and `CommandPalette` are listed with the 2.0 item
+  that replaces them. Each allowance names the tags it covers (`chart` may use
+  the table elements, not a `<button>`), so an allowlisted file cannot add a
+  different raw control.
+- `src/index.ts` names `lib/calendar`'s public exports one by one (the same
+  ones), so the module can also hold internal helpers.
 ## [1.17.2] - 2026-10-06
 
 ### Fixed

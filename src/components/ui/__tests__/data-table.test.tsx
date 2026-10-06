@@ -53,36 +53,88 @@ describe("DataTable", () => {
     render(<DataTable columns={columns} data={data} />);
     expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
 
-    const header = screen.getByRole("columnheader", { name: /Name/ });
-    fireEvent.click(header);
+    // The sort is a button in the heading, so Tab and Enter reach it too.
+    const sort = screen.getByRole("button", { name: /Name/ });
+    expect(sort).toHaveAttribute("type", "button");
+    fireEvent.click(sort);
     expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
 
-    fireEvent.click(header);
+    fireEvent.click(sort);
     expect(nameColumnOrder()).toEqual(["Charlie", "Bob", "Alice"]);
+  });
+
+  it("never nests a button: a header with its own control sorts from a separate button", () => {
+    const withControl: ColumnDef<Row, unknown>[] = [
+      {
+        accessorKey: "name",
+        header: () => (
+          <span>
+            Name <button type="button">Help</button>
+          </span>
+        ),
+      },
+      { accessorKey: "age", header: "Age" },
+    ];
+    const { container } = render(<DataTable columns={withControl} data={data} />);
+    expect(container.querySelector("button button")).toBeNull();
+
+    // The header's own control is still there, and the column still sorts.
+    const heading = screen.getAllByRole("columnheader")[0];
+    expect(within(heading).getByRole("button", { name: "Help" })).toBeInTheDocument();
+    fireEvent.click(within(heading).getByRole("button", { name: "Sort by name" }));
+    expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
+  });
+
+  it("lets a long text header wrap instead of truncating it", () => {
+    const long: ColumnDef<Row, unknown>[] = [
+      { accessorKey: "name", header: "Name of the person the row belongs to" },
+      { accessorKey: "age", header: "Age" },
+    ];
+    render(<DataTable columns={long} data={data} />);
+    const sort = screen.getByRole("button", { name: /Name of the person/ });
+    expect(sort).toHaveClass("whitespace-normal", "h-auto", "text-left");
+    expect(sort).not.toHaveClass("whitespace-nowrap");
+    // Nothing inside it truncates either.
+    expect(sort.querySelector(".truncate, .whitespace-nowrap")).toBeNull();
   });
 
   it("shows pagination controls only when rows exceed pageSize and navigates", () => {
     const { unmount } = render(
       <DataTable columns={columns} data={data} pageSize={25} />,
     );
-    // 3 rows, pageSize 25 -> single page -> no pagination indicator.
-    expect(screen.queryByText(/\/\s*\d/)).not.toBeInTheDocument();
+    // 3 rows, pageSize 25 -> single page -> no pager.
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).not.toBeInTheDocument();
     unmount();
 
     render(<DataTable columns={columns} data={data} pageSize={2} />);
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    const pager = screen.getByRole("navigation", { name: "Pagination" });
+    expect(within(pager).getByText(/Showing 1–2 of/)).toHaveTextContent("Showing 1–2 of 3");
 
-    // Two icon buttons: previous (disabled at page 1) and next.
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(2);
-    const [prev, next] = buttons;
+    // The shared Pagination: named buttons that never submit a form.
+    const prev = within(pager).getByRole("button", { name: "Previous page" });
+    const next = within(pager).getByRole("button", { name: "Next page" });
+    for (const button of within(pager).getAllByRole("button")) {
+      expect(button).toHaveAttribute("type", "button");
+    }
     expect(prev).toBeDisabled();
 
     fireEvent.click(next);
-    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page");
 
     fireEvent.click(prev);
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(within(pager).getByRole("button", { name: "Page 1" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("pages without submitting a form around it", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <DataTable columns={columns} data={data} pageSize={2} />
+      </form>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: /Name/ }));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("calls onRowClick with the row original", () => {
@@ -190,7 +242,7 @@ describe("DataTable", () => {
           {/* A refresh: same rows, new array — what a refetch after an edit produces. */}
           <button onClick={() => setNonce((v) => v + 1)}>refetch</button>
           <button onClick={() => setFilter((f) => f + "!")}>filter</button>
-          <button onClick={() => setRows(22)}>shrink</button>
+          <button onClick={() => setRows(15)}>shrink</button>
           <DataTable
             columns={columns}
             data={data}
@@ -201,11 +253,15 @@ describe("DataTable", () => {
       );
     }
 
-    const page = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
+    const page = () => {
+      const current = screen.getByRole("button", { current: "page" });
+      const last = screen.getAllByRole("button", { name: /^Page \d+$/ }).at(-1)!;
+      return `${current.textContent} / ${last.textContent}`;
+    };
 
     async function toLastPage() {
       await act(async () => {});
-      const next = () => screen.getAllByRole("button", { name: "" }).at(-1)!;
+      const next = () => screen.getByRole("button", { name: "Next page" });
       fireEvent.click(next());
       fireEvent.click(next());
       await act(async () => {});
@@ -228,7 +284,7 @@ describe("DataTable", () => {
 
       await toLastPage();
       await click("shrink");
-      expect(page()).toBe("1 / 3");
+      expect(page()).toBe("1 / 2");
     });
 
     it("with resetPageOn, resets on the signature and holds place on a refresh", async () => {
@@ -248,11 +304,13 @@ describe("DataTable", () => {
       render(<Host withSignature />);
       await toLastPage();
 
-      // Shrinking without a signature change keeps pageIndex, so the page must still
-      // be one that exists — TanStack clamps the displayed page to the last one.
+      // 24 rows to 15 with no signature change: page 3 no longer exists, so the
+      // reader lands on the new last page rather than an empty one.
       await click("shrink");
-      expect(page()).toBe("3 / 3");
-      expect(nameColumnOrder()).toEqual(["row20", "row21"]);
+      expect(page()).toBe("2 / 2");
+      expect(screen.queryByText(/Showing 21–15 of 15/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Showing 11–15 of 15/)).toBeInTheDocument();
+      expect(nameColumnOrder()).toEqual(["row10", "row11", "row12", "row13", "row14"]);
     });
   });
 
@@ -366,7 +424,7 @@ describe("DataTable", () => {
       const name = screen.getByRole("columnheader", { name: /Name/ });
       expect(name).toHaveAttribute("aria-sort", "ascending");
 
-      fireEvent.click(name);
+      fireEvent.click(within(name).getByRole("button"));
       expect(onSort).toHaveBeenLastCalledWith([{ id: "name", desc: true }]);
       expect(name).toHaveAttribute("aria-sort", "descending");
       expect(nameColumnOrder()).toEqual(["Charlie", "Alice", "Bob"]);
@@ -380,7 +438,7 @@ describe("DataTable", () => {
     it("still reports changes while uncontrolled", () => {
       const onSortingChange = vi.fn();
       render(<DataTable columns={columns} data={data} onSortingChange={onSortingChange} />);
-      fireEvent.click(screen.getByRole("columnheader", { name: /Name/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Name/ }));
       expect(onSortingChange).toHaveBeenCalledWith([{ id: "name", desc: false }]);
       expect(nameColumnOrder()).toEqual(["Alice", "Bob", "Charlie"]);
     });

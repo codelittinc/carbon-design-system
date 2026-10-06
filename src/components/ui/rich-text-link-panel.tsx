@@ -6,8 +6,8 @@ import { Unlink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { linkHrefErrorMessage, normalizeLinkHref, type LinkHrefReason } from "@/lib/link-href";
 import { Button } from "./button";
+import { FormField } from "./form-field";
 import { Input } from "./input";
-import { Label } from "./label";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 /** An app-declared link target, as `RichTextEditor`'s `linkPanel.targets` takes it. */
@@ -191,34 +191,29 @@ function LinkPanel({
 
   const urlId = `${id}-url`;
   const textId = `${id}-text`;
-  const errorId = `${id}-error`;
 
   return (
     <div className="space-y-3">
       <div>
-        <Label htmlFor={urlId} className="mb-1">
-          URL
-        </Label>
-        <Input
-          ref={urlRef}
-          id={urlId}
-          type="text"
-          value={url}
-          onChange={(event) => {
-            setUrl(event.target.value);
-            setError(null);
-          }}
-          onKeyDown={onFieldKeyDown}
-          placeholder={hrefs.length > 0 ? `https://example.com or ${hrefs[0]}` : "https://example.com"}
-          className={cn(error && "border-error-border")}
-          aria-invalid={error !== null}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {error && (
-          <p id={errorId} role="alert" className="mt-1 break-words text-xs text-error-text">
-            {linkHrefErrorMessage(error, { targets: hrefs })}
-          </p>
-        )}
+        <FormField
+          label="URL"
+          htmlFor={urlId}
+          error={error ? linkHrefErrorMessage(error, { targets: hrefs }) : undefined}
+        >
+          <Input
+            ref={urlRef}
+            id={urlId}
+            type="text"
+            value={url}
+            onChange={(event) => {
+              setUrl(event.target.value);
+              setError(null);
+            }}
+            onKeyDown={onFieldKeyDown}
+            placeholder={hrefs.length > 0 ? `https://example.com or ${hrefs[0]}` : "https://example.com"}
+            className={cn(error && "border-error-border")}
+          />
+        </FormField>
         {targets.length > 0 && (
           <div className="mt-2 space-y-2">
             {targets.map((target) => (
@@ -247,10 +242,7 @@ function LinkPanel({
       </div>
 
       {!opened.editing && opened.empty && (
-        <div>
-          <Label htmlFor={textId} className="mb-1">
-            Text to show (optional)
-          </Label>
+        <FormField label="Text to show (optional)" htmlFor={textId} hint="Leave blank to show the URL.">
           <Input
             id={textId}
             type="text"
@@ -258,14 +250,12 @@ function LinkPanel({
             onChange={(event) => setText(event.target.value)}
             onKeyDown={onFieldKeyDown}
           />
-          <p className="mt-1 break-words text-xs text-text-muted">Leave blank to show the URL.</p>
-        </div>
+        </FormField>
       )}
 
       <div className="flex items-center gap-2">
         {opened.editing && (
-          // Ghost, not destructive: removing a link keeps its text, and the
-          // destructive variant is not themed.
+          // Ghost, not destructive: removing a link keeps its text.
           <Button type="button" variant="ghost" size="sm" onClick={remove} aria-label="Remove link">
             <Unlink size={13} aria-hidden />
             Remove

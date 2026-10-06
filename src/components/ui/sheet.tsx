@@ -1,9 +1,10 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, type ReactElement } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { overlayClass } from "@/lib/ui-classes";
+import { CloseButton } from "./dismiss-button";
 
 const Sheet = DialogPrimitive.Root;
 const SheetTrigger = DialogPrimitive.Trigger;
@@ -16,10 +17,7 @@ const SheetOverlay = forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className,
-    )}
+    className={cn(overlayClass, className)}
     {...props}
   />
 ));
@@ -46,16 +44,14 @@ const SheetContent = forwardRef<React.ComponentRef<typeof DialogPrimitive.Conten
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-text-muted transition-colors hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50">
-          <X size={16} />
-        </DialogPrimitive.Close>
+        <CloseButton />
       </DialogPrimitive.Content>
     </SheetPortal>
   ),
 );
 SheetContent.displayName = "SheetContent";
 
-function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement {
   return <div className={cn("border-b border-border px-6 py-4", className)} {...props} />;
 }
 
@@ -71,11 +67,11 @@ const SheetTitle = forwardRef<
 ));
 SheetTitle.displayName = "SheetTitle";
 
-function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function SheetBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement {
   return <div className={cn("flex-1 overflow-y-auto px-6 py-4", className)} {...props} />;
 }
 
-function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement {
   return <div className={cn("flex justify-end gap-2 border-t border-border px-6 py-4", className)} {...props} />;
 }
 

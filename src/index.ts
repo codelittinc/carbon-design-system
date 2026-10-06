@@ -105,8 +105,28 @@ export * from "./components/ui/event-calendar";
 // Hours per contract per day, with its API contract and the default fetch API.
 export * from "./components/ui/timesheet-table";
 // The calendar arithmetic MonthCalendar is built on: pure, zone-free, and
-// useful on its own to anyone laying out days.
-export * from "./lib/calendar";
+// useful on its own to anyone laying out days. Named one by one: the module
+// also holds helpers the package uses internally.
+export {
+  WEEKDAY_LABELS,
+  addDays,
+  compareMonths,
+  dateKey,
+  daysInMonth,
+  formatCalendarDate,
+  formatDateKey,
+  isWeekend,
+  monthLabel,
+  monthOfKey,
+  monthWeeks,
+  parseDateKey,
+  shiftMonth,
+  startOfWeek,
+  todayIn,
+  weekdayOf,
+  type CalendarDate,
+  type YearMonth,
+} from "./lib/calendar";
 export * from "./components/ui/theme";
 export * from "./components/ui/account-combobox";
 export * from "./components/ui/multi-status-filter";

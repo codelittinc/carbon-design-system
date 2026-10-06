@@ -3,6 +3,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { cn } from "@/lib/cn";
 import {
   CHART_NEUTRAL_COLOR,
+  ChartDataTable,
   ChartEmpty,
   ChartSkeleton,
   ChartSliceTooltipContent,
@@ -60,6 +61,12 @@ export interface DonutChartProps extends ChartStateProps {
   className?: string;
 }
 
+/** The screen-reader table's columns: each slice's value and its share. */
+const DONUT_TABLE_SERIES = [
+  { key: "value", label: "Value" },
+  { key: "share", label: "Share" },
+];
+
 interface ResolvedSlice extends DonutChartDatum {
   color: string;
   percent: number;
@@ -99,7 +106,7 @@ export function DonutChart({
   emptyTitle,
   emptyDescription,
   className,
-}: DonutChartProps) {
+}: DonutChartProps): React.ReactElement {
   const slices = React.useMemo<ResolvedSlice[]>(() => {
     const rows = sort ? [...data].sort((a, b) => b.value - a.value) : data;
 
@@ -218,25 +225,15 @@ export function DonutChart({
         ))}
       </ul>
 
-      <table className="sr-only">
-        <caption>{tableCaption ?? `Share of total by ${categoryLabel}`}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{categoryLabel}</th>
-            <th scope="col">Value</th>
-            <th scope="col">Share</th>
-          </tr>
-        </thead>
-        <tbody>
-          {slices.map((slice, i) => (
-            <tr key={`${slice.label}-${i}`}>
-              <th scope="row">{slice.label}</th>
-              <td>{valueFormatter(slice.value)}</td>
-              <td>{slice.percent.toFixed(1)}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ChartDataTable
+        caption={tableCaption ?? `Share of total by ${categoryLabel}`}
+        categoryLabel={categoryLabel}
+        categories={slices.map((slice) => slice.label)}
+        series={DONUT_TABLE_SERIES}
+        // The share is already text, so the formatter passes it through.
+        data={slices.map((slice) => ({ value: slice.value, share: `${slice.percent.toFixed(1)}%` }))}
+        valueFormatter={valueFormatter}
+      />
     </div>
   );
 }

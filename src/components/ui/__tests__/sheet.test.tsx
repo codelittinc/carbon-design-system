@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   Sheet,
@@ -75,9 +75,10 @@ describe("Sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open sheet" }));
     const dialog = screen.getByRole("dialog");
 
-    const iconClose = dialog.querySelector("button > svg")?.closest("button");
-    expect(iconClose).not.toBeNull();
-    fireEvent.click(iconClose as HTMLButtonElement);
+    // A named button, not an unlabelled icon: "Close" is its accessible name.
+    const iconClose = within(dialog).getByRole("button", { name: "Close" });
+    expect(iconClose).toHaveAttribute("type", "button");
+    fireEvent.click(iconClose);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

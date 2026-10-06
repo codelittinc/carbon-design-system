@@ -9,27 +9,22 @@
 import { forwardRef, useEffect, useRef, useState, type ReactElement } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import {
-  WEEKDAY_LABELS,
-  dateKey,
-  formatDateKey,
-  isWeekend,
-  monthWeeks,
-  type YearMonth,
-} from "@/lib/calendar";
+import { datePart, formatDateKey, monthLabel, type YearMonth } from "@/lib/calendar";
+import { tableRowHoverClass } from "@/lib/ui-classes";
 import {
   cellKey,
   contractCoversDay,
-  datePart,
   type TimesheetContract,
   type TimesheetGridData,
   type TimesheetTimeOff,
 } from "@/lib/timesheet";
 import { Badge } from "./badge";
 import { Button } from "./button";
+import { MonthGrid } from "./calendar-chrome";
 import { Card } from "./card";
 import { Input } from "./input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
+import { TableEmptyRow } from "./table-empty-row";
 
 /** "Mon, Sep 14, 2026" (or "Monday, …") from a "2026-09-14" key. */
 export function dayLabel(date: string, weekday: "long" | "short" = "short"): string {
@@ -139,125 +134,101 @@ export function MonthlyCalendarGrid({
     returnFocusTo.current = null;
   }, [selectedDay]);
 
-  const cells = monthWeeks(month).flat();
-
   const dayTotal = (date: string) =>
     contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, date)] || 0), 0);
 
   return (
-    <div>
-      <div className="mb-px grid grid-cols-7 gap-px">
-        {WEEKDAY_LABELS.map((label, i) => (
-          <div
-            key={label}
-            className={cn(
-              "py-2 text-center text-xs font-medium uppercase tracking-wider",
-              i >= 5 ? "text-text-faint" : "text-text-muted",
-            )}
-          >
-            {label}
-          </div>
-        ))}
-      </div>
+    <MonthGrid
+      month={month}
+      ariaLabel={`Hours, ${monthLabel(month)}`}
+      today={today}
+      // The weekend days are dimmed below, so their headers are too.
+      dimWeekendHeaders
+      dayClassName={() => "flex min-h-[72px]"}
+      renderDay={(cell, { key: date, isToday, isWeekend: weekend }) => {
+        const isSelected = date === selectedDay;
+        const total = dayTotal(date);
+        const hasTimeOff = isTimeOffDay(date, timeOffs);
+        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
+        const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
 
-      {/* The 1px gap over a border-colored ground draws the grid lines. */}
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
-        {cells.map((cell, idx) => {
-          if (!cell) return <div key={`empty-${idx}`} className="min-h-[72px] bg-bg" />;
+        const background = isMissingHours
+          ? "bg-error-soft"
+          : isToday
+            ? "bg-accent-muted"
+            : weekend
+              ? "bg-surface-raised"
+              : "bg-surface";
 
-          const date = dateKey(cell);
-          const weekend = isWeekend(cell);
-          const isToday = date === today;
-          const isSelected = date === selectedDay;
-          const total = dayTotal(date);
-          const hasTimeOff = isTimeOffDay(date, timeOffs);
-          const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
-          const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
-
-          const background = isMissingHours
-            ? "bg-error-soft"
-            : isToday
-              ? "bg-accent-muted"
-              : weekend
-                ? "bg-surface-raised"
-                : "bg-surface";
-
-          const header = (
-            <div className="flex items-start justify-between">
-              <span
-                className={cn(
-                  "text-sm font-medium tabular-nums",
-                  isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary",
-                )}
-              >
-                {cell.day}
-              </span>
-              {hasTimeOff && (
-                <Badge variant="info" className="px-1 text-[10px]">
-                  PTO
-                </Badge>
-              )}
-            </div>
-          );
-
-          if (isSelected && dayContracts.length === 1) {
-            const contract = dayContracts[0];
-            return (
-              <div
-                key={date}
-                className={cn("min-h-[72px] p-2 ring-2 ring-inset ring-accent", background)}
-              >
-                {header}
-                <HoursInput
-                  ref={inlineInputRef}
-                  aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}`}
-                  value={gridData[cellKey(contract.id, date)]}
-                  onValueChange={(value) => onCellChange(contract.id, date, value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      returnFocusTo.current = date;
-                      onClose();
-                    }
-                  }}
-                  placeholder={"–"}
-                  className="mt-1 h-7"
-                />
-              </div>
-            );
-          }
-
-          return (
-            <Button
-              key={date}
-              ref={(el) => {
-                dayButtonRefs.current[date] = el;
-              }}
-              type="button"
-              variant="ghost"
-              aria-pressed={isSelected}
-              aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`}
-              onClick={() => onDaySelect(date)}
+        const header = (
+          <div className="flex items-start justify-between">
+            <span
               className={cn(
-                // A whole calendar cell, not an inline button: stacked, square, full height.
-                "flex h-auto min-h-[72px] w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
-                background,
-                "hover:bg-surface-overlay",
-                isSelected && "ring-2 ring-inset ring-accent",
+                "text-sm font-medium tabular-nums",
+                isToday ? "text-accent-text" : weekend ? "text-text-faint" : "text-text-primary",
               )}
             >
+              {cell.day}
+            </span>
+            {hasTimeOff && (
+              <Badge variant="info" className="px-1 text-[10px]">
+                PTO
+              </Badge>
+            )}
+          </div>
+        );
+
+        if (isSelected && dayContracts.length === 1) {
+          const contract = dayContracts[0];
+          return (
+            <div className={cn("w-full p-2 ring-2 ring-inset ring-accent", background)}>
               {header}
-              {total > 0 && (
-                <div className="mt-1 text-xs font-semibold tabular-nums text-text-primary">
-                  {total}h
-                </div>
-              )}
-              {isMissingHours && <div className="mt-1 text-[10px] text-error-text">No hours</div>}
-            </Button>
+              <HoursInput
+                ref={inlineInputRef}
+                aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}`}
+                value={gridData[cellKey(contract.id, date)]}
+                onValueChange={(value) => onCellChange(contract.id, date, value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    returnFocusTo.current = date;
+                    onClose();
+                  }
+                }}
+                placeholder={"–"}
+                className="mt-1 h-7"
+              />
+            </div>
           );
-        })}
-      </div>
-    </div>
+        }
+
+        return (
+          <Button
+            ref={(el) => {
+              dayButtonRefs.current[date] = el;
+            }}
+            type="button"
+            variant="ghost"
+            aria-pressed={isSelected}
+            aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`}
+            onClick={() => onDaySelect(date)}
+            className={cn(
+              // A whole calendar cell, not an inline button: stacked, square, full height.
+              "flex h-auto w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
+              background,
+              "hover:bg-surface-overlay",
+              isSelected && "ring-2 ring-inset ring-accent",
+            )}
+          >
+            {header}
+            {total > 0 && (
+              <div className="mt-1 text-xs font-semibold tabular-nums text-text-primary">{total}h</div>
+            )}
+            {isMissingHours && <div className="mt-1 text-[10px] text-error-text">No hours</div>}
+          </Button>
+        );
+      }}
+    />
   );
 }
 
@@ -334,17 +305,10 @@ export function DayDetailPanel({
           </TableHeader>
           <TableBody>
             {contracts.length === 0 && (
-              <TableRow className="border-0">
-                <TableCell colSpan={2} className="py-6 text-center text-text-muted">
-                  No active contracts for this day.
-                </TableCell>
-              </TableRow>
+              <TableEmptyRow colSpan={2}>No active contracts for this day.</TableEmptyRow>
             )}
             {contracts.map((contract, idx) => (
-              <TableRow
-                key={contract.id}
-                className="hover:bg-table-row-hover"
-              >
+              <TableRow key={contract.id} className={tableRowHoverClass}>
                 <TableCell>
                   <ContractName contract={contract} />
                 </TableCell>

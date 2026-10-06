@@ -1,6 +1,9 @@
 "use client";
 
-import { AddressAutocomplete } from "./address-combobox";
+import type { ReactElement } from "react";
+import { cn } from "@/lib/cn";
+import { AddressAutocomplete, STAFF_INPUT_CLASS, VENDOR_INPUT_CLASS } from "./address-combobox";
+import { FormField } from "./form-field";
 import { Input } from "./input";
 import type { PostalAddressDraft } from "./postal-address";
 
@@ -16,7 +19,12 @@ interface StructuredAddressInputProps {
  * Full US postal-address form: a Places-backed street field that fills the rest
  * of the fields on selection, plus manual inputs for line 2, city, state, and
  * ZIP. Fully controlled via a {@link PostalAddressDraft}. The "staff" variant
- * uses the dark design tokens; "vendor" uses the light portal palette.
+ * follows the app's theme; "vendor" is always the light portal scheme (the
+ * theme's light tokens, scoped by the `light` class).
+ *
+ * Each field is a `FormField`, so a required one carries the marker beside its
+ * label, hidden from screen readers, and `required` on the input, which they
+ * announce instead.
  */
 export function StructuredAddressInput({
   value,
@@ -24,38 +32,34 @@ export function StructuredAddressInput({
   variant = "staff",
   idPrefix,
   required = false,
-}: StructuredAddressInputProps) {
+}: StructuredAddressInputProps): ReactElement {
   const vendor = variant === "vendor";
-  // Layered over `Input`, matching the street field's height for each variant.
-  const inputClass = vendor
-    ? "h-10 border-slate-300 bg-white py-0 text-slate-900 caret-slate-900 shadow-none placeholder:text-slate-400 focus:border-emerald-500 focus-visible:ring-1 focus-visible:ring-emerald-500"
-    : "h-9 py-0";
-  const labelClass = vendor
-    ? "mb-1 block text-xs font-medium text-slate-600"
-    : "mb-1 block text-xs font-medium text-text-muted";
+  // Matches the street field's height for each variant.
+  const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
   const update = (field: keyof PostalAddressDraft, next: string) =>
     onChange({ ...value, [field]: next });
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
-      <div className="sm:col-span-4">
-        <label className={labelClass} htmlFor={`${idPrefix}-line1`}>
-          Street address{required ? " *" : ""}
-        </label>
+    <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-6", vendor && "light")}>
+      <FormField
+        className="sm:col-span-4"
+        label="Street address"
+        htmlFor={`${idPrefix}-line1`}
+        required={required}
+      >
         <AddressAutocomplete
           id={`${idPrefix}-line1`}
           value={value.addressLine1}
           onChange={(next) => update("addressLine1", next)}
           onAddressSelect={onChange}
           variant={vendor ? "vendor" : "staff"}
-          ariaLabel={`Street address${required ? " *" : ""}`}
+          ariaLabel="Street address"
           placeholder="Start typing or enter manually"
           required={required}
           autoComplete="address-line1"
         />
-      </div>
-      <label className="sm:col-span-2" htmlFor={`${idPrefix}-line2`}>
-        <span className={labelClass}>Apartment or suite</span>
+      </FormField>
+      <FormField className="sm:col-span-2" label="Apartment or suite" htmlFor={`${idPrefix}-line2`}>
         <Input
           id={`${idPrefix}-line2`}
           className={inputClass}
@@ -63,9 +67,8 @@ export function StructuredAddressInput({
           onChange={(event) => update("addressLine2", event.target.value)}
           autoComplete="address-line2"
         />
-      </label>
-      <label className="sm:col-span-3" htmlFor={`${idPrefix}-city`}>
-        <span className={labelClass}>City{required ? " *" : ""}</span>
+      </FormField>
+      <FormField className="sm:col-span-3" label="City" htmlFor={`${idPrefix}-city`} required={required}>
         <Input
           id={`${idPrefix}-city`}
           className={inputClass}
@@ -74,9 +77,8 @@ export function StructuredAddressInput({
           autoComplete="address-level2"
           required={required}
         />
-      </label>
-      <label className="sm:col-span-1" htmlFor={`${idPrefix}-state`}>
-        <span className={labelClass}>State{required ? " *" : ""}</span>
+      </FormField>
+      <FormField className="sm:col-span-1" label="State" htmlFor={`${idPrefix}-state`} required={required}>
         <Input
           id={`${idPrefix}-state`}
           className={inputClass}
@@ -86,9 +88,8 @@ export function StructuredAddressInput({
           maxLength={2}
           required={required}
         />
-      </label>
-      <label className="sm:col-span-2" htmlFor={`${idPrefix}-postal`}>
-        <span className={labelClass}>ZIP code{required ? " *" : ""}</span>
+      </FormField>
+      <FormField className="sm:col-span-2" label="ZIP code" htmlFor={`${idPrefix}-postal`} required={required}>
         <Input
           id={`${idPrefix}-postal`}
           className={inputClass}
@@ -98,7 +99,7 @@ export function StructuredAddressInput({
           inputMode="numeric"
           required={required}
         />
-      </label>
+      </FormField>
       <input type="hidden" name="country" value={value.country || "US"} />
     </div>
   );

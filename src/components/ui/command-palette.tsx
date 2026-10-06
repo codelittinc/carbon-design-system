@@ -3,8 +3,9 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Command } from "cmdk";
-import { cn } from "@/lib/cn";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { optionRowClass, overlayClass } from "@/lib/ui-classes";
 
 /**
  * How cmdk decides what a search matches: a score, where 0 means "no match" and
@@ -112,7 +113,7 @@ export function CommandPalette({
   return createPortal(
     <div className="fixed inset-0 z-50">
       <div
-        className="fixed inset-0 bg-black/60"
+        className={overlayClass}
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
@@ -165,7 +166,7 @@ export function CommandGroup({ heading, children }: { heading: string; children:
   return (
     <Command.Group
       heading={heading}
-      className="[&_[cmdk-group-heading]]:mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-faint"
+      className="[&_[cmdk-group-heading]]:mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-muted"
     >
       {children}
     </Command.Group>
@@ -214,7 +215,7 @@ export function CommandItem({
       forceMount={forceMount}
       disabled={disabled}
       className={cn(
-        "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors",
+        optionRowClass,
         "data-[selected=true]:bg-surface-overlay data-[selected=true]:text-text-primary",
         disabled && "pointer-events-none opacity-50",
       )}

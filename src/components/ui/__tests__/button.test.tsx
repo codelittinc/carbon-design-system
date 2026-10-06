@@ -16,7 +16,22 @@ describe("Button", () => {
 
   it("maps variant prop to the matching class fragment", () => {
     render(<Button variant="destructive">Delete</Button>);
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-red-600");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass(
+      "bg-[var(--color-error-solid,#dc2626)]",
+      "text-[color:var(--color-error-foreground,#fafafa)]",
+    );
+  });
+
+  it("keeps the destructive button red under a theme without the error-solid tokens", () => {
+    // A consumer with its own theme may not define --color-error-solid or
+    // --color-error-foreground. The token utilities would then compile to
+    // nothing; the fallbacks keep the button red with light text.
+    render(<Button variant="destructive">Delete</Button>);
+    const classes = screen.getByRole("button", { name: "Delete" }).className;
+    expect(classes).toContain("var(--color-error-solid,#dc2626)");
+    expect(classes).toContain("var(--color-error-foreground,#fafafa)");
+    expect(classes).toContain("var(--color-error,#ef4444)");
+    expect(classes).not.toMatch(/(^|\s)(bg-error-solid|text-error-foreground|hover:bg-error)(\s|$)/);
   });
 
   it("maps size prop to the matching class fragment", () => {

@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { cn } from "@/lib/cn";
+import { eyebrowClass } from "@/lib/ui-classes";
 
 /**
  * The table elements, styled once. `DataTable` is built from these; use them
@@ -46,10 +47,7 @@ const TableHead = forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTa
   ({ className, ...props }, ref) => (
     <th
       ref={ref}
-      className={cn(
-        "px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted",
-        className,
-      )}
+      className={cn(eyebrowClass, "px-3 py-2 text-left", className)}
       {...props}
     />
   ),

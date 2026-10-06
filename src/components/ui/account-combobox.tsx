@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { floatingSurfaceClass, optionRowActiveClass, optionRowClass } from "@/lib/ui-classes";
 import { Input } from "./input";
 
 export interface AccountOption {
@@ -165,7 +166,7 @@ export function AccountCombobox({
         <div
           ref={listRef}
           role="listbox"
-          className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full min-w-[18rem] overflow-y-auto rounded-md border border-border bg-surface-raised shadow-lg"
+          className={cn(floatingSurfaceClass, "absolute left-0 top-full mt-1 max-h-60 w-full min-w-[18rem] overflow-y-auto p-1")}
         >
           {filtered.length === 0 ? (
             <div className="px-2 py-1.5 text-xs text-text-faint">No matching accounts</div>
@@ -179,8 +180,9 @@ export function AccountCombobox({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => selectAccount(a.id)}
                 className={cn(
-                  "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-surface-overlay",
-                  i === highlightIdx && "bg-surface-overlay",
+                  optionRowClass,
+                  "text-xs hover:bg-surface-overlay",
+                  i === highlightIdx && optionRowActiveClass,
                   a.id === value && "text-accent-text",
                 )}
               >
