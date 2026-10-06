@@ -193,7 +193,9 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className="rounded-lg border border-border">
+      {/* A table wider than its container scrolls inside its border rather
+          than pushing the page sideways. */}
+      <div className="overflow-x-auto rounded-lg border border-border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

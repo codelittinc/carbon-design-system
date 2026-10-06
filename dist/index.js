@@ -2054,7 +2054,7 @@ function DataTable({
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
   return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx("div", { className: "rounded-lg border border-border", children: /* @__PURE__ */ jsxs(Table, { children: [
+    /* @__PURE__ */ jsx("div", { className: "overflow-x-auto rounded-lg border border-border", children: /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs(TableRow, { children: [
         expandable && /* @__PURE__ */ jsx(TableHead, { className: "w-10 px-1 py-2", children: /* @__PURE__ */ jsx("span", { className: "sr-only", children: "Details" }) }),
         headerGroup.headers.map((header) => {

@@ -8,6 +8,15 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.17.1] - 2026-10-06
+
+### Fixed
+
+- **`DataTable`**: a table wider than its container now scrolls horizontally
+  inside its bordered box. It used to overflow to the right and push the page
+  sideways, which a wide table — a worklist with a dozen columns — always did
+  at ordinary laptop widths. No API change.
+
 ## [1.17.0] - 2026-10-06
 
 ### New components: TimesheetTable, EventCalendar, CategoryChip, StatusIndicator, CheckboxGroup, HoverCard, Table
