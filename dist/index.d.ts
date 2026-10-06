@@ -653,6 +653,62 @@ declare const DialogTitle: react.ForwardRefExoticComponent<Omit<DialogPrimitive.
 declare function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>): ReactElement;
 declare function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): ReactElement;
 
+/** Why the viewer is asking the app for content. */
+type FileViewerFallbackReason = "doc" | "render-failed" | "unsupported";
+interface FileViewerFallbackRequest {
+    /**
+     * `doc` for a Word 97–2003 file, `render-failed` for a `.docx` the browser
+     * could not lay out, `unsupported` for a type the viewer has no renderer for.
+     */
+    reason: FileViewerFallbackReason;
+    url: string;
+    filename: string;
+    /** The resolved MIME type, lowercased and without parameters; "" when unknown. */
+    contentType: string;
+    /** Aborted when the dialog closes; pass it to fetch. */
+    signal: AbortSignal;
+}
+/**
+ * What the app can show instead. `html` is sanitised again by the viewer;
+ * `text` is shown as preformatted text, with `note` in a banner above it.
+ */
+type FileViewerFallbackContent = {
+    html: string;
+} | {
+    text: string;
+    note?: string;
+};
+/** Resolves to the content to show, or null/undefined for the download-only message. */
+type FileViewerFallback = (request: FileViewerFallbackRequest) => Promise<FileViewerFallbackContent | null | undefined>;
+interface FileViewerProps {
+    /** Same-origin file URL; fetched with the browser's normal credentials. */
+    url: string;
+    /** Dialog title, Download filename, iframe title and image alt. */
+    filename: string;
+    /** Decides the renderer when given. Otherwise the response's Content-Type does. */
+    contentType?: string | null;
+    /** Content for `.doc`, failed DOCX renders and unsupported types. Omit for download-only. */
+    loadFallback?: FileViewerFallback;
+    /**
+     * The trigger: one element that forwards its ref and props, such as a
+     * `Button`. Optional in controlled mode.
+     */
+    children?: ReactElement;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}
+/**
+ * A file in a dialog over the page: PDF in the browser's own viewer, Word
+ * (`.docx`) laid out as pages, CSV as a table, PNG/JPEG/GIF/BMP/WebP/AVIF
+ * images and plain text. Legacy `.doc`, a `.docx` that can't be laid out and
+ * other types show what `loadFallback` returns, or a Download.
+ *
+ * Wrap any trigger, or pass `open`/`onOpenChange` to control it. Every open
+ * fetches the file afresh. PDFs frame `url`, so the app must allow same-origin
+ * framing of that route; see the README.
+ */
+declare function FileViewer({ url, filename, contentType, loadFallback, children, open, onOpenChange, }: FileViewerProps): ReactElement;
+
 declare const AlertDialog: react.FC<AlertDialogPrimitive.AlertDialogProps>;
 declare const AlertDialogTrigger: react.ForwardRefExoticComponent<AlertDialogPrimitive.AlertDialogTriggerProps & react.RefAttributes<HTMLButtonElement>>;
 declare const AlertDialogContent: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
@@ -2157,4 +2213,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

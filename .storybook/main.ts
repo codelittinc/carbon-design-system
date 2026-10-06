@@ -17,6 +17,9 @@ const config: StorybookConfig = {
   docs: {
     autodocs: "tag",
   },
+  // Fixture files the FileViewer stories open (served at /file-viewer/…).
+  // Outside `files` in package.json, so never published.
+  staticDirs: ["./public"],
 };
 
 export default config;

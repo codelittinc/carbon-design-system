@@ -31,8 +31,10 @@ describe("theme.css cascade layers", () => {
   // Unlayered CSS beats every layered rule regardless of specificity, and
   // Tailwind's utilities are layered. A bare `* { border-color }` once made
   // `border-error` and `border-accent` render gray everywhere.
+  // The exception is FileViewer's docx host: docx-preview injects unlayered CSS,
+  // so overriding it takes unlayered rules, scoped to `.file-viewer-docx`.
   it("puts every rule that styles elements inside a cascade layer", () => {
-    const allowed = /^(@theme|@layer\b|\.light$|\.dark$)/;
+    const allowed = /^(@theme|@layer\b|\.light$|\.dark$|\.file-viewer-docx )/;
     const unlayered = topLevelPreludes(css).filter((p) => !allowed.test(p));
     expect(unlayered).toEqual([]);
   });

@@ -56,6 +56,17 @@ describe("committed dist/ client boundary", () => {
     expect(index).toContain("import('./rich-text-editor-impl.js')");
   });
 
+  it("reaches docx-preview and papaparse from the barrel only through dynamic imports", () => {
+    // FileViewer's DOCX and CSV renderers. A static import would put a zip
+    // reader and a CSV parser on every page of every app, viewer or not.
+    const index = distFile("index.js");
+    expect(index).not.toMatch(/from\s*['"]docx-preview['"]/);
+    expect(index).not.toMatch(/from\s*['"]papaparse['"]/);
+    expect(index).not.toMatch(/import\s*['"](?:docx-preview|papaparse)['"]/);
+    expect(index).toMatch(/import\(\s*['"]docx-preview['"]\s*\)/);
+    expect(index).toMatch(/import\(\s*['"]papaparse['"]\s*\)/);
+  });
+
   it("leaves the utils entry callable from a server component", () => {
     expect(distFile("utils.js").startsWith(DIRECTIVE)).toBe(false);
   });

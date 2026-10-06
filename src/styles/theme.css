@@ -431,4 +431,136 @@
   .transition-default {
     transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* ── FileViewer: a converted document (loadFallback's html) ── */
+
+  .file-viewer-html {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    overflow-wrap: anywhere;
+  }
+  .file-viewer-html p {
+    margin: 0 0 0.75rem 0;
+  }
+  .file-viewer-html h1,
+  .file-viewer-html h2,
+  .file-viewer-html h3,
+  .file-viewer-html h4,
+  .file-viewer-html h5,
+  .file-viewer-html h6 {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 1.25rem 0 0.5rem 0;
+    line-height: 1.3;
+  }
+  .file-viewer-html h1:first-child,
+  .file-viewer-html h2:first-child {
+    margin-top: 0;
+  }
+  .file-viewer-html h1 {
+    font-size: 1.375rem;
+  }
+  .file-viewer-html h2 {
+    font-size: 1.125rem;
+  }
+  .file-viewer-html h3,
+  .file-viewer-html h4,
+  .file-viewer-html h5,
+  .file-viewer-html h6 {
+    font-size: 1rem;
+  }
+  .file-viewer-html strong,
+  .file-viewer-html b {
+    font-weight: 600;
+  }
+  .file-viewer-html em,
+  .file-viewer-html i {
+    font-style: italic;
+  }
+  .file-viewer-html u {
+    text-decoration: underline;
+  }
+  .file-viewer-html ul,
+  .file-viewer-html ol {
+    margin: 0 0 0.75rem 0;
+    padding-left: 1.5rem;
+  }
+  .file-viewer-html ul {
+    list-style: disc;
+  }
+  .file-viewer-html ol {
+    list-style: decimal;
+  }
+  .file-viewer-html li {
+    margin: 0.25rem 0;
+  }
+  .file-viewer-html blockquote {
+    margin: 0.75rem 0;
+    padding-left: 0.875rem;
+    border-left: 3px solid var(--color-border);
+  }
+  .file-viewer-html a {
+    color: var(--color-accent-text);
+    text-decoration: underline;
+  }
+  .file-viewer-html img {
+    max-width: 100%;
+    height: auto;
+    margin: 0.75rem 0;
+  }
+  .file-viewer-html hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: 1.25rem 0;
+  }
+  /* A wide table scrolls inside the page instead of widening it. */
+  .file-viewer-html table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+  }
+  .file-viewer-html th,
+  .file-viewer-html td {
+    border: 1px solid var(--color-border);
+    padding: 0.25rem 0.5rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .file-viewer-html th {
+    background: var(--color-surface-overlay);
+    font-weight: 600;
+  }
+  .file-viewer-html pre {
+    font-family: var(--font-mono);
+    white-space: pre-wrap;
+    margin: 0 0 0.75rem 0;
+  }
+}
+
+/*
+ * ── FileViewer: Word documents laid out by docx-preview ──
+ *
+ * The one exception to the layering above. docx-preview injects its own
+ * stylesheet, unlayered, with a gray backdrop and a heavy shadow, and an
+ * unlayered rule beats every layered one, so these have to be unlayered too.
+ * They are one class more specific than the library's, so they win without
+ * !important. Scoped to the viewer's host, so they style nothing else.
+ */
+
+.file-viewer-docx .docx-wrapper {
+  background: transparent;
+  padding: 1.5rem 1rem 0.5rem;
+  gap: 1rem;
+}
+
+.file-viewer-docx .docx-wrapper > section.docx {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  /* Narrow screens: a Letter or A4 page shrinks instead of scrolling sideways. */
+  max-width: 100%;
 }
