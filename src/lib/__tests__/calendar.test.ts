@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  WEEKDAY_LABELS,
+  addDays,
   compareMonths,
   dateKey,
   daysInMonth,
+  formatCalendarDate,
+  isWeekend,
   monthLabel,
   monthOfKey,
+  monthWeeks,
+  parseDateKey,
+  formatDateKey,
   shiftMonth,
+  startOfWeek,
   todayIn,
   weekdayOf,
 } from "../calendar";
@@ -93,5 +101,83 @@ describe("todayIn", () => {
   it("reads the reader's own calendar fields", () => {
     const now = new Date(2026, 8, 12, 23, 30);
     expect(todayIn(now)).toEqual({ year: 2026, month: 9, day: 12 });
+  });
+});
+
+describe("WEEKDAY_LABELS", () => {
+  it("starts on Monday, like weekdayOf", () => {
+    expect(WEEKDAY_LABELS[0]).toBe("Mon");
+    expect(WEEKDAY_LABELS[6]).toBe("Sun");
+  });
+});
+
+describe("addDays and startOfWeek", () => {
+  it("rolls over months and years in both directions", () => {
+    expect(addDays({ year: 2026, month: 12, day: 30 }, 3)).toEqual({ year: 2027, month: 1, day: 2 });
+    expect(addDays({ year: 2026, month: 3, day: 1 }, -1)).toEqual({ year: 2026, month: 2, day: 28 });
+  });
+
+  it("finds the Monday on or before a day", () => {
+    // 6 September 2026 is a Sunday; its week began on Monday 31 August.
+    expect(startOfWeek({ year: 2026, month: 9, day: 6 })).toEqual({ year: 2026, month: 8, day: 31 });
+    expect(startOfWeek({ year: 2026, month: 8, day: 31 })).toEqual({ year: 2026, month: 8, day: 31 });
+  });
+});
+
+describe("isWeekend", () => {
+  it("is Saturday and Sunday only", () => {
+    expect(isWeekend({ year: 2026, month: 9, day: 5 })).toBe(true);
+    expect(isWeekend({ year: 2026, month: 9, day: 6 })).toBe(true);
+    expect(isWeekend({ year: 2026, month: 9, day: 7 })).toBe(false);
+  });
+});
+
+describe("monthWeeks", () => {
+  it("lays a month out Monday-first in whole weeks, blank outside it", () => {
+    // 1 July 2026 is a Wednesday; the 31st a Friday.
+    const weeks = monthWeeks({ year: 2026, month: 7 });
+    expect(weeks).toHaveLength(5);
+    weeks.forEach((week) => expect(week).toHaveLength(7));
+    expect(weeks[0].slice(0, 3)).toEqual([null, null, { year: 2026, month: 7, day: 1 }]);
+    expect(weeks[4].slice(4)).toEqual([{ year: 2026, month: 7, day: 31 }, null, null]);
+  });
+
+  it("needs no padding for a month that starts on Monday and ends on Sunday", () => {
+    // February 2027 runs Monday 1st to Sunday 28th.
+    const weeks = monthWeeks({ year: 2027, month: 2 });
+    expect(weeks).toHaveLength(4);
+    expect(weeks.flat().every(Boolean)).toBe(true);
+  });
+});
+
+describe("parseDateKey", () => {
+  it("reads a key, or the date part of an instant", () => {
+    expect(parseDateKey("2026-09-03")).toEqual({ year: 2026, month: 9, day: 3 });
+    expect(parseDateKey("2026-09-03T23:00:00.000Z")).toEqual({ year: 2026, month: 9, day: 3 });
+  });
+
+  it("rejects days that do not exist", () => {
+    expect(parseDateKey("2026-02-29")).toBeNull();
+    expect(parseDateKey("2026-13-01")).toBeNull();
+    expect(parseDateKey("not a date")).toBeNull();
+  });
+});
+
+describe("formatCalendarDate", () => {
+  it("formats the calendar day, whatever the zone", () => {
+    expect(
+      formatCalendarDate({ year: 2026, month: 9, day: 14 }, { weekday: "short", month: "short", day: "numeric" }),
+    ).toBe("Mon, Sep 14");
+  });
+});
+
+describe("formatDateKey", () => {
+  it("writes a key or an ISO instant out by its date part, in any zone", () => {
+    expect(formatDateKey("2026-09-14", { weekday: "short", month: "short", day: "numeric" })).toBe("Mon, Sep 14");
+    expect(formatDateKey("2026-09-14T23:30:00.000Z", { month: "long", day: "numeric" })).toBe("September 14");
+  });
+
+  it("hands back what it was given when that is not a day", () => {
+    expect(formatDateKey("soon", { month: "short" })).toBe("soon");
   });
 });

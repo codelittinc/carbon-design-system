@@ -22,6 +22,7 @@ import {
   type ChartDatum,
   type ChartSeries,
   type ChartStateProps,
+  type ChartTooltipRenderer,
   type ChartValueFormatter,
   capSeries,
   formatChartValue,
@@ -61,6 +62,12 @@ export interface LineChartProps extends ChartStateProps {
   tickFormatter?: ChartValueFormatter;
   /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
   labelFormatter?: (label: string | number) => string;
+  /**
+   * Replaces the tooltip body, inside the standard tooltip shell, with your own
+   * — e.g. the names behind a count. Gets the hovered category and each visible
+   * series' value, color and full data row.
+   */
+  tooltipContent?: ChartTooltipRenderer;
   /** Name for the x dimension, used in the accessible table. */
   categoryLabel?: string;
   tableCaption?: string;
@@ -102,6 +109,7 @@ export function LineChart({
   valueFormatter = formatChartValue,
   tickFormatter,
   labelFormatter,
+  tooltipContent,
   categoryLabel = "Period",
   tableCaption,
   loading,
@@ -177,6 +185,7 @@ export function LineChart({
                 <ChartTooltipContent
                   valueFormatter={valueFormatter}
                   labelFormatter={labelFormatter}
+                  render={tooltipContent}
                 />
               }
             />

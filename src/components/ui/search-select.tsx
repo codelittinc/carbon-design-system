@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useId } from "react";
-import { Search, X, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useId, type ReactElement } from "react";
+import { Search, X, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useCreateOption } from "./use-create-option";
 
 interface SearchSelectOption {
   value: string;
@@ -26,6 +27,8 @@ interface SearchSelectProps {
   options: SearchSelectOption[];
   loading?: boolean;
   placeholder?: string;
+  /** Shown in the list when there are no options. Defaults to "No results". */
+  emptyMessage?: React.ReactNode;
   className?: string;
   /**
    * Applied to the trigger `<button>`, so an external `<label htmlFor={id}>` can
@@ -81,6 +84,19 @@ interface SearchSelectProps {
    * trigger button takes focus (it looks highlighted but can't be typed into).
    */
   autoFocus?: boolean;
+  /**
+   * Offers to create the typed value. It shows as the last option whenever the
+   * trimmed query has no option with exactly that label (ignoring case), and is
+   * hidden while `loading`. Called with the trimmed query; select the new
+   * record yourself (`value`, and an `options` entry for its label). The list
+   * closes once it resolves. While it is pending the option is disabled, so a
+   * second Enter or click cannot create twice. If it rejects, the list stays
+   * open with the query for another try, and the rejection is swallowed:
+   * report the error yourself (a toast) before rethrowing.
+   */
+  onCreate?: (input: string) => void | Promise<void>;
+  /** Text of the create option. Defaults to `Create "<input>"`. */
+  createLabel?: (input: string) => React.ReactNode;
 }
 
 export function SearchSelect({
@@ -91,6 +107,7 @@ export function SearchSelect({
   options,
   loading = false,
   placeholder = "Search...",
+  emptyMessage = "No results",
   className,
   id,
   ariaLabel,
@@ -102,7 +119,9 @@ export function SearchSelect({
   clearable = true,
   renderOption,
   autoFocus = false,
-}: SearchSelectProps) {
+  onCreate,
+  createLabel = (input) => `Create "${input}"`,
+}: SearchSelectProps): ReactElement {
   // Start open when auto-focusing so the search input is rendered on the first
   // paint and can receive focus (the input only exists in the DOM while open).
   const [open, setOpen] = useState(autoFocus);
@@ -122,6 +141,15 @@ export function SearchSelect({
   const requiredHintId = `${listboxId}-required`;
 
   const selectedOption = options.find((o) => o.value === value);
+
+  const trimmed = query.trim();
+  const showCreate =
+    !!onCreate &&
+    !loading &&
+    trimmed.length > 0 &&
+    !options.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
+  // The create option sits after the options, at index `options.length`.
+  const rowCount = options.length + (showCreate ? 1 : 0);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -205,6 +233,15 @@ export function SearchSelect({
     [onChange, closeList, cancelPendingSearch],
   );
 
+  const { creating, create } = useCreateOption(onCreate);
+  const handleCreate = useCallback(async () => {
+    cancelPendingSearch();
+    await create(trimmed, () => {
+      setQuery("");
+      closeList();
+    });
+  }, [create, trimmed, cancelPendingSearch, closeList]);
+
   const handleClear = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -248,8 +285,8 @@ export function SearchSelect({
             openList(options.length ? 0 : -1);
             return;
           }
-          if (options.length === 0) return;
-          setActiveIndex((i) => (i + 1) % options.length);
+          if (rowCount === 0) return;
+          setActiveIndex((i) => (i + 1) % rowCount);
           break;
         }
         case "ArrowUp": {
@@ -259,9 +296,9 @@ export function SearchSelect({
             openList(options.length ? options.length - 1 : -1);
             return;
           }
-          if (options.length === 0) return;
+          if (rowCount === 0) return;
           // From no active option (-1), ArrowUp wraps to the last option.
-          setActiveIndex((i) => (i <= 0 ? options.length - 1 : i - 1));
+          setActiveIndex((i) => (i <= 0 ? rowCount - 1 : i - 1));
           break;
         }
         case "Enter": {
@@ -270,10 +307,13 @@ export function SearchSelect({
           // fall through as the implicit submit of a surrounding <form> — the
           // user is choosing a value, not sending the form. A closed trigger
           // is a type="button", so Enter there opens the list as a click does.
+          // The create option (index `options.length`) is a row like any other.
           if (open) {
             e.preventDefault();
             if (activeIndex >= 0 && options[activeIndex]) {
               handleSelect(options[activeIndex].value);
+            } else if (showCreate && activeIndex === options.length) {
+              void handleCreate();
             }
           }
           break;
@@ -287,7 +327,7 @@ export function SearchSelect({
         }
       }
     },
-    [open, options, activeIndex, openList, closeList, handleSelect],
+    [open, options, activeIndex, openList, closeList, handleSelect, rowCount, showCreate, handleCreate],
   );
 
   return (
@@ -376,8 +416,8 @@ export function SearchSelect({
           <div ref={listRef} role="listbox" id={listboxId} className="max-h-60 overflow-y-auto py-1">
             {loading ? (
               <div className="px-3 py-4 text-center text-sm text-text-muted">Searching...</div>
-            ) : options.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-text-muted">No results</div>
+            ) : options.length === 0 && !showCreate ? (
+              <div className="px-3 py-4 text-center text-sm text-text-muted">{emptyMessage}</div>
             ) : (
               options.map((option, i) => (
                 <button
@@ -410,6 +450,27 @@ export function SearchSelect({
                   )}
                 </button>
               ))
+            )}
+            {showCreate && (
+              <button
+                id={optionId(options.length)}
+                role="option"
+                aria-selected={false}
+                aria-disabled={creating || undefined}
+                type="button"
+                tabIndex={-1}
+                onClick={() => void handleCreate()}
+                onMouseEnter={() => setActiveIndex(options.length)}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-accent-text transition-colors hover:bg-surface-overlay",
+                  activeIndex === options.length && "bg-surface-overlay",
+                  creating && "cursor-wait opacity-50",
+                  optionClassName,
+                )}
+              >
+                <Plus size={12} aria-hidden="true" className="shrink-0" />
+                <span className="min-w-0 truncate">{createLabel(trimmed)}</span>
+              </button>
             )}
           </div>
         </div>

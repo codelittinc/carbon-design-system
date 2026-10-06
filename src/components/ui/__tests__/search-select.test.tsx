@@ -521,3 +521,159 @@ describe("SearchSelect", () => {
     });
   });
 });
+
+describe("SearchSelect onCreate", () => {
+  function open() {
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    return screen.getByRole("combobox");
+  }
+
+  it("offers to create the query when no label matches it exactly", async () => {
+    const onCreate = vi.fn(async () => {});
+    render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={OPTIONS} onCreate={onCreate} />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: " Cherry " } });
+    const create = screen.getByRole("option", { name: 'Create "Cherry"' });
+    expect(screen.queryByText("No results")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(create);
+    });
+    expect(onCreate).toHaveBeenCalledWith("Cherry");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("hides it on an exact match, ignoring case, and while loading", () => {
+    const { rerender } = render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={OPTIONS} onCreate={() => {}} />,
+    );
+    fireEvent.change(open(), { target: { value: "apple" } });
+    expect(screen.queryByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "app" } });
+    expect(screen.getByRole("option", { name: 'Create "app"' })).toBeInTheDocument();
+
+    rerender(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={OPTIONS} onCreate={() => {}} loading />,
+    );
+    expect(screen.queryByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+  });
+
+  it("reaches it with the arrow keys, after the options", async () => {
+    const onCreate = vi.fn();
+    render(
+      <SearchSelect
+        value={null}
+        onChange={() => {}}
+        onSearch={() => {}}
+        options={OPTIONS}
+        onCreate={onCreate}
+        createLabel={(input) => `New fruit: ${input}`}
+      />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    fireEvent.keyDown(input, { key: "ArrowUp" }); // wraps to the last row
+    expect(input).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "New fruit: Kiwi" }).id,
+    );
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(onCreate).toHaveBeenCalledWith("Kiwi");
+  });
+
+  it("Enter on the create option creates it and never submits a surrounding form", async () => {
+    const onCreate = vi.fn();
+    const onChange = vi.fn();
+    render(
+      <form>
+        <SearchSelect value={null} onChange={onChange} onSearch={() => {}} options={[]} onCreate={onCreate} />
+      </form>,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // the create option is the only row
+    let notPrevented = true;
+    await act(async () => {
+      notPrevented = fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(notPrevented).toBe(false);
+    expect(onCreate).toHaveBeenCalledWith("Kiwi");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("SearchSelect onCreate while pending", () => {
+  function open() {
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    return screen.getByRole("combobox");
+  }
+
+  it("creates once for a double Enter or double click, and disables the row meanwhile", async () => {
+    let resolve!: () => void;
+    const onCreate = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={[]} onCreate={onCreate} />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const row = screen.getByRole("option", { name: 'Create "Kiwi"' });
+    fireEvent.click(row);
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+
+    await act(async () => resolve());
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("swallows a rejected create and lets it be tried again", async () => {
+    const onCreate = vi.fn().mockRejectedValueOnce(new Error("taken")).mockResolvedValue(undefined);
+    render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={[]} onCreate={onCreate} />,
+    );
+    const input = open();
+    fireEvent.change(input, { target: { value: "Kiwi" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: 'Create "Kiwi"' }));
+    });
+    // Still open with the query, ready for another try.
+    const row = screen.getByRole("option", { name: 'Create "Kiwi"' });
+    expect(row).not.toHaveAttribute("aria-disabled");
+    await act(async () => {
+      fireEvent.click(row);
+    });
+    expect(onCreate).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchSelect emptyMessage", () => {
+  it("replaces the default empty text", () => {
+    const { unmount } = render(
+      <SearchSelect value={null} onChange={() => {}} onSearch={() => {}} options={[]} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    expect(screen.getByText("No results")).toBeInTheDocument();
+    unmount();
+
+    render(
+      <SearchSelect
+        value={null}
+        onChange={() => {}}
+        onSearch={() => {}}
+        options={[]}
+        emptyMessage="Type at least 2 characters…"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    expect(screen.getByText("Type at least 2 characters…")).toBeInTheDocument();
+    expect(screen.queryByText("No results")).not.toBeInTheDocument();
+  });
+});

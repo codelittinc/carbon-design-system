@@ -5,7 +5,9 @@ import {
   CHART_NEUTRAL_COLOR,
   ChartEmpty,
   ChartSkeleton,
+  ChartSliceTooltipContent,
   ChartTooltipContent,
+  type DonutTooltipContext,
   type ChartStateProps,
   type ChartValueFormatter,
   formatChartValue,
@@ -49,6 +51,12 @@ export interface DonutChartProps extends ChartStateProps {
   categoryLabel?: string;
   tableCaption?: string;
   onSliceClick?: (datum: DonutChartDatum, index: number) => void;
+  /**
+   * Replaces the tooltip body, inside the standard tooltip shell, with your own
+   * — e.g. the names behind a slice. `datum` is the slice's row as you passed
+   * it (with any extra fields), or a synthetic row for the folded "Other".
+   */
+  tooltipContent?: (ctx: DonutTooltipContext<DonutChartDatum>) => React.ReactNode;
   className?: string;
 }
 
@@ -86,6 +94,7 @@ export function DonutChart({
   categoryLabel = "Category",
   tableCaption,
   onSliceClick,
+  tooltipContent,
   loading,
   emptyTitle,
   emptyDescription,
@@ -147,7 +156,15 @@ export function DonutChart({
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <RechartsTooltip content={<ChartTooltipContent valueFormatter={valueFormatter} />} />
+            <RechartsTooltip
+              content={
+                tooltipContent ? (
+                  <ChartSliceTooltipContent render={tooltipContent} />
+                ) : (
+                  <ChartTooltipContent valueFormatter={valueFormatter} />
+                )
+              }
+            />
             <Pie
               data={slices}
               dataKey="value"

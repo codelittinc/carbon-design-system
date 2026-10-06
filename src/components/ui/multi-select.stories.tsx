@@ -40,3 +40,31 @@ export const WithTags: Story = {
     );
   },
 };
+
+/** `onCreate` adds a value that is not in the list yet: type "Design" and pick the last option. */
+export const WithCreate: Story = {
+  render: () => {
+    const [options, setOptions] = useState([
+      { value: "react", label: "React" },
+      { value: "rails", label: "Rails" },
+    ]);
+    const [value, setValue] = useState<string[]>([]);
+    return (
+      <div className="w-80">
+        <MultiSelect
+          ariaLabel="Skills"
+          value={value}
+          onChange={setValue}
+          options={options}
+          placeholder="Search or add skills…"
+          onCreate={(input) => {
+            const created = { value: input.toLowerCase(), label: input };
+            setOptions((o) => [...o, created]);
+            setValue((v) => [...v, created.value]);
+          }}
+        />
+        <p className="mt-2 text-xs text-text-muted">Selected: {value.join(", ") || "(none)"}</p>
+      </div>
+    );
+  },
+};

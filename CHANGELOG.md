@@ -8,6 +8,163 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.17.0] - 2026-10-06
+
+### New components: TimesheetTable, EventCalendar, CategoryChip, StatusIndicator, CheckboxGroup, HoverCard, Table
+
+Added while moving Backstage off the Backstage design system, which had these and
+Carbon did not. Each is built on the semantic tokens, so it works in both themes.
+
+- **`TimesheetTable`**: a person's hours per contract per day, in a weekly grid
+  or a monthly calendar, with expected hours, time off and a progress summary.
+  Edits save 15 seconds after the last change (or with Save, or on navigating),
+  only changed cells are sent, and "Revert" undoes a save for 5 seconds. The
+  props, the `TimesheetApi` shape and `createDefaultApi(baseUrl, headers)` are
+  the Backstage design system's, unchanged, so existing call sites keep working.
+  Types: `TimesheetTableProps`, `TimesheetContract`, `TimesheetEntry`,
+  `TimesheetApi`, `TimeEntryResponse`, `ExpectedHoursResponse`, `SaveResponse`,
+  `TimesheetTimeOff`, `TimesheetViewMode`, `TimesheetGridData`. A failed load
+  now shows an inline error with "Try again" as well as the error toast.
+  "Today" is the reader's local day (as in `MonthCalendar`), not the UTC one,
+  so in the Americas the current day no longer flips to tomorrow in the
+  evening.
+
+  Fixed against the Backstage version:
+  - A failed save no longer loses edits on Prev, Next, Today or a view
+    switch: the table stays on the period, the grid stays unsaved with Save,
+    and the error toast is shown.
+  - `api`, `apiHeaders` and `onNavigate` can be passed inline. They are read
+    when used, so a parent re-render no longer refetches and wipes the edits,
+    and `onNavigate` fires only when the period changes. A new `baseUrl`
+    still refetches.
+  - A failed Revert leaves the reverted values on screen, unsaved, with Save,
+    instead of looking saved.
+  - Typing into an empty cell and clearing it again is no longer an unsaved
+    change.
+  - The hours cells are text inputs with a decimal keypad (as `MoneyInput`),
+    not number inputs, so Left and Right at the edge of a value move between
+    weekly cells, as they always meant to. Only 0–24 with up to two decimals
+    is taken. Tests that found them by the `spinbutton` role should use
+    `textbox` (or the label).
+  - Escape in the month view's inline hours field closes it and puts focus
+    back on the day.
+- **`EventCalendar`**: a month grid of items per day (who is off, what is
+  due), generic over the item type, with a "+N more" popover past
+  `maxVisibleItems`. The Backstage design system's `MonthCalendar` under a new
+  name, because Carbon's `MonthCalendar` is a day picker. Its API matches
+  Carbon's `MonthCalendar`, not the old one: `month` is a `YearMonth`
+  (`{ year, month }`) and `onMonthChange` gets one, where the old component
+  took `"YYYY-MM"` strings. **Weeks start on Monday**, and days outside the
+  month are blank (the old one started on Sunday and showed the neighbouring
+  months' days). It is a `role="table"` (rows, `columnheader` weekdays and
+  `cell` days), not a `grid`: the days are reached with Tab, not arrow keys.
+- **`CategoryChip`**: a small clickable chip whose fill is split into one
+  color band per category, with a white label. A `Button` underneath, so focus
+  and disabled states match every other button. Forwards its ref.
+- **`StatusIndicator`**: a colored dot for a status. You pass the `color` (any
+  CSS color, such as `"var(--color-chart-2)"`) and the `label`, which is also
+  the dot's accessible name; the app keeps its own status → color mapping. Use
+  `ChartLegend` as the key for a set of them; there is no separate legend.
+- **`CheckboxGroup`**: labelled checkboxes for choosing any of a few options,
+  in a `role="group"`, horizontal or vertical. `name` submits each checked
+  value with a form. `MultiStatusFilter` now renders one inside its popover.
+- **`HoverCard`** (`HoverCardTrigger`, `HoverCardContent`): a preview that
+  opens on hover or keyboard focus, on Radix's hover card. A click on the
+  trigger pins it open until a second click, Escape or a click outside, which
+  is also how it opens on a touch screen. The trigger has `aria-expanded`, and
+  `aria-controls` while open. **For preview content only:** the card is not
+  in the Tab order, so a keyboard user cannot reach a link or button in it.
+  Put interactive content in a `Popover`. Adds the `@radix-ui/react-hover-card`
+  dependency.
+- **`Table`** (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`,
+  `TableHead`, `TableCell`): the table elements, styled once. `DataTable` and
+  `TimesheetTable` are now built from them; use them for a table `DataTable`
+  does not fit.
+
+### One calendar grid, Monday-first
+
+`MonthCalendar`, `EventCalendar` and `TimesheetTable`'s month view now draw
+from the same layout, `monthWeeks(month)` in `lib/calendar`, and every grid
+starts its week on Monday. There is no option to change that. New calendar
+exports for anyone laying out days: `monthWeeks`, `WEEKDAY_LABELS`, `addDays`,
+`startOfWeek`, `isWeekend`, `parseDateKey`, `formatCalendarDate` and
+`formatDateKey` (a `"2026-09-14"` key or ISO instant written out, or the
+string unchanged if it is not a day).
+`MonthCalendar` looks and behaves as before.
+
+### Categorical colors
+
+`getCategoricalColor(id)` gives an entity (a project, a team) a stable color
+from its numeric id, and `getCategoricalSegments(ids)` turns a list of ids into
+`CategoryChip` segments, capped at `MAX_CHIP_SEGMENTS` with a "+N" overflow.
+Also `CATEGORICAL_PALETTE`, `NEUTRAL_CATEGORICAL_COLOR`, `OVERFLOW_SEGMENT_COLOR`
+and the `CategoricalSegment` type. They are exported from `/utils` too, for
+server components.
+
+The values are `var(--color-category-*)` references to **new tokens**
+`--color-category-1` … `--color-category-11`, `--color-category-neutral`,
+`--color-category-overflow` and `--color-category-foreground` (white). They are
+fills under white text, so every one clears 4.5:1 against it. Unlike the
+`chart-*` slots they cycle (the set of ids has no end) and they are the same in
+both themes, so an entity keeps one color whoever is looking.
+They sit in an `@theme static` block, so Tailwind always emits all of them:
+`getCategoricalColor` builds the names at runtime, where a source scan cannot
+see them.
+
+### DataTable: alignment, row classes, server-side sorting, expandable rows
+
+All optional; a table that passes none of them behaves as before.
+
+- Column `meta`: `align` (`left` · `right` · `center`) aligns the header and
+  the cells, and `className` / `headerClassName` add classes to them. `meta` is
+  typed on TanStack's `ColumnMeta`, so it needs no cast.
+- `rowClassName(row)`: extra classes per row, applied over the stripe and
+  hover, so a tint or `opacity-60` wins.
+- `sorting` + `onSortingChange` control the sort, and `manualSorting` leaves
+  the order of `data` alone, for a server sort. A sorted header now shows an
+  up or down arrow, and `aria-sort`. `SortingState` is re-exported.
+- Expandable rows: `renderExpanded(row)` shows a full-width detail row (on
+  `surface-raised`) under an opened row, toggled by a chevron button in a new
+  leading column (`aria-expanded`, named "Show details"). The toggle never
+  fires `onRowClick`. `getRowCanExpand(row)` limits which rows get one (all, by
+  default), and `expandOnRowClick` lets a click anywhere on the row toggle it.
+  Open rows stay open across a refetch when rows are keyed with `getRowId`.
+
+### Charts: custom tooltip content
+
+`tooltipContent` on `LineChart` and `BarChart` replaces the tooltip body,
+inside the standard tooltip shell, with your own. It gets
+`{ label, payload: [{ key, label, value, color, datum }] }`: the hovered
+category and each visible series, with the full data row. `DonutChart` takes
+one too, called with `{ datum, value, color }` for the hovered slice. Return
+`null` for no tooltip. Without it the tooltips are unchanged. New types:
+`ChartTooltipRenderer`, `ChartTooltipContext`, `ChartTooltipEntry`,
+`DonutTooltipContext`.
+
+### MultiStatusFilter
+
+Its trigger is now a `Button` (outline), and its options are a vertical
+`CheckboxGroup`. The rows keep their full-width hover; option labels now use
+the secondary text color, as `CheckboxGroup` does, and each is tied to its
+checkbox with `for`/`id`. No API change.
+
+### SearchSelect and MultiSelect: create a missing option
+
+- **`onCreate(input)`** and **`createLabel(input)`** (default `Create "…"`) on
+  both. The create option is the last one, shown when the trimmed search has
+  no option with exactly that label (ignoring case). The arrow keys reach it
+  after the options, and in `SearchSelect` Enter on it creates the value and,
+  like Enter anywhere in the open list (1.15.5), never submits a surrounding
+  form.
+- One create at a time: while `onCreate` is pending the option is disabled,
+  so a second Enter, click or press does nothing. If it rejects, the typed
+  text stays for another try and the rejection is swallowed, so report the
+  error yourself (a toast) in `onCreate`.
+- **`MultiSelect`** gained `onSearchChange(query)` for server-side search
+  (it then shows `options` as given, without filtering them) and `loading`.
+- **`SearchSelect`** gained `emptyMessage`, shown when there are no options
+  (default "No results").
+
 ## [1.16.0] - 2026-10-02
 
 ### `ThemeProvider`: start from a stored theme, skip localStorage, hear changes

@@ -1,7 +1,7 @@
 import { RichTextFormatting } from './utils.js';
-export { LinkHrefOptions, LinkHrefReason, LinkHrefResult, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText } from './utils.js';
+export { CATEGORICAL_PALETTE, CategoricalSegment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText } from './utils.js';
 import * as react from 'react';
-import { ReactNode } from 'react';
+import { ReactElement, ReactNode } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
 import { VariantProps } from 'class-variance-authority';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
@@ -15,9 +15,10 @@ import * as ProgressPrimitive from '@radix-ui/react-progress';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
+import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { ColumnDef } from '@tanstack/react-table';
-export { ColumnDef } from '@tanstack/react-table';
+import { RowData, ColumnDef, SortingState } from '@tanstack/react-table';
+export { ColumnDef, SortingState } from '@tanstack/react-table';
 import 'clsx';
 
 interface AddressAutocompleteProps$1 {
@@ -113,13 +114,13 @@ interface AlertProps extends VariantProps<typeof alertVariants> {
  */
 declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): react.JSX.Element;
 
-declare const sizeClasses: {
+declare const sizeClasses$1: {
     readonly sm: "h-4 w-4 border-2";
     readonly md: "h-6 w-6 border-2";
     readonly lg: "h-10 w-10 border-[3px]";
 };
 interface SpinnerProps {
-    size?: keyof typeof sizeClasses;
+    size?: keyof typeof sizeClasses$1;
     /**
      * Text shown under the spinner. Also its accessible name; without one the
      * spinner is announced as "Loading".
@@ -177,6 +178,26 @@ interface MultiSelectProps {
     id?: string;
     ariaLabel?: string;
     className?: string;
+    /**
+     * Called on every keystroke in the search. When given, the caller owns the
+     * filtering — fetch matching `options` from the server — and the list shows
+     * `options` as passed instead of filtering them itself.
+     */
+    onSearchChange?: (query: string) => void;
+    /** Shows "Loading…" in place of an empty list, while server results are on the way. */
+    loading?: boolean;
+    /**
+     * Offers to create the typed value. It shows as the last option whenever the
+     * trimmed search has no option with exactly that label (ignoring case), and
+     * is called with the trimmed search. Add the new option to `options` and its
+     * value to `value` yourself; the search clears once it resolves. While it is
+     * pending the option is disabled, so a second Enter or press cannot create
+     * twice. If it rejects, the search stays for another try, and the rejection
+     * is swallowed: report the error yourself (a toast) before rethrowing.
+     */
+    onCreate?: (input: string) => void | Promise<void>;
+    /** Text of the create option. Defaults to `Create "<input>"`. */
+    createLabel?: (input: string) => React.ReactNode;
 }
 /**
  * A searchable list that toggles several values on and off. The list stays open
@@ -186,8 +207,11 @@ interface MultiSelectProps {
  * chip (a status, a warning), so render the selection beside it — `Tag` with
  * `onRemove` is the usual fit. Backspace in an empty search removes the last
  * value.
+ *
+ * For a list searched on the server, pass `onSearchChange` and `loading`. To
+ * let people add a value that is not there yet, pass `onCreate`.
  */
-declare function MultiSelect({ value, onChange, options, placeholder, emptyMessage, disabled, id, ariaLabel, className, }: MultiSelectProps): react.JSX.Element;
+declare function MultiSelect({ value, onChange, options, placeholder, emptyMessage, disabled, id, ariaLabel, className, onSearchChange, loading, onCreate, createLabel, }: MultiSelectProps): ReactElement;
 
 interface SegmentedControlOption {
     value: string;
@@ -217,6 +241,82 @@ interface SegmentedControlProps {
  * switch what is shown, and `Select` when there are more than about four.
  */
 declare function SegmentedControl({ options, value, onChange, name, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, "aria-describedby": ariaDescribedBy, "aria-required": ariaRequired, error, disabled, size, className, }: SegmentedControlProps): react.JSX.Element;
+
+interface CategoryChipSegment {
+    /** Any CSS color. Usually from `getCategoricalColor` / `getCategoricalSegments`. */
+    color: string;
+}
+interface CategoryChipProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
+    /** At least one. Each is drawn at an equal width, left to right. */
+    segments: CategoryChipSegment[];
+    label: React.ReactNode;
+}
+/**
+ * A compact clickable chip filled with the colors of the categories it belongs
+ * to — one equal band each, such as a calendar entry for someone on several
+ * projects. The label is white, so the colors must be fills that hold white
+ * text: the categorical palette is made for this.
+ *
+ * A `Button` underneath, so focus, disabled and `type="button"` behave like
+ * every other button. The bands are decoration: give the chip an `aria-label`
+ * that names what the colors stand for when the label alone does not.
+ */
+declare const CategoryChip: react.ForwardRefExoticComponent<CategoryChipProps & react.RefAttributes<HTMLButtonElement>>;
+
+declare const sizeClasses: {
+    readonly sm: "h-3 w-3";
+    readonly md: "h-4 w-4";
+};
+interface StatusIndicatorProps {
+    /**
+     * Any CSS color. Prefer a token reference such as `"var(--color-chart-2)"`
+     * so the dot follows the theme.
+     */
+    color: string;
+    /** What the color means. Also the dot's accessible name and hover title. */
+    label: string;
+    /** Shows the label as text beside the dot. */
+    showLabel?: boolean;
+    size?: keyof typeof sizeClasses;
+    className?: string;
+}
+/**
+ * A colored dot that stands for a status. The meaning is always carried by
+ * `label` — as text with `showLabel`, otherwise as the dot's accessible name —
+ * never by the color alone. The caller owns the status → color mapping; pair
+ * it with `ChartLegend` to explain the colors once for a whole list.
+ */
+declare function StatusIndicator({ color, label, showLabel, size, className, }: StatusIndicatorProps): ReactElement;
+
+interface CheckboxGroupOption {
+    value: string;
+    label: string;
+    disabled?: boolean;
+}
+interface CheckboxGroupProps {
+    /** The checked options' values, in the order they were checked. */
+    value: string[];
+    onChange: (value: string[]) => void;
+    options: CheckboxGroupOption[];
+    /**
+     * Submits each checked value under this name with a surrounding form — the
+     * same shape as a group of native checkboxes sharing a name.
+     */
+    name?: string;
+    orientation?: "horizontal" | "vertical";
+    /** Disables every option. */
+    disabled?: boolean;
+    className?: string;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
+}
+/**
+ * A set of labelled checkboxes for choosing any number of a few options, all
+ * visible — a filter's "Active / Inactive", a user's roles. Use `MultiSelect`
+ * when there are too many options to show at once. `MultiStatusFilter` puts a
+ * vertical one inside a popover.
+ */
+declare function CheckboxGroup({ value, onChange, options, name, orientation, disabled, className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, }: CheckboxGroupProps): ReactElement;
 
 interface StatusBadgeProps {
     status: string;
@@ -460,6 +560,25 @@ declare const PopoverTrigger: react.ForwardRefExoticComponent<PopoverPrimitive.P
 declare const PopoverAnchor: react.ForwardRefExoticComponent<PopoverPrimitive.PopoverAnchorProps & react.RefAttributes<HTMLDivElement>>;
 declare const PopoverContent: react.ForwardRefExoticComponent<Omit<PopoverPrimitive.PopoverContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
+type HoverCardProps = React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Root>;
+/**
+ * A preview that opens while the pointer rests on its trigger, or while the
+ * trigger has keyboard focus — a person's details behind a calendar chip. A
+ * click on the trigger PINS it open until a second click, Escape or a click
+ * outside, which is also how a touch screen opens it.
+ *
+ * The trigger carries `aria-expanded` and, while open, `aria-controls`.
+ *
+ * **For preview content only.** The card is not in the Tab order (Radix keeps
+ * a hover card out of it), so a keyboard user cannot reach a link or button
+ * inside it. Put interactive content in a `Popover`, which takes focus. Use
+ * `Tooltip` for a line of text naming a control.
+ */
+declare function HoverCard({ open: controlledOpen, defaultOpen, onOpenChange, openDelay, closeDelay, ...props }: HoverCardProps): ReactElement;
+/** The trigger. Pass `asChild` to make your own `Button` or `CategoryChip` it. */
+declare const HoverCardTrigger: react.ForwardRefExoticComponent<Omit<HoverCardPrimitive.HoverCardTriggerProps & react.RefAttributes<HTMLAnchorElement>, "ref"> & react.RefAttributes<HTMLAnchorElement>>;
+declare const HoverCardContent: react.ForwardRefExoticComponent<Omit<HoverCardPrimitive.HoverCardContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
+
 declare const ScrollArea: react.ForwardRefExoticComponent<Omit<ScrollAreaPrimitive.ScrollAreaProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
 type ToastVariant = "default" | "success" | "error" | "info" | "warning";
@@ -512,6 +631,42 @@ interface PageHeaderProps {
 }
 declare function PageHeader({ title, description, actions, className }: PageHeaderProps): react.JSX.Element;
 
+/**
+ * The table elements, styled once. `DataTable` is built from these; use them
+ * directly for a table `DataTable` does not fit — an editable grid, a short
+ * summary inside a `Card`. Every part takes `className`, merged last, so a
+ * cell's padding or alignment can be overridden in place.
+ */
+declare const Table: react.ForwardRefExoticComponent<react.TableHTMLAttributes<HTMLTableElement> & react.RefAttributes<HTMLTableElement>>;
+/** The heading rows. Their bottom border is the full `border` token, not the subtle one. */
+declare const TableHeader: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+declare const TableBody: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+/** Totals. A heavier rule above sets them off from the body. */
+declare const TableFooter: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableSectionElement> & react.RefAttributes<HTMLTableSectionElement>>;
+declare const TableRow: react.ForwardRefExoticComponent<react.HTMLAttributes<HTMLTableRowElement> & react.RefAttributes<HTMLTableRowElement>>;
+declare const TableHead: react.ForwardRefExoticComponent<react.ThHTMLAttributes<HTMLTableCellElement> & react.RefAttributes<HTMLTableCellElement>>;
+declare const TableCell: react.ForwardRefExoticComponent<react.TdHTMLAttributes<HTMLTableCellElement> & react.RefAttributes<HTMLTableCellElement>>;
+
+/**
+ * Per-column presentation, set on a column's `meta`:
+ *
+ * ```ts
+ * { accessorKey: "amount", header: "Amount", meta: { align: "right", className: "w-32" } }
+ * ```
+ *
+ * Declared on TanStack's own `ColumnMeta` so it typechecks in the consumer's
+ * column definitions with no cast.
+ */
+declare module "@tanstack/react-table" {
+    interface ColumnMeta<TData extends RowData, TValue> {
+        /** Aligns the header and the cells. Right for numbers. Defaults to left. */
+        align?: "left" | "right" | "center";
+        /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
+        className?: string;
+        /** Extra classes on the column's header cell. */
+        headerClassName?: string;
+    }
+}
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
@@ -547,8 +702,33 @@ interface DataTableProps<TData, TValue> {
      * the column sort survives.
      */
     resetPageOn?: unknown;
+    /** Extra classes for a row, applied after the stripe and hover so a tint wins. */
+    rowClassName?: (row: TData) => string | undefined;
+    /**
+     * Controlled sort. Without it the table keeps its own sort state, as before.
+     * With `manualSorting` the table only reports header clicks through
+     * `onSortingChange` and shows `data` in the order given — for a server sort.
+     */
+    sorting?: SortingState;
+    onSortingChange?: (sorting: SortingState) => void;
+    manualSorting?: boolean;
+    /**
+     * Detail shown in a full-width row under an expanded row — an audit entry's
+     * changed fields, say. Setting it adds a leading column with a toggle button
+     * on every row that can expand. Pair with `getRowId` so a refetch keeps the
+     * same rows open.
+     */
+    renderExpanded?: (row: TData) => React.ReactNode;
+    /** Which rows get a toggle. Defaults to every row when `renderExpanded` is set. */
+    getRowCanExpand?: (row: TData) => boolean;
+    /**
+     * A click anywhere on an expandable row toggles it too, not just the button.
+     * `onRowClick` still fires for those clicks; a click on the button itself
+     * never reaches `onRowClick`.
+     */
+    expandOnRowClick?: boolean;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, }: DataTableProps<TData, TValue>): react.JSX.Element;
+declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, rowClassName, sorting: controlledSorting, onSortingChange, manualSorting, renderExpanded, getRowCanExpand, expandOnRowClick, }: DataTableProps<TData, TValue>): ReactElement;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;
@@ -676,6 +856,8 @@ interface SearchSelectProps {
     options: SearchSelectOption[];
     loading?: boolean;
     placeholder?: string;
+    /** Shown in the list when there are no options. Defaults to "No results". */
+    emptyMessage?: React.ReactNode;
     className?: string;
     /**
      * Applied to the trigger `<button>`, so an external `<label htmlFor={id}>` can
@@ -731,8 +913,21 @@ interface SearchSelectProps {
      * trigger button takes focus (it looks highlighted but can't be typed into).
      */
     autoFocus?: boolean;
+    /**
+     * Offers to create the typed value. It shows as the last option whenever the
+     * trimmed query has no option with exactly that label (ignoring case), and is
+     * hidden while `loading`. Called with the trimmed query; select the new
+     * record yourself (`value`, and an `options` entry for its label). The list
+     * closes once it resolves. While it is pending the option is disabled, so a
+     * second Enter or click cannot create twice. If it rejects, the list stays
+     * open with the query for another try, and the rejection is swallowed:
+     * report the error yourself (a toast) before rethrowing.
+     */
+    onCreate?: (input: string) => void | Promise<void>;
+    /** Text of the create option. Defaults to `Create "<input>"`. */
+    createLabel?: (input: string) => React.ReactNode;
 }
-declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, className, id, ariaLabel, required, requiredLabel, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, }: SearchSelectProps): react.JSX.Element;
+declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, emptyMessage, className, id, ariaLabel, required, requiredLabel, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, onCreate, createLabel, }: SearchSelectProps): ReactElement;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */
@@ -923,6 +1118,29 @@ interface TooltipPayloadItem {
     dataKey?: string | number;
     payload?: Record<string, unknown>;
 }
+/** One plotted series at the hovered category, as a custom tooltip sees it. */
+interface ChartTooltipEntry {
+    /** The series `key`. */
+    key: string;
+    /** The series `label`. */
+    label: string;
+    value: number;
+    color: string;
+    /** The whole data row for the hovered category. */
+    datum: ChartDatum;
+}
+interface ChartTooltipContext {
+    /** The hovered category, as in the data (before any `labelFormatter`). */
+    label: string | number;
+    /** The visible series, in plot order. */
+    payload: ChartTooltipEntry[];
+}
+/**
+ * A custom tooltip body for `LineChart` and `BarChart`. It renders inside the
+ * standard tooltip shell, replacing the heading and rows. Return `null` to show
+ * no tooltip for that category.
+ */
+type ChartTooltipRenderer = (ctx: ChartTooltipContext) => react.ReactNode;
 interface ChartTooltipContentProps {
     active?: boolean;
     payload?: TooltipPayloadItem[];
@@ -930,12 +1148,32 @@ interface ChartTooltipContentProps {
     valueFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a short week key into a full date. */
     labelFormatter?: (label: string | number) => string;
+    /** Replaces the body. See `ChartTooltipRenderer`. */
+    render?: ChartTooltipRenderer;
 }
 /**
  * Tooltip body. Values are monospaced so they stay column-aligned across rows,
  * matching the tabular-nums treatment used in tables.
  */
-declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, }: ChartTooltipContentProps): react.JSX.Element | null;
+declare function ChartTooltipContent({ active, payload, label, valueFormatter, labelFormatter, render, }: ChartTooltipContentProps): react.JSX.Element | null;
+/** The hovered slice of a `DonutChart`, as a custom tooltip sees it. */
+interface DonutTooltipContext<TDatum = {
+    label: string;
+    value: number;
+    color?: string;
+}> {
+    /** The slice's data row — the folded "Other" slice gets a synthetic one. */
+    datum: TDatum;
+    value: number;
+    color: string;
+}
+interface SliceTooltipContentProps<TDatum> {
+    active?: boolean;
+    payload?: TooltipPayloadItem[];
+    render: (ctx: DonutTooltipContext<TDatum>) => react.ReactNode;
+}
+/** Custom tooltip body for a pie slice, in the standard shell. */
+declare function ChartSliceTooltipContent<TDatum>({ active, payload, render, }: SliceTooltipContentProps<TDatum>): react.ReactElement | null;
 interface ChartDataTableProps {
     caption: string;
     categoryLabel: string;
@@ -1039,6 +1277,12 @@ interface BarChartProps extends ChartStateProps {
     tickFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
     labelFormatter?: (label: string | number) => string;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a count. Gets the hovered category and each visible
+     * series' value, color and full data row.
+     */
+    tooltipContent?: ChartTooltipRenderer;
     /** Name for the category dimension, used in the accessible table. */
     categoryLabel?: string;
     /** Caption for the accessible table. Falls back to a generic description. */
@@ -1063,7 +1307,7 @@ interface BarChartProps extends ChartStateProps {
  * Renders a visually hidden data table alongside the plot, so the values are
  * reachable by screen reader and in forced-colors mode.
  */
-declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
+declare function BarChart({ data, categoryKey, series, orientation, stacked, colorBy, valueLabels, legend, toggleableSeries, height, maxBarSize, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, onBarClick, loading, emptyTitle, emptyDescription, className, }: BarChartProps): react.JSX.Element;
 
 interface LineChartProps extends ChartStateProps {
     data: ChartDatum[];
@@ -1098,6 +1342,12 @@ interface LineChartProps extends ChartStateProps {
     tickFormatter?: ChartValueFormatter;
     /** Rewrites the tooltip heading — e.g. a week key into a full date range. */
     labelFormatter?: (label: string | number) => string;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a count. Gets the hovered category and each visible
+     * series' value, color and full data row.
+     */
+    tooltipContent?: ChartTooltipRenderer;
     /** Name for the x dimension, used in the accessible table. */
     categoryLabel?: string;
     tableCaption?: string;
@@ -1122,7 +1372,7 @@ interface LineChartProps extends ChartStateProps {
  * make the crossing point of the two lines meaningless — plot them as two
  * charts, or index both to a common base.
  */
-declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
+declare function LineChart({ data, categoryKey, series, area, stacked, curve, dots, legend, toggleableSeries, referenceValue, referenceLabel, height, valueFormatter, tickFormatter, labelFormatter, tooltipContent, categoryLabel, tableCaption, loading, emptyTitle, emptyDescription, className, }: LineChartProps): react.JSX.Element;
 
 interface DonutChartDatum {
     label: string;
@@ -1160,6 +1410,12 @@ interface DonutChartProps extends ChartStateProps {
     categoryLabel?: string;
     tableCaption?: string;
     onSliceClick?: (datum: DonutChartDatum, index: number) => void;
+    /**
+     * Replaces the tooltip body, inside the standard tooltip shell, with your own
+     * — e.g. the names behind a slice. `datum` is the slice's row as you passed
+     * it (with any extra fields), or a synthetic row for the folded "Other".
+     */
+    tooltipContent?: (ctx: DonutTooltipContext<DonutChartDatum>) => react.ReactNode;
     className?: string;
 }
 /**
@@ -1176,7 +1432,7 @@ interface DonutChartProps extends ChartStateProps {
  * close together, a bar chart is the honest form — the eye can compare bar
  * lengths far better than wedge angles.
  */
-declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
+declare function DonutChart({ data, maxSlices, otherLabel, sort, variant, centerValue, centerLabel, legendPosition, showPercentages, height, valueFormatter, categoryLabel, tableCaption, onSliceClick, tooltipContent, loading, emptyTitle, emptyDescription, className, }: DonutChartProps): react.JSX.Element;
 
 interface MonthYearRange {
     startMonth: number;
@@ -1228,14 +1484,52 @@ declare function dateKey(date: CalendarDate): string;
  * the reader.
  */
 declare function weekdayOf(date: CalendarDate): number;
+/**
+ * Column headings for a calendar grid. Monday-first, like `weekdayOf` and
+ * `monthWeeks`: every grid in the package starts its week on Monday, and there
+ * is no option to change it.
+ */
+declare const WEEKDAY_LABELS: readonly ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Saturday or Sunday. */
+declare function isWeekend(date: CalendarDate): boolean;
 /** How many days that month has, leap years included. */
 declare function daysInMonth(year: number, month: number): number;
+/** The day `step` days away, rolling the month and year over in both directions. */
+declare function addDays(date: CalendarDate, step: number): CalendarDate;
+/** The Monday on or before `date`. */
+declare function startOfWeek(date: CalendarDate): CalendarDate;
+/**
+ * A month as the weeks a calendar grid draws, Monday-first. Each week is seven
+ * cells; the days before the 1st and after the last are `null`, so the grid
+ * keeps its columns without showing the neighbouring months' days.
+ *
+ * This is the one grid layout in the package — `MonthCalendar`, `EventCalendar`
+ * and `TimesheetTable`'s month view all draw from it.
+ */
+declare function monthWeeks(month: YearMonth): (CalendarDate | null)[][];
 /** The month `step` months away, rolling the year over in both directions. */
 declare function shiftMonth(from: YearMonth, step: number): YearMonth;
 /** Negative if `a` is before `b`, positive after, zero for the same month. */
 declare function compareMonths(a: YearMonth, b: YearMonth): number;
 /** `"September 2026"`, for a calendar heading. */
 declare function monthLabel({ year, month }: YearMonth): string;
+/**
+ * A `"2026-09-03"` key back as a date, or null if it is not a real day. A full
+ * ISO instant (`"2026-09-03T00:00:00.000Z"`) is read by its date part.
+ */
+declare function parseDateKey(key: string): CalendarDate | null;
+/**
+ * A date written out with `Intl` options — `{ weekday: "short", month: "short",
+ * day: "numeric" }` gives "Mon, Sep 14". Pinned to UTC, like everything here,
+ * so the reader's zone cannot move the day.
+ */
+declare function formatCalendarDate(date: CalendarDate, options: Intl.DateTimeFormatOptions): string;
+/**
+ * A `"2026-09-03"` key (or an ISO instant, by its date part) written out with
+ * `formatCalendarDate`. Anything that is not a real day comes back unchanged,
+ * so a bad value shows as itself rather than as "Invalid Date".
+ */
+declare function formatDateKey(key: string, options: Intl.DateTimeFormatOptions): string;
 /** The month a `"2026-09-03"` key belongs to, or null if it is not one. */
 declare function monthOfKey(key: string): YearMonth | null;
 /** Today, in the READER's zone — the only sensible place to open a picker. */
@@ -1291,6 +1585,166 @@ interface MonthCalendarProps {
  * marked somebody for removal, paging to the next month did it.
  */
 declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, unavailableLabel, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): react.JSX.Element;
+
+interface EventCalendarProps<T> {
+    /** The month shown. Controlled, like `MonthCalendar`'s. */
+    month: YearMonth;
+    onMonthChange: (month: YearMonth) => void;
+    /** Items keyed by "YYYY-MM-DD", each list already in display order. */
+    itemsByDate: ReadonlyMap<string, T[]>;
+    renderItem: (item: T, isoDate: string) => ReactNode;
+    itemKey: (item: T, isoDate: string) => string | number;
+    /** Items shown in a day before the rest fold into "+N more". Defaults to 3. */
+    maxVisibleItems?: number;
+    /** Dims the grid under a spinner and disables the month controls. */
+    loading?: boolean;
+    /** Heading of the "+N more" list. Defaults to "Tue, Jul 14 — 5 items". */
+    overflowPopoverTitle?: (isoDate: string, count: number) => ReactNode;
+    /**
+     * Accessible name of the "+N more" button; `count` is the hidden items.
+     * Defaults to "Show 2 more items on July 14".
+     */
+    overflowAriaLabel?: (isoDate: string, count: number) => string;
+    /** Accessible name of the table. Defaults to "Calendar, July 2026". */
+    ariaLabel?: string;
+    className?: string;
+}
+/**
+ * A month of days with items in them — who is off, what is due — drawn as a
+ * Monday-first grid. Each day shows up to `maxVisibleItems`, then a "+N more"
+ * button that lists all of that day's items in a popover. Items are whatever
+ * `renderItem` draws, usually a `CategoryChip` or a `Badge`.
+ *
+ * The grid is `monthWeeks` from `lib/calendar`, the same layout `MonthCalendar`
+ * draws, so it does not depend on the reader's zone. Use `MonthCalendar`
+ * instead to PICK a day.
+ */
+declare function EventCalendar<T>({ month, onMonthChange, itemsByDate, renderItem, itemKey, maxVisibleItems, loading, overflowPopoverTitle, overflowAriaLabel, ariaLabel, className, }: EventCalendarProps<T>): ReactElement;
+
+/**
+ * The data contract behind `TimesheetTable`: what it is given, what it fetches
+ * and saves, and the fetch-based API it uses when the caller supplies none.
+ *
+ * Ported unchanged from the Backstage design system, so an app moving off it
+ * keeps its call sites and its server routes. Dates are `YYYY-MM-DD` strings
+ * (or ISO instants, of which only the date part is read) and are handled in UTC
+ * throughout, so the host's zone never moves a day.
+ */
+interface TimesheetContract {
+    id: number;
+    name: string;
+    projectName: string;
+    customerName: string;
+    /** ISO date. */
+    startDate: string;
+    /** ISO date. */
+    endDate: string;
+    /** Contracts on an inactive project are never shown. */
+    projectActive: boolean;
+}
+/** One cell's change, as sent to `saveTimesheet`. `null` hours deletes it. */
+interface TimesheetEntry {
+    contractId: number;
+    /** YYYY-MM-DD. */
+    date: string;
+    hours: number | null;
+}
+interface TimesheetTimeOff {
+    id: number;
+    type: string;
+    startsAt: string;
+    /** Exclusive: the day the person is back. */
+    endsAt: string;
+}
+interface TimeEntryResponse {
+    timeEntries: {
+        id: number;
+        date: string;
+        hours: number;
+        userId: number;
+        contractId: number;
+    }[];
+}
+interface ExpectedHoursResponse {
+    expectedHours: number;
+    ptoHours: number;
+    timeOffs: TimesheetTimeOff[];
+}
+interface SaveResponse {
+    success: boolean;
+    upserted: number;
+    deleted: number;
+    error?: string;
+}
+interface TimesheetApi {
+    fetchTimeEntries(params: {
+        userId: number;
+        startDate: string;
+        endDate: string;
+    }): Promise<TimeEntryResponse>;
+    fetchExpectedHours(params: {
+        startDate: string;
+        endDate: string;
+    }): Promise<ExpectedHoursResponse>;
+    saveTimesheet(entries: TimesheetEntry[]): Promise<SaveResponse>;
+}
+type TimesheetViewMode = "weekly" | "monthly";
+/** Hours by cell, keyed `${contractId}::${date}`. */
+type TimesheetGridData = Record<string, number | null>;
+/**
+ * The API `TimesheetTable` uses for any method the caller does not override:
+ * `GET {baseUrl}/api/my-timesheets/entries`, `GET …/expected-hours` (both with
+ * `startDate` and `endDate` query params) and `POST …/save` with `{ entries }`.
+ * `extraHeaders` go on every request — an `Authorization` header, say.
+ *
+ * A failed save throws the response's `error` field when it has one.
+ */
+declare function createDefaultApi(baseUrl?: string, extraHeaders?: Record<string, string>): TimesheetApi;
+
+interface TimesheetTableProps {
+    userId: number;
+    userFullName: string;
+    contracts: TimesheetContract[];
+    /**
+     * Overrides for any of the API methods; the rest use `createDefaultApi`.
+     * Read on each call, so an inline object is fine: a new one never refetches.
+     */
+    api?: Partial<TimesheetApi>;
+    /** Passed to `createDefaultApi`. Changing it refetches the period. */
+    baseUrl?: string;
+    /**
+     * Passed to `createDefaultApi`, so they go on every default request. Read on
+     * each call, like `api`.
+     */
+    apiHeaders?: Record<string, string>;
+    defaultView?: TimesheetViewMode;
+    onViewChange?: (view: TimesheetViewMode) => void;
+    /**
+     * Called with `{ view, week }` or `{ view, month }` whenever the period
+     * shown changes — on mount too — so the page can mirror it in the URL.
+     */
+    onNavigate?: (params: Record<string, string>) => void;
+    /** YYYY-MM-DD; the week containing it is shown first. */
+    initialWeek?: string;
+    /** YYYY-MM. */
+    initialMonth?: string;
+    title?: string;
+    className?: string;
+}
+/**
+ * A person's timesheet: hours per contract per day, in a weekly grid or a
+ * monthly calendar, with expected hours and time off from the API.
+ *
+ * Edits save themselves 15 seconds after the last change, or straight away
+ * with Save, on navigation, or on switching view. Only the changed cells are
+ * sent. After a save, "Revert" puts the previous values back for 5 seconds.
+ *
+ * Data comes from `api`; any method not given falls back to
+ * `createDefaultApi(baseUrl, apiHeaders)`, which calls the `/api/my-timesheets`
+ * routes. A failed load shows inline with a retry and a failed save as an
+ * error toast — mount a `ToastProvider` to see it.
+ */
+declare function TimesheetTable({ userId, userFullName, contracts, api: apiOverrides, baseUrl, apiHeaders, defaultView, onViewChange, onNavigate, initialWeek, initialMonth, title, className, }: TimesheetTableProps): ReactElement;
 
 type Theme = "light" | "dark";
 /**
@@ -1455,4 +1909,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartValueFormatter, Checkbox, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, FilterBar, FormField, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type YearMonth, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, dateKey, daysInMonth, formatChartValue, isPostalAddressDraftComplete, monthLabel, monthOfKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };
