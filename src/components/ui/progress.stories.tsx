@@ -79,3 +79,14 @@ export const Values: Story = {
     );
   },
 };
+
+/** `tone` colors the fill when the amount is the news: complete, over, short. */
+export const Tones: Story = {
+  render: () => (
+    <div className="w-72 space-y-3">
+      {(["accent", "success", "warning", "error", "info"] as const).map((tone) => (
+        <Progress key={tone} value={60} tone={tone} aria-label={tone} />
+      ))}
+    </div>
+  ),
+};

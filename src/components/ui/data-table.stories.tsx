@@ -294,3 +294,33 @@ export const ExpandableRows: Story = {
     />
   ),
 };
+
+/** A column `footer` (TanStack's own option) adds a footer row, for totals. */
+export const WithFooter: Story = {
+  render: () => {
+    const columns: ColumnDef<{ item: string; amount: number }, unknown>[] = [
+      { accessorKey: "item", header: "Item", footer: "Total" },
+      {
+        accessorKey: "amount",
+        header: "Amount",
+        meta: { align: "right" },
+        cell: ({ getValue }) => `$${getValue<number>().toFixed(2)}`,
+        footer: ({ table }) =>
+          `$${table
+            .getFilteredRowModel()
+            .rows.reduce((sum, row) => sum + row.original.amount, 0)
+            .toFixed(2)}`,
+      },
+    ];
+    return (
+      <DataTable
+        columns={columns}
+        data={[
+          { item: "Design", amount: 1200 },
+          { item: "Development", amount: 3400.5 },
+          { item: "QA", amount: 800 },
+        ]}
+      />
+    );
+  },
+};

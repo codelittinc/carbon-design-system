@@ -1,8 +1,9 @@
 import * as React from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
-import { Card } from "./card";
+import { Card, CardHeader } from "./card";
 import { Skeleton } from "./skeleton";
+import { Swatch } from "./swatch";
 import { EmptyState } from "./empty-state";
 
 /**
@@ -125,17 +126,7 @@ export function ChartCard({
   return (
     <Card padding="none" className={cn("p-4", className)}>
       {(title || subtitle || action) && (
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            {title && <h3 className="text-sm font-medium text-text-primary">{title}</h3>}
-            {/*
-              text-secondary, not text-muted: at 12px, muted is 3.84:1 on the
-              dark surface — under the 4.5:1 AA floor for normal-size text.
-            */}
-            {subtitle && <p className="mt-0.5 text-xs text-text-secondary">{subtitle}</p>}
-          </div>
-          {action && <div className="shrink-0">{action}</div>}
-        </div>
+        <CardHeader as="h3" size="sm" title={title} description={subtitle} actions={action} />
       )}
       {children}
       {footer && <div className="mt-3 text-xs text-text-secondary">{footer}</div>}
@@ -150,6 +141,11 @@ export interface ChartLegendItem {
   color: string;
   /** Renders the swatch dimmed — for a series toggled off. */
   inactive?: boolean;
+  /**
+   * A figure at the end of the entry — a share, a total. Set it on any item
+   * and the legend lists its entries in a column, values right-aligned.
+   */
+  value?: React.ReactNode;
 }
 
 export interface ChartLegendProps {
@@ -165,23 +161,31 @@ export interface ChartLegendProps {
  * tokens; only the swatch takes the series color.
  */
 export function ChartLegend({ items, onItemClick, className }: ChartLegendProps): React.ReactElement {
+  const withValues = items.some((item) => item.value != null);
   return (
-    <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className)}>
+    <ul
+      className={cn(
+        withValues ? "space-y-1.5" : "flex flex-wrap items-center gap-x-4 gap-y-1.5",
+        className,
+      )}
+    >
       {items.map((item, i) => {
         const content = (
           <>
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: item.color, opacity: item.inactive ? 0.35 : 1 }}
-            />
-            <span className={cn("truncate", item.inactive ? "text-text-faint" : "text-text-secondary")}>
+            <Swatch color={item.color} dimmed={item.inactive} />
+            <span className={cn("min-w-0 truncate", item.inactive ? "text-text-faint" : "text-text-secondary")}>
               {item.label}
             </span>
           </>
         );
+        const value =
+          item.value != null ? (
+            <span className="ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary">
+              {item.value}
+            </span>
+          ) : null;
         return (
-          <li key={`${item.label}-${i}`} className="min-w-0 text-xs">
+          <li key={`${item.label}-${i}`} className={cn("min-w-0 text-xs", withValues && "flex items-center gap-2")}>
             {onItemClick ? (
               <Button
                 type="button"
@@ -202,6 +206,7 @@ export function ChartLegend({ items, onItemClick, className }: ChartLegendProps)
             ) : (
               <span className="flex min-w-0 items-center gap-1.5">{content}</span>
             )}
+            {value}
           </li>
         );
       })}
@@ -308,11 +313,7 @@ export function ChartTooltipContent({
       <ul className="space-y-1">
         {payload.map((item, i) => (
           <li key={i} className="flex items-center gap-2 text-xs">
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
+            <Swatch color={item.color ?? ""} />
             <span className="mr-2 text-text-secondary">{item.name}</span>
             <span className="ml-auto font-[family-name:var(--font-mono)] text-text-primary">
               {typeof item.value === "number" ? valueFormatter(item.value) : (item.value ?? "—")}

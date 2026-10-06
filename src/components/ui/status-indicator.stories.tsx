@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ChartLegend } from "./chart";
 import { StatusIndicator } from "./status-indicator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 
 /**
  * StatusIndicator is a colored dot for a status, named by its label. The app
@@ -44,4 +45,20 @@ export const AllStatuses: Story = {
 /** The key for a list of indicators is the same `ChartLegend` the charts use. */
 export const Legend: Story = {
   render: () => <ChartLegend items={STATUSES} />,
+};
+
+/** Inside a Tooltip, turn the native title off so there is one tooltip, not two. */
+export const InATooltip: Story = {
+  render: () => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} className="inline-flex">
+            <StatusIndicator color="var(--color-chart-2)" label="Currently working" nativeTitle={false} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Currently working</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ),
 };

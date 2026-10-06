@@ -7,7 +7,6 @@
  */
 
 import { forwardRef, useEffect, useRef, useState, type ReactElement } from "react";
-import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { datePart, formatDateKey, monthLabel, type YearMonth } from "@/lib/calendar";
 import { tableRowHoverClass } from "@/lib/ui-classes";
@@ -21,7 +20,8 @@ import {
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { MonthGrid } from "./calendar-chrome";
-import { Card } from "./card";
+import { Card, CardHeader } from "./card";
+import { DismissButton } from "./dismiss-button";
 import { Input } from "./input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 import { TableEmptyRow } from "./table-empty-row";
@@ -284,14 +284,13 @@ export function DayDetailPanel({
   return (
     <div ref={panelRef}>
       <Card padding="sm">
-        <div className="flex items-center justify-between px-3 pb-3 pt-2">
-          <h3 className="text-sm font-semibold text-text-primary">
-            {dayLabel(selectedDay, "long")}
-          </h3>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close" onClick={onClose}>
-            <X size={14} />
-          </Button>
-        </div>
+        <CardHeader
+          as="h3"
+          size="sm"
+          className="mb-0 items-center px-3 pb-3 pt-2"
+          title={dayLabel(selectedDay, "long")}
+          actions={<DismissButton label="Close" onClick={onClose} className="text-text-muted" />}
+        />
         <Table>
           <TableHeader>
             <TableRow>

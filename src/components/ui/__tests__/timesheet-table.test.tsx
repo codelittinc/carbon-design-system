@@ -105,6 +105,10 @@ describe("TimesheetTable", () => {
     const totals = screen.getByText("Daily Total").closest("tr")!;
     expect(within(totals).getAllByRole("cell").at(-1)).toHaveTextContent("8");
     expect(screen.getByText("32h remaining")).toBeInTheDocument();
+    // 8 of 40 expected hours: a Progress, short of the target, so the error tone.
+    const progress = screen.getByRole("progressbar", { name: "Hours logged of expected" });
+    expect(progress.firstElementChild).toHaveClass("bg-error");
+    expect(progress.firstElementChild).toHaveStyle({ width: "20%" });
   });
 
   it("saves only the edited cells through the api, then offers a revert", async () => {

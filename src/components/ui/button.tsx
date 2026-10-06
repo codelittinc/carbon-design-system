@@ -30,10 +30,39 @@ const buttonVariants = cva(
         // one carrying a single glyph.
         icon: "h-8 w-8 shrink-0",
       },
+      /**
+       * `destructive` turns an `outline`, `ghost` or `link` button red: a quiet
+       * delete or remove beside other actions. The solid red button is
+       * `variant="destructive"` (which `tone="destructive"` on the default
+       * variant also gives).
+       */
+      tone: {
+        default: "",
+        destructive: "",
+      },
     },
+    compoundVariants: [
+      {
+        variant: "default",
+        tone: "destructive",
+        className: "bg-error-solid text-error-foreground hover:bg-error",
+      },
+      {
+        variant: "outline",
+        tone: "destructive",
+        className: "border-error-border text-error-text hover:bg-error-soft hover:text-error-text",
+      },
+      {
+        variant: "ghost",
+        tone: "destructive",
+        className: "text-error-text hover:bg-error-soft hover:text-error-text",
+      },
+      { variant: "link", tone: "destructive", className: "text-error-text" },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",
+      tone: "default",
     },
   },
 );
@@ -106,11 +135,11 @@ interface ButtonProps
  * this reason; see the note there for what happened when it did not.
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+  ({ className, variant, size, tone, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
 
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+      <Comp className={cn(buttonVariants({ variant, size, tone, className }))} ref={ref} {...props}>
         {/* `asChild` hands rendering to the consumer's own element, and Slot
             requires exactly one child — wrapping would both break that contract
             and put a span inside markup somebody else owns. */}

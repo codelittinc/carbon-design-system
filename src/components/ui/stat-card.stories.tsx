@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Button } from "./button";
+import { Progress } from "./progress";
 import { StatCard } from "./stat-card";
 
 /**
@@ -29,5 +31,24 @@ export const Grid: Story = {
       <StatCard label="Units" value="1,204" sub="1,134 occupied" trend="neutral" />
       <StatCard label="Open AR" value="$48,210.00" sub="-3.1% vs last month" trend="down" />
     </div>
+  ),
+};
+
+/** An action beside the label, a tone on the value, and more under it. */
+export const WithActionAndChildren: Story = {
+  render: () => (
+    <StatCard
+      className="w-64"
+      label="Needs review"
+      value={4}
+      valueClassName="text-error-text"
+      action={
+        <Button variant="link" size="sm" className="h-auto p-0">
+          View
+        </Button>
+      }
+    >
+      <Progress value={40} tone="error" aria-label="Reviewed" />
+    </StatCard>
   ),
 };

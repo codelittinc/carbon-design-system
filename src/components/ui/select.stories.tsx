@@ -148,3 +148,25 @@ export const Disabled: StoryObj<typeof Select> = {
     );
   },
 };
+
+/** An item may have `value=""`: an "All" or "None" choice without a sentinel. */
+export const EmptyValueItem: StoryObj<typeof Select> = {
+  render: () => {
+    const [status, setStatus] = useState("");
+    return (
+      <div className="w-56 space-y-2">
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger aria-label="Status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All statuses</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-text-muted">value: {JSON.stringify(status)}</p>
+      </div>
+    );
+  },
+};

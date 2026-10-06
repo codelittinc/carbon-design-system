@@ -129,7 +129,31 @@ import { Button, Badge, DataTable, useToast } from "@codelittinc/carbon-design-s
 
 Forms: Button · Input · Textarea · Checkbox · Switch · Select · MoneyInput · SearchSelect · AddressAutocomplete
 Overlays: Dialog · AlertDialog · DropdownMenu · Sheet · Popover · Tooltip · CommandPalette · Toast
-Data display: Badge · StatusBadge · DataTable · Tabs · Progress · Skeleton · Separator · ScrollArea · EmptyState · PageHeader
+Data display: Badge · StatusBadge · DataTable · Tabs · Progress · Skeleton · Separator · ScrollArea · EmptyState · PageHeader · Card / CardHeader · Swatch
+Navigation: Pagination · TextLink
+Confirmation: `useConfirm()` + `ConfirmProvider` (an `AlertDialog` that resolves to the answer)
+
+### Icons
+
+The icons the components draw with are exported from the package with an `Icon` suffix, so an
+app needs neither `lucide-react` nor hand-drawn SVGs:
+
+```tsx
+import { Button, SearchIcon, TrashIcon } from "@codelittinc/carbon-design-system";
+
+<Button variant="ghost" size="icon" aria-label="Delete"><TrashIcon size={14} /></Button>
+```
+
+Each is its own module, so unused icons are tree-shaken. They render `aria-hidden`: name the
+control around an icon-only button. The list lives in
+[`src/components/ui/icons.ts`](src/components/ui/icons.ts); add an icon there rather than
+importing `lucide-react` in the app.
+
+### Select with an empty choice
+
+A `SelectItem` may have `value=""`, for "All" or "None", with no `"__all__"` sentinel:
+`value` and `onValueChange` see `""`, and a form submits `""`. Without such an item, `""` still
+shows the placeholder.
 
 > These components were ported from the Carbon Backbone web app as the starting point for a
 > shared library. The originals remain in the app; this repository is the canonical home going

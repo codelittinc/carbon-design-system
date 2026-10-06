@@ -1,9 +1,10 @@
 import { RichTextFormatting } from './utils.js';
 export { CATEGORICAL_PALETTE, CategoricalSegment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText } from './utils.js';
 import * as react from 'react';
-import { ReactElement, ReactNode } from 'react';
+import { ReactElement, ReactNode, AnchorHTMLAttributes, ElementType } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
 import { VariantProps } from 'class-variance-authority';
+export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, LucideIcon as IconComponent, LucideProps as IconProps, Info as InfoIcon, LoaderCircle as LoaderIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -34,6 +35,7 @@ declare function AddressAutocomplete$1({ value, onChange, onBlur, placeholder, c
 declare const buttonVariants: (props?: ({
     variant?: "link" | "default" | "destructive" | "outline" | "ghost" | null | undefined;
     size?: "default" | "sm" | "lg" | "icon" | null | undefined;
+    tone?: "default" | "destructive" | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
     asChild?: boolean;
@@ -99,6 +101,27 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<t
  * rules inside a card (table rows), not for the card's own edge.
  */
 declare const Card: react.ForwardRefExoticComponent<CardProps & react.RefAttributes<HTMLDivElement>>;
+interface CardHeaderProps {
+    title: ReactNode;
+    /** A line under the title: a period, a caveat, a count. */
+    description?: ReactNode;
+    /** Right-aligned controls: a button, a Select, a link. */
+    actions?: ReactNode;
+    /**
+     * The heading element, for the page's outline. `h2` (default) for a section
+     * of a page, `h3` for a card inside one. The page's own `h1` is `PageHeader`.
+     */
+    as?: "h2" | "h3" | "h4";
+    /** `md` (default) for a section; `sm` for a compact card, a chart, a panel. */
+    size?: "sm" | "md";
+    className?: string;
+}
+/**
+ * A section's heading row: the title (and a description under it) on the left,
+ * actions on the right. Inside a `Card` or heading a section of a page; for the
+ * page's own title use `PageHeader`.
+ */
+declare function CardHeader({ title, description, actions, as: Heading, size, className, }: CardHeaderProps): ReactElement;
 
 declare const alertVariants: (props?: ({
     variant?: "success" | "warning" | "error" | "info" | null | undefined;
@@ -270,10 +293,6 @@ interface CategoryChipProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonEl
  */
 declare const CategoryChip: react.ForwardRefExoticComponent<CategoryChipProps & react.RefAttributes<HTMLButtonElement>>;
 
-declare const sizeClasses: {
-    readonly sm: "h-3 w-3";
-    readonly md: "h-4 w-4";
-};
 interface StatusIndicatorProps {
     /**
      * Any CSS color. Prefer a token reference such as `"var(--color-chart-2)"`
@@ -284,7 +303,13 @@ interface StatusIndicatorProps {
     label: string;
     /** Shows the label as text beside the dot. */
     showLabel?: boolean;
-    size?: keyof typeof sizeClasses;
+    size?: "sm" | "md";
+    /**
+     * The browser's own hover title on the dot. Defaults on; pass `false` when
+     * the indicator sits in a `Tooltip`, or the reader gets two tooltips. The
+     * dot keeps its accessible name either way.
+     */
+    nativeTitle?: boolean;
     className?: string;
 }
 /**
@@ -292,8 +317,100 @@ interface StatusIndicatorProps {
  * `label` — as text with `showLabel`, otherwise as the dot's accessible name —
  * never by the color alone. The caller owns the status → color mapping; pair
  * it with `ChartLegend` to explain the colors once for a whole list.
+ *
+ * The dot is a `Swatch`, the same key the charts' legends draw.
  */
-declare function StatusIndicator({ color, label, showLabel, size, className, }: StatusIndicatorProps): ReactElement;
+declare function StatusIndicator({ color, label, showLabel, size, nativeTitle, className, }: StatusIndicatorProps): ReactElement;
+
+declare const sizeClasses: {
+    /** 8px: a legend or tooltip key beside 12px text. */
+    readonly xs: "size-2";
+    /** 12px. */
+    readonly sm: "size-3";
+    /** 16px. */
+    readonly md: "size-4";
+};
+interface SwatchProps {
+    /**
+     * Any CSS color. Prefer a token reference such as `"var(--color-chart-2)"`
+     * so the swatch follows the theme.
+     */
+    color: string;
+    size?: keyof typeof sizeClasses;
+    /** Faded, for a series or a status that is toggled off. */
+    dimmed?: boolean;
+    /**
+     * Names the swatch for a screen reader (`role="img"`) when nothing beside it
+     * says what the color means. Without it the swatch is decoration, hidden
+     * from assistive tech, and the text next to it carries the meaning.
+     */
+    label?: string;
+    /** The browser's hover title. */
+    title?: string;
+    className?: string;
+}
+/**
+ * The round color key: a chart legend's or tooltip's series marker, a status
+ * dot. Color is never the only signal — pair it with visible text, or give it
+ * a `label`.
+ */
+declare function Swatch({ color, size, dimmed, label, title, className }: SwatchProps): ReactElement;
+
+interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+    /**
+     * Styles the single child instead of rendering an `<a>` — for a router's
+     * link: `<TextLink asChild><Link href="/x">Open</Link></TextLink>`.
+     */
+    asChild?: boolean;
+    /**
+     * Leaves the app: opens in a new tab (`target="_blank"`, `rel="noopener
+     * noreferrer"`) and shows the external icon, with "(opens in a new tab)"
+     * for a screen reader.
+     */
+    external?: boolean;
+}
+/**
+ * A link inside running text or a table cell: accent-colored, underlined on
+ * hover, with no button box around it. For a link that looks like a button,
+ * use `<Button asChild><a/></Button>`.
+ */
+declare const TextLink: react.ForwardRefExoticComponent<TextLinkProps & react.RefAttributes<HTMLAnchorElement>>;
+
+interface ConfirmOptions {
+    title: ReactNode;
+    description?: ReactNode;
+    /** The action button. Defaults to "Confirm". */
+    confirmLabel?: string;
+    /** The button that backs out. Defaults to "Cancel". */
+    cancelLabel?: string;
+    /** Draws the action as a destructive button. */
+    destructive?: boolean;
+}
+type Confirm = (options: ConfirmOptions) => Promise<boolean>;
+/**
+ * Hosts the dialog that `useConfirm` opens. Mount it once near the root,
+ * beside `ToastProvider`.
+ */
+declare function ConfirmProvider({ children }: {
+    children: ReactNode;
+}): ReactElement;
+/**
+ * Asks before doing something, in an `AlertDialog`, and resolves to the
+ * answer — `window.confirm` in the design system's own dialog:
+ *
+ * ```tsx
+ * const confirm = useConfirm();
+ * async function remove() {
+ *   if (!(await confirm({ title: "Delete this contract?", confirmLabel: "Delete", destructive: true }))) return;
+ *   await deleteContract(id);
+ * }
+ * ```
+ *
+ * Resolves `true` for the action, `false` for Cancel or Escape. Needs a
+ * `ConfirmProvider` above it, and throws without one rather than answering a
+ * question nobody was shown.
+ */
+declare function useConfirm(): Confirm;
 
 interface CheckboxGroupOption {
     value: string;
@@ -441,7 +558,26 @@ declare const Checkbox: react.ForwardRefExoticComponent<Omit<CheckboxPrimitive.C
 
 declare const Switch: react.ForwardRefExoticComponent<Omit<SwitchPrimitive.SwitchProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
-declare const Select: react.FC<SelectPrimitive.SelectProps>;
+type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
+/**
+ * Radix's Select, with one addition: **an item may have `value=""`.** Use it
+ * for a "None" or "All" choice instead of a sentinel such as `"__all__"`:
+ *
+ * ```tsx
+ * <Select value={status} onValueChange={setStatus}>
+ *   <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+ *   <SelectContent>
+ *     <SelectItem value="">All statuses</SelectItem>
+ *     <SelectItem value="open">Open</SelectItem>
+ *   </SelectContent>
+ * </Select>
+ * ```
+ *
+ * `value` and `onValueChange` see `""` for it, and with `name` a form submits
+ * `""`. Without a `value=""` item, `""` still means "nothing chosen" and shows
+ * the placeholder, as in Radix.
+ */
+declare function Select({ value, defaultValue, onValueChange, name, children, ...props }: SelectProps): ReactElement;
 declare const SelectGroup: react.ForwardRefExoticComponent<SelectPrimitive.SelectGroupProps & react.RefAttributes<HTMLDivElement>>;
 declare const SelectValue: react.ForwardRefExoticComponent<SelectPrimitive.SelectValueProps & react.RefAttributes<HTMLSpanElement>>;
 /**
@@ -470,6 +606,7 @@ declare const SelectValue: react.ForwardRefExoticComponent<SelectPrimitive.Selec
  */
 declare const SelectTrigger: react.ForwardRefExoticComponent<Omit<SelectPrimitive.SelectTriggerProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 declare const SelectContent: react.ForwardRefExoticComponent<Omit<SelectPrimitive.SelectContentProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
+/** An option. `value=""` is allowed: see `Select`. */
 declare const SelectItem: react.ForwardRefExoticComponent<Omit<SelectPrimitive.SelectItemProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
 
 declare const Dialog: react.FC<DialogPrimitive.DialogProps>;
@@ -523,7 +660,11 @@ declare const AlertDialogHeader: typeof DialogHeader;
 declare const AlertDialogFooter: typeof DialogFooter;
 declare const AlertDialogTitle: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogTitleProps & react.RefAttributes<HTMLHeadingElement>, "ref"> & react.RefAttributes<HTMLHeadingElement>>;
 declare const AlertDialogDescription: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogDescriptionProps & react.RefAttributes<HTMLParagraphElement>, "ref"> & react.RefAttributes<HTMLParagraphElement>>;
-declare const AlertDialogAction: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogActionProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
+interface AlertDialogActionProps extends React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action> {
+    /** Draws the action as a destructive button: for a delete, a removal. */
+    destructive?: boolean;
+}
+declare const AlertDialogAction: react.ForwardRefExoticComponent<AlertDialogActionProps & react.RefAttributes<HTMLButtonElement>>;
 declare const AlertDialogCancel: react.ForwardRefExoticComponent<Omit<AlertDialogPrimitive.AlertDialogCancelProps & react.RefAttributes<HTMLButtonElement>, "ref"> & react.RefAttributes<HTMLButtonElement>>;
 
 declare const DropdownMenu: react.FC<DropdownMenuPrimitive.DropdownMenuProps>;
@@ -550,7 +691,27 @@ declare const Separator: react.ForwardRefExoticComponent<Omit<SeparatorPrimitive
 
 declare function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): react.JSX.Element;
 
-declare const Progress: react.ForwardRefExoticComponent<Omit<ProgressPrimitive.ProgressProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
+declare const toneClasses: {
+    readonly accent: "bg-accent";
+    readonly success: "bg-success";
+    readonly warning: "bg-warning";
+    readonly error: "bg-error";
+    readonly info: "bg-info";
+};
+type ProgressTone = keyof typeof toneClasses;
+interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
+    /**
+     * The fill's color. `accent` (default) for plain progress; a status tone when
+     * the amount itself is the news — complete, over, short.
+     */
+    tone?: ProgressTone;
+}
+/**
+ * A bar filled to `value` (of `max`, 100 by default). A `progressbar` to
+ * assistive tech: give it an `aria-label` (or `aria-labelledby`) saying what
+ * is filling up.
+ */
+declare const Progress: react.ForwardRefExoticComponent<ProgressProps & react.RefAttributes<HTMLDivElement>>;
 
 declare const Tabs: react.ForwardRefExoticComponent<TabsPrimitive.TabsProps & react.RefAttributes<HTMLDivElement>>;
 declare const TabsList: react.ForwardRefExoticComponent<Omit<TabsPrimitive.TabsListProps & react.RefAttributes<HTMLDivElement>, "ref"> & react.RefAttributes<HTMLDivElement>>;
@@ -624,19 +785,44 @@ declare function ToastProvider({ children }: {
 interface EmptyStateProps {
     icon?: React.ReactNode;
     title: string;
+    /**
+     * The title's heading element. `h3` (default) for a gap inside a page; `h1`
+     * when the empty state is the whole page ("Access denied", "Not found").
+     */
+    as?: "h1" | "h2" | "h3" | "h4";
     description?: string;
     action?: React.ReactNode;
     className?: string;
 }
-declare function EmptyState({ icon, title, description, action, className }: EmptyStateProps): react.JSX.Element;
+declare function EmptyState({ icon, title, as: Heading, description, action, className, }: EmptyStateProps): ReactElement;
 
+interface PageHeaderBack {
+    href: string;
+    /** Where it goes: "Contracts", "All profiles". */
+    label: string;
+    /**
+     * The link element to render, for client-side routing — Next.js's `Link`,
+     * say. Defaults to a plain `<a>`.
+     */
+    as?: ElementType<{
+        href: string;
+        children?: ReactNode;
+    }>;
+}
 interface PageHeaderProps {
-    title: React.ReactNode;
+    title: ReactNode;
     description?: string;
-    actions?: React.ReactNode;
+    actions?: ReactNode;
+    /** A link back to the page above this one, shown over the title. */
+    back?: PageHeaderBack;
     className?: string;
 }
-declare function PageHeader({ title, description, actions, className }: PageHeaderProps): react.JSX.Element;
+/**
+ * The page's title (its `h1`), with an optional description, actions on the
+ * right, and a back link above it. For a section's heading inside the page,
+ * use `CardHeader`.
+ */
+declare function PageHeader({ title, description, actions, back, className }: PageHeaderProps): ReactElement;
 
 /**
  * The table elements, styled once. `DataTable` is built from these; use them
@@ -675,6 +861,11 @@ declare module "@tanstack/react-table" {
     }
 }
 interface DataTableProps<TData, TValue> {
+    /**
+     * TanStack column definitions. Give a column a `footer` (a string, or a
+     * function of the table: `({ table }) => total(table.getFilteredRowModel().rows)`)
+     * and the table gets a footer row, for totals.
+     */
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     onRowClick?: (row: TData) => void;
@@ -846,6 +1037,8 @@ interface SearchSelectOption {
     value: string;
     label: string;
     sublabel?: string;
+    /** Shown but not selectable; the arrow keys pass over it. */
+    disabled?: boolean;
 }
 interface SearchSelectProps {
     value: string | null;
@@ -861,6 +1054,15 @@ interface SearchSelectProps {
      */
     onQueryChange?: (query: string) => void;
     options: SearchSelectOption[];
+    /**
+     * The chosen option, for the trigger to show when it is not in `options` —
+     * a value loaded with the record, before any search has run, or one the
+     * latest search no longer returns. Without it such a value shows the
+     * placeholder. An entry in `options` with the same value wins.
+     */
+    selectedOption?: SearchSelectOption | null;
+    /** Disables the trigger, so the list cannot open. */
+    disabled?: boolean;
     loading?: boolean;
     placeholder?: string;
     /** Shown in the list when there are no options. Defaults to "No results". */
@@ -934,7 +1136,7 @@ interface SearchSelectProps {
     /** Text of the create option. Defaults to `Create "<input>"`. */
     createLabel?: (input: string) => React.ReactNode;
 }
-declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, loading, placeholder, emptyMessage, className, id, ariaLabel, required, requiredLabel, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, onCreate, createLabel, }: SearchSelectProps): ReactElement;
+declare function SearchSelect({ value, onChange, onSearch, onQueryChange, options, selectedOption: selectedOptionProp, disabled, loading, placeholder, emptyMessage, className, id, ariaLabel, required, requiredLabel, triggerClassName, contentClassName, optionClassName, clearable, renderOption, autoFocus, onCreate, createLabel, }: SearchSelectProps): ReactElement;
 
 interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Numeric value or decimal string. Formatted via formatMoney. */
@@ -1018,18 +1220,24 @@ declare function FilterBar({ search, onSearchChange, searchPlaceholder, children
 
 interface StatCardProps {
     label: string;
-    value: React.ReactNode;
+    value: ReactNode;
     /** Optional sub-line, e.g. a delta or context. Colored by trend. */
     sub?: string;
     trend?: "up" | "down" | "neutral";
     loading?: boolean;
+    /** Top-right of the tile, level with the label: a link, a menu, an info tooltip. */
+    action?: ReactNode;
+    /** Anything under the value and sub-line: a breakdown, a Progress, a link. */
+    children?: ReactNode;
+    /** Merged onto the value, e.g. a tone (`text-error-text`) or a smaller size. */
+    valueClassName?: string;
     className?: string;
 }
 /**
  * KPI/metric tile: an uppercase label, a large monospace value, and an optional
  * trend-colored sub-line. Shows a skeleton in place of the value while loading.
  */
-declare function StatCard({ label, value, sub, trend, loading, className }: StatCardProps): ReactElement;
+declare function StatCard({ label, value, sub, trend, loading, action, children, valueClassName, className, }: StatCardProps): ReactElement;
 
 /**
  * Shared foundations for the CarbonOS chart components (BarChart, LineChart,
@@ -1117,6 +1325,11 @@ interface ChartLegendItem {
     color: string;
     /** Renders the swatch dimmed — for a series toggled off. */
     inactive?: boolean;
+    /**
+     * A figure at the end of the entry — a share, a total. Set it on any item
+     * and the legend lists its entries in a column, values right-aligned.
+     */
+    value?: react.ReactNode;
 }
 interface ChartLegendProps {
     items: ChartLegendItem[];
@@ -1937,4 +2150,4 @@ interface AddressAutocompleteProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressAutocompleteProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

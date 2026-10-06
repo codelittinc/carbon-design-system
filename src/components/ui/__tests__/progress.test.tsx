@@ -29,4 +29,19 @@ describe("Progress", () => {
     render(<Progress value={10} />);
     expect(screen.getByRole("progressbar")).toHaveClass("rounded-full");
   });
+
+  it("fills with the accent by default and a status tone on request", () => {
+    const { rerender } = render(<Progress value={10} aria-label="Done" />);
+    const indicator = () => screen.getByRole("progressbar").firstElementChild as HTMLElement;
+    expect(indicator()).toHaveClass("bg-accent");
+    rerender(<Progress value={10} tone="success" aria-label="Done" />);
+    expect(indicator()).toHaveClass("bg-success");
+    expect(indicator()).not.toHaveClass("bg-accent");
+  });
+
+  it("fills relative to max", () => {
+    render(<Progress value={50} max={200} />);
+    const indicator = screen.getByRole("progressbar").firstElementChild as HTMLElement;
+    expect(indicator).toHaveStyle({ width: "25%" });
+  });
 });

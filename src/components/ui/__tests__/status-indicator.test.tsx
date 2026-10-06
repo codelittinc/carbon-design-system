@@ -19,6 +19,12 @@ describe("StatusIndicator", () => {
 
   it("sizes the dot", () => {
     render(<StatusIndicator color="red" label="Blocked" size="sm" />);
-    expect(screen.getByRole("img")).toHaveClass("h-3", "w-3");
+    expect(screen.getByRole("img")).toHaveClass("size-3");
+  });
+
+  it("drops the native title for use inside a Tooltip, keeping the name", () => {
+    render(<StatusIndicator color="red" label="Blocked" nativeTitle={false} />);
+    const dot = screen.getByRole("img", { name: "Blocked" });
+    expect(dot).not.toHaveAttribute("title");
   });
 });

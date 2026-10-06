@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef, isValidElement, useRef, useState, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId, cloneElement } from 'react';
+import { forwardRef, isValidElement, useRef, useState, createContext, useContext, useLayoutEffect, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId, cloneElement } from 'react';
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Slice, Fragment as Fragment$1 } from '@tiptap/pm/model';
 import { clsx } from 'clsx';
@@ -493,11 +493,40 @@ var buttonVariants = cva(
         // in a flex row, which is right for one carrying a label and wrong for
         // one carrying a single glyph.
         icon: "h-8 w-8 shrink-0"
+      },
+      /**
+       * `destructive` turns an `outline`, `ghost` or `link` button red: a quiet
+       * delete or remove beside other actions. The solid red button is
+       * `variant="destructive"` (which `tone="destructive"` on the default
+       * variant also gives).
+       */
+      tone: {
+        default: "",
+        destructive: ""
       }
     },
+    compoundVariants: [
+      {
+        variant: "default",
+        tone: "destructive",
+        className: "bg-error-solid text-error-foreground hover:bg-error"
+      },
+      {
+        variant: "outline",
+        tone: "destructive",
+        className: "border-error-border text-error-text hover:bg-error-soft hover:text-error-text"
+      },
+      {
+        variant: "ghost",
+        tone: "destructive",
+        className: "text-error-text hover:bg-error-soft hover:text-error-text"
+      },
+      { variant: "link", tone: "destructive", className: "text-error-text" }
+    ],
     defaultVariants: {
       variant: "default",
-      size: "default"
+      size: "default",
+      tone: "default"
     }
   }
 );
@@ -523,9 +552,9 @@ function withTruncatableLabels(children) {
   return out;
 }
 var Button = forwardRef(
-  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+  ({ className, variant, size, tone, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
+    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
   }
 );
 Button.displayName = "Button";
@@ -686,7 +715,42 @@ var floatingMotionClass = "data-[state=open]:animate-in data-[state=closed]:anim
 var optionRowClass = "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-text-secondary outline-none transition-colors";
 var optionRowFocusClass = "focus:bg-surface-overlay focus:text-text-primary data-[highlighted]:bg-surface-overlay data-[highlighted]:text-text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
 var fieldChromeClass = "w-full min-w-0 rounded-md border border-border bg-surface-raised text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50";
-var Select = SelectPrimitive.Root;
+var EMPTY_VALUE = "\0carbon-select-empty";
+var EmptyItemContext = createContext(null);
+function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  name,
+  children,
+  ...props
+}) {
+  const [emptyItems, setEmptyItems] = useState(0);
+  const register = useCallback(
+    (delta) => setEmptyItems((n) => n + delta),
+    []
+  );
+  const hasEmptyItem = emptyItems > 0;
+  const [uncontrolled, setUncontrolled] = useState(defaultValue);
+  const current = value ?? uncontrolled;
+  return /* @__PURE__ */ jsxs(EmptyItemContext.Provider, { value: register, children: [
+    /* @__PURE__ */ jsx(
+      SelectPrimitive.Root,
+      {
+        ...props,
+        value: current === void 0 ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current,
+        onValueChange: (next) => {
+          const mapped = next === EMPTY_VALUE ? "" : next;
+          if (value === void 0) setUncontrolled(mapped);
+          onValueChange?.(mapped);
+        },
+        name: hasEmptyItem ? void 0 : name,
+        children
+      }
+    ),
+    hasEmptyItem && name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "" })
+  ] });
+}
 var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
   SelectPrimitive.Trigger,
   {
@@ -731,18 +795,33 @@ var SelectContent = forwardRef(({ className, children, position = "popper", ...p
   }
 ) }));
 SelectContent.displayName = "SelectContent";
-var SelectItem = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
-  SelectPrimitive.Item,
-  {
-    ref,
-    className: cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className),
-    ...props,
-    children: [
-      /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
-      /* @__PURE__ */ jsx(SelectPrimitive.ItemText, { children })
-    ]
-  }
-));
+var SelectItem = forwardRef(({ className, children, value, ...props }, ref) => {
+  const register = useContext(EmptyItemContext);
+  const empty = value === "";
+  useLayoutEffect(() => {
+    if (!empty || !register) return;
+    register(1);
+    return () => register(-1);
+  }, [empty, register]);
+  return /* @__PURE__ */ jsxs(
+    SelectPrimitive.Item,
+    {
+      ref,
+      value: empty ? EMPTY_VALUE : value,
+      className: cn(
+        optionRowClass,
+        optionRowFocusClass,
+        "pl-8 pr-2",
+        className
+      ),
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
+        /* @__PURE__ */ jsx(SelectPrimitive.ItemText, { children })
+      ]
+    }
+  );
+});
 SelectItem.displayName = "SelectItem";
 function withFieldState(control, { messageId, error, required }, ownRequired = control.props.required) {
   const own = control.props["aria-describedby"];

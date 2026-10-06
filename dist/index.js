@@ -2,16 +2,17 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React from 'react';
-import { forwardRef, isValidElement, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, createContext, useCallback, Children, useContext, useId, Fragment as Fragment$1, cloneElement, useLayoutEffect, useMemo } from 'react';
+import { forwardRef, isValidElement, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, cloneElement, useMemo } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
-import { Slot } from '@radix-ui/react-slot';
+import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, ExternalLink, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, LoaderCircle as LoaderIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
+import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import * as ProgressPrimitive from '@radix-ui/react-progress';
@@ -626,11 +627,40 @@ var buttonVariants = cva(
         // in a flex row, which is right for one carrying a label and wrong for
         // one carrying a single glyph.
         icon: "h-8 w-8 shrink-0"
+      },
+      /**
+       * `destructive` turns an `outline`, `ghost` or `link` button red: a quiet
+       * delete or remove beside other actions. The solid red button is
+       * `variant="destructive"` (which `tone="destructive"` on the default
+       * variant also gives).
+       */
+      tone: {
+        default: "",
+        destructive: ""
       }
     },
+    compoundVariants: [
+      {
+        variant: "default",
+        tone: "destructive",
+        className: "bg-error-solid text-error-foreground hover:bg-error"
+      },
+      {
+        variant: "outline",
+        tone: "destructive",
+        className: "border-error-border text-error-text hover:bg-error-soft hover:text-error-text"
+      },
+      {
+        variant: "ghost",
+        tone: "destructive",
+        className: "text-error-text hover:bg-error-soft hover:text-error-text"
+      },
+      { variant: "link", tone: "destructive", className: "text-error-text" }
+    ],
     defaultVariants: {
       variant: "default",
-      size: "default"
+      size: "default",
+      tone: "default"
     }
   }
 );
@@ -656,9 +686,9 @@ function withTruncatableLabels(children) {
   return out;
 }
 var Button = forwardRef(
-  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+  ({ className, variant, size, tone, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
+    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
   }
 );
 Button.displayName = "Button";
@@ -748,6 +778,31 @@ var Card = forwardRef(
   }
 );
 Card.displayName = "Card";
+function CardHeader({
+  title,
+  description,
+  actions,
+  as: Heading = "h2",
+  size = "md",
+  className
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: cn("mb-4 flex items-start justify-between gap-4", className), children: [
+    /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
+      title != null && title !== false && /* @__PURE__ */ jsx(
+        Heading,
+        {
+          className: cn(
+            "text-text-primary",
+            size === "sm" ? "text-sm font-medium" : "text-base font-semibold"
+          ),
+          children: title
+        }
+      ),
+      description && /* @__PURE__ */ jsx("p", { className: cn("mt-0.5 text-text-secondary", size === "sm" ? "text-xs" : "text-sm"), children: description })
+    ] }),
+    actions && /* @__PURE__ */ jsx("div", { className: "flex shrink-0 items-center gap-2", children: actions })
+  ] });
+}
 var alertVariants = cva("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm", {
   variants: {
     variant: {
@@ -1243,28 +1298,213 @@ var CategoryChip = forwardRef(
 );
 CategoryChip.displayName = "CategoryChip";
 var sizeClasses3 = {
-  sm: "h-3 w-3",
-  md: "h-4 w-4"
+  /** 8px: a legend or tooltip key beside 12px text. */
+  xs: "size-2",
+  /** 12px. */
+  sm: "size-3",
+  /** 16px. */
+  md: "size-4"
 };
+function Swatch({ color, size = "xs", dimmed = false, label, title, className }) {
+  return /* @__PURE__ */ jsx(
+    "span",
+    {
+      ...label ? { role: "img", "aria-label": label } : { "aria-hidden": true },
+      title,
+      className: cn("inline-block shrink-0 rounded-full", sizeClasses3[size], className),
+      style: { backgroundColor: color, opacity: dimmed ? 0.35 : void 0 }
+    }
+  );
+}
 function StatusIndicator({
   color,
   label,
   showLabel = false,
   size = "md",
+  nativeTitle = true,
   className
 }) {
   return /* @__PURE__ */ jsxs("span", { className: cn("inline-flex items-center gap-2", className), children: [
     /* @__PURE__ */ jsx(
-      "span",
+      Swatch,
       {
-        ...showLabel ? { "aria-hidden": true } : { role: "img", "aria-label": label },
-        title: label,
-        className: cn("shrink-0 rounded-full", sizeClasses3[size]),
-        style: { backgroundColor: color }
+        color,
+        size,
+        label: showLabel ? void 0 : label,
+        title: nativeTitle ? label : void 0
       }
     ),
     showLabel && /* @__PURE__ */ jsx("span", { className: "text-sm text-text-secondary", children: label })
   ] });
+}
+var TextLink = forwardRef(
+  ({ asChild = false, external = false, className, children, target, rel, ...props }, ref) => {
+    const Comp = asChild ? Slot : "a";
+    return /* @__PURE__ */ jsxs(
+      Comp,
+      {
+        ref,
+        target: external ? "_blank" : target,
+        rel: external ? "noopener noreferrer" : rel,
+        className: cn(
+          "inline-flex items-baseline gap-1 rounded-sm font-medium text-accent-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+          className
+        ),
+        ...props,
+        children: [
+          /* @__PURE__ */ jsx(Slottable, { children }),
+          external && /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: "shrink-0 self-center" }),
+            /* @__PURE__ */ jsx("span", { className: "sr-only", children: " (opens in a new tab)" })
+          ] })
+        ]
+      }
+    );
+  }
+);
+TextLink.displayName = "TextLink";
+var Dialog = DialogPrimitive2.Root;
+var DialogTrigger = DialogPrimitive2.Trigger;
+var DialogClose = DialogPrimitive2.Close;
+var DialogPortal = DialogPrimitive2.Portal;
+var DialogOverlay = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  DialogPrimitive2.Overlay,
+  {
+    ref,
+    className: cn(overlayClass, className),
+    ...props
+  }
+));
+DialogOverlay.displayName = "DialogOverlay";
+var DialogContent = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(DialogPortal, { children: [
+  /* @__PURE__ */ jsx(DialogOverlay, {}),
+  /* @__PURE__ */ jsxs(
+    DialogPrimitive2.Content,
+    {
+      ref,
+      className: cn(modalSurfaceClass, className),
+      ...props,
+      children: [
+        children,
+        /* @__PURE__ */ jsx(CloseButton, {})
+      ]
+    }
+  )
+] }));
+DialogContent.displayName = "DialogContent";
+function DialogBody({ className, ...props }) {
+  return /* @__PURE__ */ jsx("div", { className: cn("min-h-0 flex-1 overflow-y-auto", className), ...props });
+}
+function DialogHeader({ className, ...props }) {
+  return /* @__PURE__ */ jsx("div", { className: cn("mb-4 shrink-0 space-y-1", className), ...props });
+}
+var DialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  DialogPrimitive2.Title,
+  {
+    ref,
+    className: cn("text-lg font-semibold text-text-primary", className),
+    ...props
+  }
+));
+DialogTitle.displayName = "DialogTitle";
+function DialogDescription({ className, ...props }) {
+  return /* @__PURE__ */ jsx("p", { className: cn("text-sm text-text-muted", className), ...props });
+}
+function DialogFooter({ className, ...props }) {
+  return /* @__PURE__ */ jsx("div", { className: cn("mt-6 flex shrink-0 justify-end gap-2", className), ...props });
+}
+var AlertDialog = AlertDialogPrimitive.Root;
+var AlertDialogTrigger = AlertDialogPrimitive.Trigger;
+var AlertDialogContent = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxs(AlertDialogPrimitive.Portal, { children: [
+  /* @__PURE__ */ jsx(AlertDialogPrimitive.Overlay, { className: overlayClass }),
+  /* @__PURE__ */ jsx(AlertDialogPrimitive.Content, { ref, className: cn(modalSurfaceClass, className), ...props })
+] }));
+AlertDialogContent.displayName = "AlertDialogContent";
+var AlertDialogHeader = DialogHeader;
+var AlertDialogFooter = DialogFooter;
+var AlertDialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  AlertDialogPrimitive.Title,
+  {
+    ref,
+    className: cn("text-lg font-semibold text-text-primary", className),
+    ...props
+  }
+));
+AlertDialogTitle.displayName = "AlertDialogTitle";
+var AlertDialogDescription = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  AlertDialogPrimitive.Description,
+  {
+    ref,
+    className: cn("text-sm text-text-muted", className),
+    ...props
+  }
+));
+AlertDialogDescription.displayName = "AlertDialogDescription";
+var AlertDialogAction = forwardRef(
+  ({ className, destructive = false, ...props }, ref) => /* @__PURE__ */ jsx(
+    AlertDialogPrimitive.Action,
+    {
+      ref,
+      className: cn(buttonVariants({ variant: destructive ? "destructive" : "default" }), className),
+      ...props
+    }
+  )
+);
+AlertDialogAction.displayName = "AlertDialogAction";
+var AlertDialogCancel = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+  AlertDialogPrimitive.Cancel,
+  {
+    ref,
+    className: cn(buttonVariants({ variant: "outline" }), className),
+    ...props
+  }
+));
+AlertDialogCancel.displayName = "AlertDialogCancel";
+var ConfirmContext = createContext(null);
+function ConfirmProvider({ children }) {
+  const [pending2, setPending] = useState(null);
+  const pendingRef = useRef(null);
+  const settle = useCallback((confirmed) => {
+    pendingRef.current?.resolve(confirmed);
+    pendingRef.current = null;
+    setPending(null);
+  }, []);
+  const confirm = useCallback(
+    (options) => new Promise((resolve) => {
+      pendingRef.current?.resolve(false);
+      const next = { ...options, resolve };
+      pendingRef.current = next;
+      setPending(next);
+    }),
+    []
+  );
+  return /* @__PURE__ */ jsxs(ConfirmContext.Provider, { value: confirm, children: [
+    children,
+    /* @__PURE__ */ jsx(
+      AlertDialog,
+      {
+        open: pending2 !== null,
+        onOpenChange: (open) => {
+          if (!open) settle(false);
+        },
+        children: pending2 && /* @__PURE__ */ jsxs(AlertDialogContent, { children: [
+          /* @__PURE__ */ jsxs(AlertDialogHeader, { children: [
+            /* @__PURE__ */ jsx(AlertDialogTitle, { children: pending2.title }),
+            pending2.description && /* @__PURE__ */ jsx(AlertDialogDescription, { children: pending2.description })
+          ] }),
+          /* @__PURE__ */ jsxs(AlertDialogFooter, { children: [
+            /* @__PURE__ */ jsx(AlertDialogCancel, { children: pending2.cancelLabel ?? "Cancel" }),
+            /* @__PURE__ */ jsx(AlertDialogAction, { destructive: pending2.destructive, onClick: () => settle(true), children: pending2.confirmLabel ?? "Confirm" })
+          ] })
+        ] })
+      }
+    )
+  ] });
+}
+function useConfirm() {
+  const confirm = useContext(ConfirmContext);
+  if (!confirm) throw new Error("useConfirm needs a <ConfirmProvider> above it.");
+  return confirm;
 }
 var Checkbox = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   CheckboxPrimitive.Root,
@@ -1485,7 +1725,42 @@ var Switch = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
   }
 ));
 Switch.displayName = "Switch";
-var Select = SelectPrimitive.Root;
+var EMPTY_VALUE = "\0carbon-select-empty";
+var EmptyItemContext = createContext(null);
+function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  name,
+  children,
+  ...props
+}) {
+  const [emptyItems, setEmptyItems] = useState(0);
+  const register = useCallback(
+    (delta) => setEmptyItems((n) => n + delta),
+    []
+  );
+  const hasEmptyItem = emptyItems > 0;
+  const [uncontrolled, setUncontrolled] = useState(defaultValue);
+  const current = value ?? uncontrolled;
+  return /* @__PURE__ */ jsxs(EmptyItemContext.Provider, { value: register, children: [
+    /* @__PURE__ */ jsx(
+      SelectPrimitive.Root,
+      {
+        ...props,
+        value: current === void 0 ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current,
+        onValueChange: (next) => {
+          const mapped = next === EMPTY_VALUE ? "" : next;
+          if (value === void 0) setUncontrolled(mapped);
+          onValueChange?.(mapped);
+        },
+        name: hasEmptyItem ? void 0 : name,
+        children
+      }
+    ),
+    hasEmptyItem && name && /* @__PURE__ */ jsx("input", { type: "hidden", name, value: current ?? "" })
+  ] });
+}
 var SelectGroup = SelectPrimitive.Group;
 var SelectValue = SelectPrimitive.Value;
 var SelectTrigger = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
@@ -1532,107 +1807,34 @@ var SelectContent = forwardRef(({ className, children, position = "popper", ...p
   }
 ) }));
 SelectContent.displayName = "SelectContent";
-var SelectItem = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(
-  SelectPrimitive.Item,
-  {
-    ref,
-    className: cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className),
-    ...props,
-    children: [
-      /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
-      /* @__PURE__ */ jsx(SelectPrimitive.ItemText, { children })
-    ]
-  }
-));
-SelectItem.displayName = "SelectItem";
-var Dialog = DialogPrimitive2.Root;
-var DialogTrigger = DialogPrimitive2.Trigger;
-var DialogClose = DialogPrimitive2.Close;
-var DialogPortal = DialogPrimitive2.Portal;
-var DialogOverlay = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive2.Overlay,
-  {
-    ref,
-    className: cn(overlayClass, className),
-    ...props
-  }
-));
-DialogOverlay.displayName = "DialogOverlay";
-var DialogContent = forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ jsxs(DialogPortal, { children: [
-  /* @__PURE__ */ jsx(DialogOverlay, {}),
-  /* @__PURE__ */ jsxs(
-    DialogPrimitive2.Content,
+var SelectItem = forwardRef(({ className, children, value, ...props }, ref) => {
+  const register = useContext(EmptyItemContext);
+  const empty = value === "";
+  useLayoutEffect(() => {
+    if (!empty || !register) return;
+    register(1);
+    return () => register(-1);
+  }, [empty, register]);
+  return /* @__PURE__ */ jsxs(
+    SelectPrimitive.Item,
     {
       ref,
-      className: cn(modalSurfaceClass, className),
+      value: empty ? EMPTY_VALUE : value,
+      className: cn(
+        optionRowClass,
+        optionRowFocusClass,
+        "pl-8 pr-2",
+        className
+      ),
       ...props,
       children: [
-        children,
-        /* @__PURE__ */ jsx(CloseButton, {})
+        /* @__PURE__ */ jsx("span", { className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center", children: /* @__PURE__ */ jsx(SelectPrimitive.ItemIndicator, { children: /* @__PURE__ */ jsx(Check, { size: 12 }) }) }),
+        /* @__PURE__ */ jsx(SelectPrimitive.ItemText, { children })
       ]
     }
-  )
-] }));
-DialogContent.displayName = "DialogContent";
-function DialogBody({ className, ...props }) {
-  return /* @__PURE__ */ jsx("div", { className: cn("min-h-0 flex-1 overflow-y-auto", className), ...props });
-}
-function DialogHeader({ className, ...props }) {
-  return /* @__PURE__ */ jsx("div", { className: cn("mb-4 shrink-0 space-y-1", className), ...props });
-}
-var DialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  DialogPrimitive2.Title,
-  {
-    ref,
-    className: cn("text-lg font-semibold text-text-primary", className),
-    ...props
-  }
-));
-DialogTitle.displayName = "DialogTitle";
-function DialogDescription({ className, ...props }) {
-  return /* @__PURE__ */ jsx("p", { className: cn("text-sm text-text-muted", className), ...props });
-}
-function DialogFooter({ className, ...props }) {
-  return /* @__PURE__ */ jsx("div", { className: cn("mt-6 flex shrink-0 justify-end gap-2", className), ...props });
-}
-var AlertDialog = AlertDialogPrimitive.Root;
-var AlertDialogTrigger = AlertDialogPrimitive.Trigger;
-var AlertDialogContent = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxs(AlertDialogPrimitive.Portal, { children: [
-  /* @__PURE__ */ jsx(AlertDialogPrimitive.Overlay, { className: overlayClass }),
-  /* @__PURE__ */ jsx(AlertDialogPrimitive.Content, { ref, className: cn(modalSurfaceClass, className), ...props })
-] }));
-AlertDialogContent.displayName = "AlertDialogContent";
-var AlertDialogHeader = DialogHeader;
-var AlertDialogFooter = DialogFooter;
-var AlertDialogTitle = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  AlertDialogPrimitive.Title,
-  {
-    ref,
-    className: cn("text-lg font-semibold text-text-primary", className),
-    ...props
-  }
-));
-AlertDialogTitle.displayName = "AlertDialogTitle";
-var AlertDialogDescription = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  AlertDialogPrimitive.Description,
-  {
-    ref,
-    className: cn("text-sm text-text-muted", className),
-    ...props
-  }
-));
-AlertDialogDescription.displayName = "AlertDialogDescription";
-var AlertDialogAction = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(AlertDialogPrimitive.Action, { ref, className: cn(buttonVariants(), className), ...props }));
-AlertDialogAction.displayName = "AlertDialogAction";
-var AlertDialogCancel = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-  AlertDialogPrimitive.Cancel,
-  {
-    ref,
-    className: cn(buttonVariants({ variant: "outline" }), className),
-    ...props
-  }
-));
-AlertDialogCancel.displayName = "AlertDialogCancel";
+  );
+});
+SelectItem.displayName = "SelectItem";
 var DropdownMenu = DropdownMenuPrimitive.Root;
 var DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 var DropdownMenuGroup = DropdownMenuPrimitive.Group;
@@ -1751,21 +1953,32 @@ function Skeleton({ className, ...props }) {
     }
   );
 }
-var Progress = forwardRef(({ className, value, ...props }, ref) => /* @__PURE__ */ jsx(
-  ProgressPrimitive.Root,
-  {
-    ref,
-    className: cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className),
-    ...props,
-    children: /* @__PURE__ */ jsx(
-      ProgressPrimitive.Indicator,
-      {
-        className: "h-full bg-accent transition-all",
-        style: { width: `${value ?? 0}%` }
-      }
-    )
-  }
-));
+var toneClasses = {
+  accent: "bg-accent",
+  success: "bg-success",
+  warning: "bg-warning",
+  error: "bg-error",
+  info: "bg-info"
+};
+var Progress = forwardRef(
+  ({ className, value, max = 100, tone = "accent", ...props }, ref) => /* @__PURE__ */ jsx(
+    ProgressPrimitive.Root,
+    {
+      ref,
+      value,
+      max,
+      className: cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-overlay", className),
+      ...props,
+      children: /* @__PURE__ */ jsx(
+        ProgressPrimitive.Indicator,
+        {
+          className: cn("h-full transition-all", toneClasses[tone]),
+          style: { width: `${(value ?? 0) / max * 100}%` }
+        }
+      )
+    }
+  )
+);
 Progress.displayName = "Progress";
 var Tabs = TabsPrimitive.Root;
 var TabsList = forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsx(
@@ -2001,17 +2214,36 @@ function ToastProvider({ children }) {
     )
   ] });
 }
-function EmptyState({ icon, title, description, action, className }) {
+function EmptyState({
+  icon,
+  title,
+  as: Heading = "h3",
+  description,
+  action,
+  className
+}) {
   return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-col items-center justify-center py-16 text-center", className), children: [
     icon && /* @__PURE__ */ jsx("div", { className: "mb-4 text-text-faint", children: icon }),
-    /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-text-primary", children: title }),
+    /* @__PURE__ */ jsx(Heading, { className: "text-sm font-medium text-text-primary", children: title }),
     description && /* @__PURE__ */ jsx("p", { className: "mt-1 max-w-sm text-sm text-text-muted", children: description }),
     action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
   ] });
 }
-function PageHeader({ title, description, actions, className }) {
+function PageHeader({ title, description, actions, back, className }) {
+  const BackLink = back?.as ?? "a";
   return /* @__PURE__ */ jsxs("div", { className: cn("mb-6 flex items-start justify-between", className), children: [
     /* @__PURE__ */ jsxs("div", { children: [
+      back && /* @__PURE__ */ jsx(
+        TextLink,
+        {
+          asChild: true,
+          className: "mb-2 flex w-fit items-center text-sm font-normal text-text-muted hover:text-text-primary",
+          children: /* @__PURE__ */ jsxs(BackLink, { href: back.href, children: [
+            /* @__PURE__ */ jsx(ArrowLeft, { size: 14, "aria-hidden": "true" }),
+            back.label
+          ] })
+        }
+      ),
       /* @__PURE__ */ jsx("h1", { className: "font-[family-name:var(--font-display)] text-2xl text-text-primary", children: title }),
       description && /* @__PURE__ */ jsx("p", { className: "mt-1 text-sm text-text-muted", children: description })
     ] }),
@@ -2120,6 +2352,7 @@ function DataTable({
     state: { sorting, columnFilters, rowSelection, expanded },
     initialState: { pagination: { pageSize } }
   });
+  const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== void 0);
   const seen = useRef(resetPageOn);
   useEffect(() => {
     if (!driven || Object.is(seen.current, resetPageOn)) return;
@@ -2296,7 +2529,26 @@ function DataTable({
             }
           )
         ] }, row.id);
-      }) : /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: colCount, children: emptyMessage }) })
+      }) : /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: colCount, children: emptyMessage }) }),
+      hasFooter && /* @__PURE__ */ jsx(TableFooter, { children: table.getFooterGroups().slice(0, 1).map((footerGroup) => /* @__PURE__ */ jsxs(TableRow, { children: [
+        expandable && /* @__PURE__ */ jsx(TableCell, { className: "w-10 px-1" }),
+        footerGroup.headers.map((header) => {
+          const meta = header.column.columnDef.meta;
+          return /* @__PURE__ */ jsx(
+            TableCell,
+            {
+              colSpan: header.colSpan,
+              className: cn(
+                "font-medium text-text-primary",
+                meta?.align && alignClasses[meta.align].cell,
+                meta?.className
+              ),
+              children: header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())
+            },
+            header.id
+          );
+        })
+      ] }, footerGroup.id)) })
     ] }) }),
     paginate && // Renders nothing for a single page.
     /* @__PURE__ */ jsx(
@@ -2495,6 +2747,8 @@ function SearchSelect({
   onSearch,
   onQueryChange,
   options,
+  selectedOption: selectedOptionProp,
+  disabled = false,
   loading = false,
   placeholder = "Search...",
   emptyMessage = "No results",
@@ -2523,10 +2777,21 @@ function SearchSelect({
   const listboxId = useId();
   const optionId = (i) => `${listboxId}-option-${i}`;
   const requiredHintId = `${listboxId}-required`;
-  const selectedOption = options.find((o) => o.value === value);
+  const selectedOption = options.find((o) => o.value === value) ?? (value != null && selectedOptionProp?.value === value ? selectedOptionProp : void 0);
   const trimmed = query.trim();
   const showCreate = !!onCreate && !loading && trimmed.length > 0 && !options.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
-  const rowCount = options.length + (showCreate ? 1 : 0);
+  const navigable = [
+    ...options.flatMap((o, i) => o.disabled ? [] : [i]),
+    ...showCreate ? [options.length] : []
+  ];
+  const firstOption = navigable.find((i) => i < options.length) ?? -1;
+  const lastOption = [...navigable].reverse().find((i) => i < options.length) ?? -1;
+  const stepFrom = (from, step) => {
+    if (navigable.length === 0) return -1;
+    const at = navigable.indexOf(from);
+    if (at === -1) return step === 1 ? navigable[0] : navigable[navigable.length - 1];
+    return navigable[(at + step + navigable.length) % navigable.length];
+  };
   useEffect(() => {
     function handleClickOutside(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -2610,27 +2875,25 @@ function SearchSelect({
         case "ArrowDown": {
           e.preventDefault();
           if (!open) {
-            openList(options.length ? 0 : -1);
+            openList(firstOption);
             return;
           }
-          if (rowCount === 0) return;
-          setActiveIndex((i) => (i + 1) % rowCount);
+          setActiveIndex((i) => stepFrom(i, 1));
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
           if (!open) {
-            openList(options.length ? options.length - 1 : -1);
+            openList(lastOption);
             return;
           }
-          if (rowCount === 0) return;
-          setActiveIndex((i) => i <= 0 ? rowCount - 1 : i - 1);
+          setActiveIndex((i) => stepFrom(i, -1));
           break;
         }
         case "Enter": {
           if (open) {
             e.preventDefault();
-            if (activeIndex >= 0 && options[activeIndex]) {
+            if (activeIndex >= 0 && options[activeIndex] && !options[activeIndex].disabled) {
               handleSelect(options[activeIndex].value);
             } else if (showCreate && activeIndex === options.length) {
               void handleCreate();
@@ -2647,7 +2910,9 @@ function SearchSelect({
         }
       }
     },
-    [open, options, activeIndex, openList, closeList, handleSelect, rowCount, showCreate, handleCreate]
+    // stepFrom, firstOption and lastOption derive from options and showCreate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, options, activeIndex, openList, closeList, handleSelect, showCreate, handleCreate]
   );
   return /* @__PURE__ */ jsxs("div", { ref, onBlur: handleBlur, className: cn("relative", className), children: [
     /* @__PURE__ */ jsxs(
@@ -2661,6 +2926,7 @@ function SearchSelect({
         "aria-label": ariaLabel,
         "aria-describedby": required ? requiredHintId : void 0,
         "aria-controls": open ? listboxId : void 0,
+        disabled,
         onKeyDown: handleKeyDown,
         onClick: () => open ? closeList() : openList(-1),
         className: cn(
@@ -2680,7 +2946,7 @@ function SearchSelect({
             }
           ),
           /* @__PURE__ */ jsxs("div", { className: "flex shrink-0 items-center gap-1", children: [
-            clearable && value && /* @__PURE__ */ jsx(
+            clearable && value && !disabled && /* @__PURE__ */ jsx(
               "span",
               {
                 role: "button",
@@ -2696,7 +2962,7 @@ function SearchSelect({
       }
     ),
     required && /* @__PURE__ */ jsx("span", { id: requiredHintId, className: "sr-only", children: requiredLabel }),
-    open && /* @__PURE__ */ jsxs(
+    open && !disabled && /* @__PURE__ */ jsxs(
       "div",
       {
         className: cn(
@@ -2735,15 +3001,21 @@ function SearchSelect({
                 id: optionId(i),
                 role: "option",
                 "aria-selected": option.value === value,
+                "aria-disabled": option.disabled || void 0,
                 type: "button",
                 tabIndex: -1,
-                onClick: () => handleSelect(option.value),
-                onMouseEnter: () => setActiveIndex(i),
+                onClick: () => {
+                  if (!option.disabled) handleSelect(option.value);
+                },
+                onMouseEnter: () => {
+                  if (!option.disabled) setActiveIndex(i);
+                },
                 className: cn(
                   optionRowClass,
                   "text-text-primary hover:bg-surface-overlay",
                   i === activeIndex && optionRowActiveClass,
                   option.value === value && "bg-accent-muted text-accent-text",
+                  option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
                   optionClassName
                 ),
                 children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
@@ -2896,10 +3168,32 @@ function FilterBar({
     children
   ] });
 }
-function StatCard({ label, value, sub, trend, loading, className }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  trend,
+  loading,
+  action,
+  children,
+  valueClassName,
+  className
+}) {
   return /* @__PURE__ */ jsxs(Card, { padding: "none", className: cn("p-4", className), children: [
-    /* @__PURE__ */ jsx("p", { className: eyebrowClass, children: label }),
-    loading ? /* @__PURE__ */ jsx(Skeleton, { className: "mt-2 h-7 w-24" }) : /* @__PURE__ */ jsx("p", { className: "mt-1 font-[family-name:var(--font-mono)] text-2xl font-semibold tracking-tight text-text-primary", children: value }),
+    /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between gap-2", children: [
+      /* @__PURE__ */ jsx("p", { className: eyebrowClass, children: label }),
+      action && /* @__PURE__ */ jsx("div", { className: "-my-1 shrink-0", children: action })
+    ] }),
+    loading ? /* @__PURE__ */ jsx(Skeleton, { className: "mt-2 h-7 w-24" }) : /* @__PURE__ */ jsx(
+      "p",
+      {
+        className: cn(
+          "mt-1 font-[family-name:var(--font-mono)] text-2xl font-semibold tracking-tight text-text-primary",
+          valueClassName
+        ),
+        children: value
+      }
+    ),
     sub && /* @__PURE__ */ jsx(
       "p",
       {
@@ -2911,7 +3205,8 @@ function StatCard({ label, value, sub, trend, loading, className }) {
         ),
         children: sub
       }
-    )
+    ),
+    children && /* @__PURE__ */ jsx("div", { className: "mt-3", children })
   ] });
 }
 var CHART_SERIES_LIMIT = 8;
@@ -2940,43 +3235,44 @@ function ChartCard({
   children
 }) {
   return /* @__PURE__ */ jsxs(Card, { padding: "none", className: cn("p-4", className), children: [
-    (title || subtitle || action) && /* @__PURE__ */ jsxs("div", { className: "mb-4 flex items-start justify-between gap-4", children: [
-      /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
-        title && /* @__PURE__ */ jsx("h3", { className: "text-sm font-medium text-text-primary", children: title }),
-        subtitle && /* @__PURE__ */ jsx("p", { className: "mt-0.5 text-xs text-text-secondary", children: subtitle })
-      ] }),
-      action && /* @__PURE__ */ jsx("div", { className: "shrink-0", children: action })
-    ] }),
+    (title || subtitle || action) && /* @__PURE__ */ jsx(CardHeader, { as: "h3", size: "sm", title, description: subtitle, actions: action }),
     children,
     footer && /* @__PURE__ */ jsx("div", { className: "mt-3 text-xs text-text-secondary", children: footer })
   ] });
 }
 function ChartLegend({ items, onItemClick, className }) {
-  return /* @__PURE__ */ jsx("ul", { className: cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", className), children: items.map((item, i) => {
-    const content = /* @__PURE__ */ jsxs(Fragment, { children: [
-      /* @__PURE__ */ jsx(
-        "span",
-        {
-          "aria-hidden": true,
-          className: "size-2 shrink-0 rounded-full",
-          style: { backgroundColor: item.color, opacity: item.inactive ? 0.35 : 1 }
-        }
+  const withValues = items.some((item) => item.value != null);
+  return /* @__PURE__ */ jsx(
+    "ul",
+    {
+      className: cn(
+        withValues ? "space-y-1.5" : "flex flex-wrap items-center gap-x-4 gap-y-1.5",
+        className
       ),
-      /* @__PURE__ */ jsx("span", { className: cn("truncate", item.inactive ? "text-text-faint" : "text-text-secondary"), children: item.label })
-    ] });
-    return /* @__PURE__ */ jsx("li", { className: "min-w-0 text-xs", children: onItemClick ? /* @__PURE__ */ jsx(
-      Button,
-      {
-        type: "button",
-        variant: "ghost",
-        size: "sm",
-        onClick: () => onItemClick(i),
-        "aria-pressed": !item.inactive,
-        className: "-mx-1.5 -my-1 h-auto gap-1.5 rounded-sm px-1.5 py-1 text-xs font-normal",
-        children: content
-      }
-    ) : /* @__PURE__ */ jsx("span", { className: "flex min-w-0 items-center gap-1.5", children: content }) }, `${item.label}-${i}`);
-  }) });
+      children: items.map((item, i) => {
+        const content = /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsx(Swatch, { color: item.color, dimmed: item.inactive }),
+          /* @__PURE__ */ jsx("span", { className: cn("min-w-0 truncate", item.inactive ? "text-text-faint" : "text-text-secondary"), children: item.label })
+        ] });
+        const value = item.value != null ? /* @__PURE__ */ jsx("span", { className: "ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary", children: item.value }) : null;
+        return /* @__PURE__ */ jsxs("li", { className: cn("min-w-0 text-xs", withValues && "flex items-center gap-2"), children: [
+          onItemClick ? /* @__PURE__ */ jsx(
+            Button,
+            {
+              type: "button",
+              variant: "ghost",
+              size: "sm",
+              onClick: () => onItemClick(i),
+              "aria-pressed": !item.inactive,
+              className: "-mx-1.5 -my-1 h-auto gap-1.5 rounded-sm px-1.5 py-1 text-xs font-normal",
+              children: content
+            }
+          ) : /* @__PURE__ */ jsx("span", { className: "flex min-w-0 items-center gap-1.5", children: content }),
+          value
+        ] }, `${item.label}-${i}`);
+      })
+    }
+  );
 }
 function ChartTooltipShell({ children }) {
   return /* @__PURE__ */ jsx("div", { className: "rounded-md border border-border bg-surface-overlay px-3 py-2 shadow-lg", children });
@@ -3009,14 +3305,7 @@ function ChartTooltipContent({
   return /* @__PURE__ */ jsxs(ChartTooltipShell, { children: [
     label != null && label !== "" && /* @__PURE__ */ jsx("p", { className: "mb-1.5 text-xs font-medium text-text-primary", children: labelFormatter ? labelFormatter(label) : label }),
     /* @__PURE__ */ jsx("ul", { className: "space-y-1", children: payload.map((item, i) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-xs", children: [
-      /* @__PURE__ */ jsx(
-        "span",
-        {
-          "aria-hidden": true,
-          className: "size-2 shrink-0 rounded-full",
-          style: { backgroundColor: item.color }
-        }
-      ),
+      /* @__PURE__ */ jsx(Swatch, { color: item.color ?? "" }),
       /* @__PURE__ */ jsx("span", { className: "mr-2 text-text-secondary", children: item.name }),
       /* @__PURE__ */ jsx("span", { className: "ml-auto font-[family-name:var(--font-mono)] text-text-primary", children: typeof item.value === "number" ? valueFormatter(item.value) : item.value ?? "\u2014" })
     ] }, i)) })
@@ -3567,18 +3856,17 @@ function DonutChart({
               ]
             }
           ),
-          /* @__PURE__ */ jsx("ul", { className: cn("space-y-1.5", isRight ? "w-44 shrink-0" : "w-full max-w-xs"), children: slices.map((slice, i) => /* @__PURE__ */ jsxs("li", { className: "flex items-center gap-2 text-xs", children: [
-            /* @__PURE__ */ jsx(
-              "span",
-              {
-                "aria-hidden": true,
-                className: "size-2 shrink-0 rounded-full",
-                style: { backgroundColor: slice.color }
-              }
-            ),
-            /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate text-text-secondary", children: slice.label }),
-            /* @__PURE__ */ jsx("span", { className: "ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary", children: showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value) })
-          ] }, `${slice.label}-${i}`)) }),
+          /* @__PURE__ */ jsx(
+            ChartLegend,
+            {
+              className: isRight ? "w-44 shrink-0" : "w-full max-w-xs",
+              items: slices.map((slice) => ({
+                label: slice.label,
+                color: slice.color,
+                value: showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value)
+              }))
+            }
+          ),
           /* @__PURE__ */ jsx(
             ChartDataTable,
             {
@@ -4152,10 +4440,16 @@ function DayDetailPanel({
   };
   const total = contracts.reduce((sum, c) => sum + (gridData[cellKey(c.id, selectedDay)] || 0), 0);
   return /* @__PURE__ */ jsx("div", { ref: panelRef, children: /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-3 pb-3 pt-2", children: [
-      /* @__PURE__ */ jsx("h3", { className: "text-sm font-semibold text-text-primary", children: dayLabel(selectedDay, "long") }),
-      /* @__PURE__ */ jsx(Button, { type: "button", variant: "ghost", size: "icon", "aria-label": "Close", onClick: onClose, children: /* @__PURE__ */ jsx(X, { size: 14 }) })
-    ] }),
+    /* @__PURE__ */ jsx(
+      CardHeader,
+      {
+        as: "h3",
+        size: "sm",
+        className: "mb-0 items-center px-3 pb-3 pt-2",
+        title: dayLabel(selectedDay, "long"),
+        actions: /* @__PURE__ */ jsx(DismissButton, { label: "Close", onClick: onClose, className: "text-text-muted" })
+      }
+    ),
     /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
         /* @__PURE__ */ jsx(TableHead, { children: "Contract" }),
@@ -4261,16 +4555,14 @@ function HoursSummary({
         ] }))
       ] })
     ] }),
-    hasExpected && /* @__PURE__ */ jsx("div", { "aria-hidden": "true", className: "h-2 overflow-hidden rounded-full bg-surface-overlay", children: /* @__PURE__ */ jsx(
-      "div",
+    hasExpected && /* @__PURE__ */ jsx(
+      Progress,
       {
-        className: cn(
-          "h-full rounded-full transition-all duration-500",
-          isOver ? "bg-warning" : isComplete ? "bg-success" : "bg-error"
-        ),
-        style: { width: `${percentage}%` }
+        "aria-label": "Hours logged of expected",
+        value: percentage,
+        tone: isOver ? "warning" : isComplete ? "success" : "error"
       }
-    ) })
+    )
   ] });
 }
 function TimesheetTable({
@@ -4717,10 +5009,14 @@ function TimeOffList({
 }) {
   const fmt = (iso) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
-    /* @__PURE__ */ jsxs("h2", { className: cn(eyebrowClass, "px-3 pb-3 pt-2"), children: [
-      "Time Off This ",
-      viewMode === "weekly" ? "Week" : "Month"
-    ] }),
+    /* @__PURE__ */ jsx(
+      CardHeader,
+      {
+        size: "sm",
+        className: "mb-0 px-3 pb-3 pt-2",
+        title: `Time off this ${viewMode === "weekly" ? "week" : "month"}`
+      }
+    ),
     /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsx(TableRow, { children: ["Type", "From", "To"].map((h) => /* @__PURE__ */ jsx(TableHead, { children: h }, h)) }) }),
       /* @__PURE__ */ jsx(TableBody, { children: timeOffs.map((to) => /* @__PURE__ */ jsxs(TableRow, { className: "last:border-0", children: [
@@ -5490,4 +5786,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

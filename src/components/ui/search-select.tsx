@@ -11,10 +11,12 @@ import {
 } from "@/lib/ui-classes";
 import { useCreateOption } from "./use-create-option";
 
-interface SearchSelectOption {
+export interface SearchSelectOption {
   value: string;
   label: string;
   sublabel?: string;
+  /** Shown but not selectable; the arrow keys pass over it. */
+  disabled?: boolean;
 }
 
 interface SearchSelectProps {
@@ -31,6 +33,15 @@ interface SearchSelectProps {
    */
   onQueryChange?: (query: string) => void;
   options: SearchSelectOption[];
+  /**
+   * The chosen option, for the trigger to show when it is not in `options` —
+   * a value loaded with the record, before any search has run, or one the
+   * latest search no longer returns. Without it such a value shows the
+   * placeholder. An entry in `options` with the same value wins.
+   */
+  selectedOption?: SearchSelectOption | null;
+  /** Disables the trigger, so the list cannot open. */
+  disabled?: boolean;
   loading?: boolean;
   placeholder?: string;
   /** Shown in the list when there are no options. Defaults to "No results". */
@@ -111,6 +122,8 @@ export function SearchSelect({
   onSearch,
   onQueryChange,
   options,
+  selectedOption: selectedOptionProp,
+  disabled = false,
   loading = false,
   placeholder = "Search...",
   emptyMessage = "No results",
@@ -146,7 +159,10 @@ export function SearchSelect({
   // button role, so the state is exposed as a description instead).
   const requiredHintId = `${listboxId}-required`;
 
-  const selectedOption = options.find((o) => o.value === value);
+  const selectedOption =
+    options.find((o) => o.value === value) ??
+    (value != null && selectedOptionProp?.value === value ? selectedOptionProp : undefined);
+
 
   const trimmed = query.trim();
   const showCreate =
@@ -155,7 +171,21 @@ export function SearchSelect({
     trimmed.length > 0 &&
     !options.some((o) => o.label.toLowerCase() === trimmed.toLowerCase());
   // The create option sits after the options, at index `options.length`.
-  const rowCount = options.length + (showCreate ? 1 : 0);
+  // The rows the arrow keys stop on: every option but a disabled one, then the
+  // create option.
+  const navigable = [
+    ...options.flatMap((o, i) => (o.disabled ? [] : [i])),
+    ...(showCreate ? [options.length] : []),
+  ];
+  const firstOption = navigable.find((i) => i < options.length) ?? -1;
+  const lastOption = [...navigable].reverse().find((i) => i < options.length) ?? -1;
+  /** The navigable row `step` rows from `from`, wrapping at the ends. */
+  const stepFrom = (from: number, step: 1 | -1): number => {
+    if (navigable.length === 0) return -1;
+    const at = navigable.indexOf(from);
+    if (at === -1) return step === 1 ? navigable[0] : navigable[navigable.length - 1];
+    return navigable[(at + step + navigable.length) % navigable.length];
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -288,23 +318,21 @@ export function SearchSelect({
           e.preventDefault();
           if (!open) {
             // Open with the first option active, so ArrowDown then Enter selects it.
-            openList(options.length ? 0 : -1);
+            openList(firstOption);
             return;
           }
-          if (rowCount === 0) return;
-          setActiveIndex((i) => (i + 1) % rowCount);
+          setActiveIndex((i) => stepFrom(i, 1));
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
           if (!open) {
             // Open with the last option active (matches the wrap-around below).
-            openList(options.length ? options.length - 1 : -1);
+            openList(lastOption);
             return;
           }
-          if (rowCount === 0) return;
-          // From no active option (-1), ArrowUp wraps to the last option.
-          setActiveIndex((i) => (i <= 0 ? rowCount - 1 : i - 1));
+          // From no active option (-1), ArrowUp wraps to the last row.
+          setActiveIndex((i) => stepFrom(i, -1));
           break;
         }
         case "Enter": {
@@ -316,7 +344,7 @@ export function SearchSelect({
           // The create option (index `options.length`) is a row like any other.
           if (open) {
             e.preventDefault();
-            if (activeIndex >= 0 && options[activeIndex]) {
+            if (activeIndex >= 0 && options[activeIndex] && !options[activeIndex].disabled) {
               handleSelect(options[activeIndex].value);
             } else if (showCreate && activeIndex === options.length) {
               void handleCreate();
@@ -333,7 +361,9 @@ export function SearchSelect({
         }
       }
     },
-    [open, options, activeIndex, openList, closeList, handleSelect, rowCount, showCreate, handleCreate],
+    // stepFrom, firstOption and lastOption derive from options and showCreate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, options, activeIndex, openList, closeList, handleSelect, showCreate, handleCreate],
   );
 
   return (
@@ -347,6 +377,7 @@ export function SearchSelect({
         aria-label={ariaLabel}
         aria-describedby={required ? requiredHintId : undefined}
         aria-controls={open ? listboxId : undefined}
+        disabled={disabled}
         onKeyDown={handleKeyDown}
         onClick={() => (open ? closeList() : openList(-1))}
         className={cn(
@@ -371,7 +402,7 @@ export function SearchSelect({
         </span>
         {/* shrink-0: the clear button and chevron keep their size; the label is what gives. */}
         <div className="flex shrink-0 items-center gap-1">
-          {clearable && value && (
+          {clearable && value && !disabled && (
             <span
               role="button"
               tabIndex={-1}
@@ -391,7 +422,7 @@ export function SearchSelect({
         </span>
       )}
 
-      {open && (
+      {open && !disabled && (
         <div
           className={cn(
             floatingSurfaceClass,
@@ -433,17 +464,23 @@ export function SearchSelect({
                   id={optionId(i)}
                   role="option"
                   aria-selected={option.value === value}
+                  aria-disabled={option.disabled || undefined}
                   type="button"
                   // Focus stays on the combobox input (active-descendant pattern);
                   // keep options out of the Tab sequence so Tab leaves the widget.
                   tabIndex={-1}
-                  onClick={() => handleSelect(option.value)}
-                  onMouseEnter={() => setActiveIndex(i)}
+                  onClick={() => {
+                    if (!option.disabled) handleSelect(option.value);
+                  }}
+                  onMouseEnter={() => {
+                    if (!option.disabled) setActiveIndex(i);
+                  }}
                   className={cn(
                     optionRowClass,
                     "text-text-primary hover:bg-surface-overlay",
                     i === activeIndex && optionRowActiveClass,
                     option.value === value && "bg-accent-muted text-accent-text",
+                    option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
                     optionClassName,
                   )}
                 >

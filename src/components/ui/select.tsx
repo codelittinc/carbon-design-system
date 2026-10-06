@@ -1,12 +1,97 @@
 "use client";
 
-import { forwardRef } from "react";
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useState,
+  type ReactElement,
+} from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { fieldChromeClass, floatingMotionClass, floatingSurfaceClass, optionRowClass, optionRowFocusClass } from "@/lib/ui-classes";
+import {
+  fieldChromeClass,
+  floatingMotionClass,
+  floatingSurfaceClass,
+  optionRowClass,
+  optionRowFocusClass,
+} from "@/lib/ui-classes";
 
-const Select = SelectPrimitive.Root;
+/**
+ * What an empty-string item is called inside Radix, which refuses `value=""`
+ * (it reserves the empty string for "nothing chosen, show the placeholder").
+ * Never seen outside this file.
+ */
+const EMPTY_VALUE = "\u0000carbon-select-empty";
+
+/** Lets each `SelectItem value=""` tell its `Select` that it exists. */
+const EmptyItemContext = createContext<((delta: 1 | -1) => void) | null>(null);
+
+type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
+
+/**
+ * Radix's Select, with one addition: **an item may have `value=""`.** Use it
+ * for a "None" or "All" choice instead of a sentinel such as `"__all__"`:
+ *
+ * ```tsx
+ * <Select value={status} onValueChange={setStatus}>
+ *   <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+ *   <SelectContent>
+ *     <SelectItem value="">All statuses</SelectItem>
+ *     <SelectItem value="open">Open</SelectItem>
+ *   </SelectContent>
+ * </Select>
+ * ```
+ *
+ * `value` and `onValueChange` see `""` for it, and with `name` a form submits
+ * `""`. Without a `value=""` item, `""` still means "nothing chosen" and shows
+ * the placeholder, as in Radix.
+ */
+function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  name,
+  children,
+  ...props
+}: SelectProps): ReactElement {
+  const [emptyItems, setEmptyItems] = useState(0);
+  const register = useCallback(
+    (delta: 1 | -1) => setEmptyItems((n) => n + delta),
+    [],
+  );
+  const hasEmptyItem = emptyItems > 0;
+  // Held here even when the caller does not control it, so "" can be mapped
+  // both ways; Radix itself is always controlled.
+  // Undefined is "nothing chosen yet", the placeholder, even with an empty item.
+  const [uncontrolled, setUncontrolled] = useState(defaultValue);
+  const current = value ?? uncontrolled;
+  return (
+    <EmptyItemContext.Provider value={register}>
+      <SelectPrimitive.Root
+        {...props}
+        value={current === undefined ? "" : current === "" && hasEmptyItem ? EMPTY_VALUE : current}
+        onValueChange={(next) => {
+          const mapped = next === EMPTY_VALUE ? "" : next;
+          if (value === undefined) setUncontrolled(mapped);
+          onValueChange?.(mapped);
+        }}
+        // Radix's own hidden select would submit the internal name of an
+        // empty item, so the field is submitted from here instead.
+        name={hasEmptyItem ? undefined : name}
+      >
+        {children}
+      </SelectPrimitive.Root>
+      {hasEmptyItem && name && (
+        <input type="hidden" name={name} value={current ?? ""} />
+      )}
+    </EmptyItemContext.Provider>
+  );
+}
+
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
@@ -67,7 +152,8 @@ const SelectContent = forwardRef<
         floatingSurfaceClass,
         floatingMotionClass,
         "relative max-h-72 min-w-[8rem] overflow-hidden",
-        position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+        position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
         className,
       )}
       position={position}
@@ -76,7 +162,8 @@ const SelectContent = forwardRef<
       <SelectPrimitive.Viewport
         className={cn(
           "p-1",
-          position === "popper" && "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+          position === "popper" &&
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
         )}
       >
         {children}
@@ -86,24 +173,47 @@ const SelectContent = forwardRef<
 ));
 SelectContent.displayName = "SelectContent";
 
+/** An option. `value=""` is allowed: see `Select`. */
 const SelectItem = forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Item
-    ref={ref}
-    // Room on the left for the check, drawn absolutely.
-    className={cn(optionRowClass, optionRowFocusClass, "pl-8 pr-2", className)}
-    {...props}
-  >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check size={12} />
-      </SelectPrimitive.ItemIndicator>
-    </span>
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-  </SelectPrimitive.Item>
-));
+>(({ className, children, value, ...props }, ref) => {
+  const register = useContext(EmptyItemContext);
+  const empty = value === "";
+  useLayoutEffect(() => {
+    if (!empty || !register) return;
+    register(1);
+    return () => register(-1);
+  }, [empty, register]);
+  return (
+    <SelectPrimitive.Item
+      ref={ref}
+      value={empty ? EMPTY_VALUE : value}
+      // Room on the left for the check, drawn absolutely.
+      className={cn(
+        optionRowClass,
+        optionRowFocusClass,
+        "pl-8 pr-2",
+        className,
+      )}
+      {...props}
+    >
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <Check size={12} />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  );
+});
 SelectItem.displayName = "SelectItem";
 
-export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectItem };
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+};

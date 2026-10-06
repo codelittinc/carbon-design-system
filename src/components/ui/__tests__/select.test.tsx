@@ -102,4 +102,67 @@ describe("Select", () => {
       expect(trigger).not.toHaveClass("w-full");
     });
   });
+
+  describe("an item with value=\"\"", () => {
+    function Status({
+      value,
+      onValueChange,
+      name,
+    }: {
+      value?: string;
+      onValueChange?: (v: string) => void;
+      name?: string;
+    }) {
+      return (
+        <form aria-label="Filters">
+          <Select value={value} onValueChange={onValueChange} name={name}>
+            <SelectTrigger aria-label="Status">
+              <SelectValue placeholder="Pick a status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All statuses</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+            </SelectContent>
+          </Select>
+        </form>
+      );
+    }
+
+    it("shows it for the value \"\" instead of the placeholder", () => {
+      render(<Status value="" />);
+      expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("All statuses");
+    });
+
+    it("reports \"\" when it is chosen, and other values as they are", () => {
+      const onValueChange = vi.fn();
+      const { rerender } = render(<Status value="" onValueChange={onValueChange} />);
+      fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
+      fireEvent.click(screen.getByRole("option", { name: "Open" }));
+      expect(onValueChange).toHaveBeenLastCalledWith("open");
+
+      rerender(<Status value="open" onValueChange={onValueChange} />);
+      fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
+      fireEvent.click(screen.getByRole("option", { name: "All statuses" }));
+      expect(onValueChange).toHaveBeenLastCalledWith("");
+    });
+
+    it("works uncontrolled", () => {
+      render(<Status />);
+      expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("Pick a status");
+      fireEvent.click(screen.getByRole("combobox", { name: "Status" }));
+      fireEvent.click(screen.getByRole("option", { name: "All statuses" }));
+      expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent("All statuses");
+    });
+
+    it("submits \"\" in a form, never an internal value", () => {
+      render(<Status value="" name="status" />);
+      const form = screen.getByRole("form", { name: "Filters" }) as HTMLFormElement;
+      expect([...new FormData(form).getAll("status")]).toEqual([""]);
+    });
+  });
+
+  it("still shows the placeholder for \"\" when no item has that value", () => {
+    renderSelect({ value: "" });
+    expect(screen.getByRole("combobox", { name: "Fruit" })).toHaveTextContent("Pick a fruit");
+  });
 });
