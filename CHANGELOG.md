@@ -8,6 +8,82 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.18.0] - 2026-10-06
+
+### Added: what Backstage needs to stop hand-rolling UI
+
+Additive only. Each item extends an existing component where one fits, and
+comes with stories and tests.
+
+- **`Swatch`** (`color`, `size: "xs" | "sm" | "md"`, `dimmed`, `label`,
+  `title`): the round color key. `ChartLegend`, the chart tooltips,
+  `DonutChart`'s legend and `StatusIndicator` all draw it.
+- **`ChartLegendItem.value`**: a figure at the end of a legend entry (a share,
+  a total). With values, the legend lists its entries in a column.
+  `DonutChart`'s legend is now a `ChartLegend`.
+- **`StatusIndicator` `nativeTitle`** (default `true`): pass `false` inside a
+  `Tooltip`, so the reader sees one tooltip instead of two. The dot keeps its
+  accessible name.
+- **`CardHeader`** (`title`, `description`, `actions`,
+  `as: "h2" | "h3" | "h4"` (default `h2`), `size: "sm" | "md"`): a section's
+  heading row. `ChartCard`, and `TimesheetTable`'s day panel and time-off
+  list, use it. `PageHeader` stays the page's `h1`. The time-off list's
+  heading is still an `h2`, but now reads "Time off this week" / "Time off
+  this month" (it was "Time Off This Week" / "… Month") and is drawn as a
+  card title rather than the small-caps label: a test that finds it by name
+  needs the new text.
+- **`TextLink`**: an inline link, accent and underlined on hover, with no
+  button box. `asChild` styles a router's link. `external` opens a new tab and
+  shows the external icon, with "(opens in a new tab)" for screen readers; it
+  adds `noopener noreferrer` to any `rel` you pass (`rel="nofollow"` stays).
+  `TextLink` and `Button variant="link"` share one link style.
+- **Icons**: the package re-exports lucide icons with an `Icon` suffix
+  (`SearchIcon`, `TrashIcon`, `ChevronDownIcon`, …, plus the `IconComponent`
+  and `IconProps` types). The full list is in `icons.ts` and the README. It is
+  a short, curated list re-exported from the package's single bundle, so
+  whether unimported icons are dropped is up to your bundler.
+- **`SearchSelect`**:
+  - `selectedOption` shows the chosen option when it isn't in `options`.
+  - An option can be `disabled`: it's shown, the arrow keys skip it, and it
+    can't be picked.
+  - A `disabled` prop disables the trigger, and closes the list if it is
+    open (enabling it again leaves the list closed).
+  - The `SearchSelectOption` type is exported.
+- **`Select`**: a `SelectItem` may have `value=""` for an "All" or "None"
+  choice, with no sentinel. `value` and `onValueChange` see `""`, and a form
+  submits `""`. Without such an item, `""` still shows the placeholder. With
+  an empty item the field is submitted from Carbon's own hidden input, which
+  honours `disabled` (nothing is submitted) and `form`, as Radix's does.
+- **`useConfirm()` + `ConfirmProvider`**:
+  `confirm({ title, description, confirmLabel, cancelLabel, destructive })`
+  returns `Promise<boolean>` and is built on `AlertDialog`. Mount the provider
+  once (beside `ToastProvider`). Without one, `useConfirm` throws. On close
+  (the action, Cancel or Escape) focus goes back to whatever had it when
+  `confirm()` was called, if it is still on the page. A provider that unmounts
+  with a question open answers it `false`.
+  **`AlertDialogAction` `tone="destructive"`** draws the destructive button,
+  the same prop as `Button`'s.
+- **`Button` `tone="destructive"`**: with `outline`, `ghost` or `link`, a red,
+  token-based quiet delete. On the default variant it is the solid destructive
+  button, with the same token fallbacks as `variant="destructive"`.
+- **`StatCard`**:
+  - `action` sits top right, level with the label.
+  - `children` render under the value.
+  - `valueClassName` is merged onto the value.
+- **`DataTable` footer row**: give a column TanStack's own `footer` (a string,
+  or `({ table }) => …`) and the table renders a `TableFooter` row with the
+  column's alignment and classes. This is how you show totals.
+- **`Progress` `tone`**: `"accent"` (default), `"success"`, `"warning"`,
+  `"error"` or `"info"`. `TimesheetTable`'s hours bar is now a `Progress`
+  ("Hours logged of expected"), so it is a `progressbar` to assistive tech.
+  The fill now respects `max`: before, `value={50} max={200}` drew 50%. The
+  value is clamped to `[0, max]` for the bar and for `aria-valuenow`, so an
+  overrun is a full bar, and a `max` that is not above 0 is treated as 100.
+- **`PageHeader` `back`** (`{ href, label, as? }`): a back link above the
+  title. `as` takes your router's link component, Next's `Link` for example.
+- **`EmptyState` `as`** (`"h1" | "h2" | "h3" | "h4"`, default `h3`): use `h1`
+  when the empty state is the whole page ("Access denied").
+
 ## [1.17.3] - 2026-10-06
 
 ### Fixed: copies of shared markup merged, with the bugs they carried

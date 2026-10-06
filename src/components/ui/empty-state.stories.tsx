@@ -98,3 +98,10 @@ export const WithAction: Story = {
     );
   },
 };
+
+/** `as="h1"` when the empty state is the whole page. */
+export const AsPageHeading: Story = {
+  render: () => (
+    <EmptyState as="h1" title="Access denied" description="Ask an admin for access to this page." />
+  ),
+};

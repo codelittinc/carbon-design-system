@@ -37,8 +37,9 @@ import { Alert } from "./alert";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { PeriodNav } from "./calendar-chrome";
-import { Card } from "./card";
+import { Card, CardHeader } from "./card";
 import { PageHeader } from "./page-header";
+import { Progress } from "./progress";
 import { SegmentedControl } from "./segmented-control";
 import { Spinner } from "./spinner";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
@@ -153,15 +154,11 @@ function HoursSummary({
         </div>
       </div>
       {hasExpected && (
-        <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-surface-overlay">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-500",
-              isOver ? "bg-warning" : isComplete ? "bg-success" : "bg-error",
-            )}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
+        <Progress
+          aria-label="Hours logged of expected"
+          value={percentage}
+          tone={isOver ? "warning" : isComplete ? "success" : "error"}
+        />
       )}
     </Card>
   );
@@ -738,9 +735,11 @@ function TimeOffList({
   const fmt = (iso: string) => formatDateKey(iso, { weekday: "short", month: "short", day: "numeric" });
   return (
     <Card padding="sm">
-      <h2 className={cn(eyebrowClass, "px-3 pb-3 pt-2")}>
-        Time Off This {viewMode === "weekly" ? "Week" : "Month"}
-      </h2>
+      <CardHeader
+        size="sm"
+        className="mb-0 px-3 pb-3 pt-2"
+        title={`Time off this ${viewMode === "weekly" ? "week" : "month"}`}
+      />
       <Table>
         <TableHeader>
           <TableRow>

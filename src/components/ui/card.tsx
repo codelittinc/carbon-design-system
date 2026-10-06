@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, type ReactElement, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
@@ -52,4 +52,62 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
 );
 Card.displayName = "Card";
 
-export { Card, cardVariants };
+interface CardHeaderProps {
+  title: ReactNode;
+  /** A line under the title: a period, a caveat, a count. */
+  description?: ReactNode;
+  /** Right-aligned controls: a button, a Select, a link. */
+  actions?: ReactNode;
+  /**
+   * The heading element, for the page's outline. `h2` (default) for a section
+   * of a page, `h3` for a card inside one. The page's own `h1` is `PageHeader`.
+   */
+  as?: "h2" | "h3" | "h4";
+  /** `md` (default) for a section; `sm` for a compact card, a chart, a panel. */
+  size?: "sm" | "md";
+  className?: string;
+}
+
+/**
+ * A section's heading row: the title (and a description under it) on the left,
+ * actions on the right. Inside a `Card` or heading a section of a page; for the
+ * page's own title use `PageHeader`.
+ */
+function CardHeader({
+  title,
+  description,
+  actions,
+  as: Heading = "h2",
+  size = "md",
+  className,
+}: CardHeaderProps): ReactElement {
+  return (
+    <div className={cn("mb-4 flex items-start justify-between gap-4", className)}>
+      <div className="min-w-0">
+        {title != null && title !== false && (
+          <Heading
+            className={cn(
+              "text-text-primary",
+              size === "sm" ? "text-sm font-medium" : "text-base font-semibold",
+            )}
+          >
+            {title}
+          </Heading>
+        )}
+        {/*
+          text-secondary, not text-muted: at 12px, muted is 3.84:1 on the
+          dark surface — under the 4.5:1 AA floor for normal-size text.
+        */}
+        {description && (
+          <p className={cn("mt-0.5 text-text-secondary", size === "sm" ? "text-xs" : "text-sm")}>
+            {description}
+          </p>
+        )}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export { Card, CardHeader, cardVariants };
+export type { CardHeaderProps };

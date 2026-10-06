@@ -85,3 +85,15 @@ export const WithActions: Story = {
     );
   },
 };
+
+/** `back` links to the page above. Pass `as` (Next's Link, say) for client-side routing. */
+export const WithBackLink: StoryObj<typeof PageHeader> = {
+  render: () => (
+    <PageHeader
+      title="Contract #1042"
+      description="Acme Corp · Retainer"
+      back={{ href: "#", label: "Contracts" }}
+      actions={<Button>Edit</Button>}
+    />
+  ),
+};

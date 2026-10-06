@@ -57,6 +57,11 @@ export * from "./components/ui/multi-select";
 export * from "./components/ui/segmented-control";
 export * from "./components/ui/category-chip";
 export * from "./components/ui/status-indicator";
+export * from "./components/ui/swatch";
+export * from "./components/ui/text-link";
+export * from "./components/ui/confirm";
+// Icons, re-exported from lucide-react with an `Icon` suffix (see icons.ts).
+export * from "./components/ui/icons";
 export * from "./components/ui/checkbox-group";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";

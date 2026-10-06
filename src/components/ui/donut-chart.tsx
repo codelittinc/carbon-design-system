@@ -5,6 +5,7 @@ import {
   CHART_NEUTRAL_COLOR,
   ChartDataTable,
   ChartEmpty,
+  ChartLegend,
   ChartSkeleton,
   ChartSliceTooltipContent,
   ChartTooltipContent,
@@ -209,21 +210,14 @@ export function DonutChart({
         )}
       </div>
 
-      <ul className={cn("space-y-1.5", isRight ? "w-44 shrink-0" : "w-full max-w-xs")}>
-        {slices.map((slice, i) => (
-          <li key={`${slice.label}-${i}`} className="flex items-center gap-2 text-xs">
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: slice.color }}
-            />
-            <span className="min-w-0 truncate text-text-secondary">{slice.label}</span>
-            <span className="ml-auto shrink-0 font-[family-name:var(--font-mono)] text-text-primary">
-              {showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <ChartLegend
+        className={isRight ? "w-44 shrink-0" : "w-full max-w-xs"}
+        items={slices.map((slice) => ({
+          label: slice.label,
+          color: slice.color,
+          value: showPercentages ? `${slice.percent.toFixed(1)}%` : valueFormatter(slice.value),
+        }))}
+      />
 
       <ChartDataTable
         caption={tableCaption ?? `Share of total by ${categoryLabel}`}

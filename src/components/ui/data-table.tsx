@@ -21,7 +21,7 @@ import { cn } from "@/lib/cn";
 import { tableRowHoverClass } from "@/lib/ui-classes";
 import { Button } from "./button";
 import { Pagination } from "./pagination";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 import { TableEmptyRow } from "./table-empty-row";
 
 /**
@@ -53,6 +53,11 @@ const alignClasses = {
 };
 
 interface DataTableProps<TData, TValue> {
+  /**
+   * TanStack column definitions. Give a column a `footer` (a string, or a
+   * function of the table: `({ table }) => total(table.getFilteredRowModel().rows)`)
+   * and the table gets a footer row, for totals.
+   */
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
@@ -178,6 +183,10 @@ export function DataTable<TData, TValue>({
     state: { sorting, columnFilters, rowSelection, expanded },
     initialState: { pagination: { pageSize } },
   });
+
+  // A footer row (totals, say) when any column defines a `footer`: TanStack's
+  // own column option, rendered with the column's alignment and classes.
+  const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== undefined);
 
   // Mount already starts on page 1, so only *changes* to the signature reset.
   const seen = useRef(resetPageOn);
@@ -390,6 +399,34 @@ export function DataTable<TData, TValue>({
               <TableEmptyRow colSpan={colCount}>{emptyMessage}</TableEmptyRow>
             )}
           </TableBody>
+          {hasFooter && (
+            <TableFooter>
+              {/* The leaf columns' row only: TanStack lists it first. */}
+              {table.getFooterGroups().slice(0, 1).map((footerGroup) => (
+                <TableRow key={footerGroup.id}>
+                  {expandable && <TableCell className="w-10 px-1" />}
+                  {footerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta;
+                    return (
+                      <TableCell
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        className={cn(
+                          "font-medium text-text-primary",
+                          meta?.align && alignClasses[meta.align].cell,
+                          meta?.className,
+                        )}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.footer, header.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableFooter>
+          )}
         </Table>
       </div>
 

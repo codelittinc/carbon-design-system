@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Card } from "./card";
+import { Button } from "./button";
+import { Card, CardHeader } from "./card";
 
 /** Card groups related content on a bordered surface. */
 const meta: Meta<typeof Card> = {
@@ -39,6 +40,29 @@ export const AsLink: Story = {
         <h3 className="text-sm font-medium text-text-primary">Clickable card</h3>
         <p className="mt-1 text-sm text-text-muted">Rendered as an anchor via asChild.</p>
       </a>
+    </Card>
+  ),
+};
+
+/** CardHeader: a section's title, description and actions. PageHeader stays the page's h1. */
+export const WithHeader: Story = {
+  render: () => (
+    <Card className="w-[28rem]">
+      <CardHeader
+        title="Active contracts"
+        description="12 contracts across 4 customers"
+        actions={<Button size="sm">Add contract</Button>}
+      />
+      <p className="text-sm text-text-secondary">Card content.</p>
+    </Card>
+  ),
+};
+
+export const CompactHeader: Story = {
+  render: () => (
+    <Card className="w-[28rem]" padding="sm">
+      <CardHeader as="h3" size="sm" title="Time off this week" />
+      <p className="text-sm text-text-secondary">Card content.</p>
     </Card>
   ),
 };

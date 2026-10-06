@@ -191,3 +191,30 @@ function LightThemedSearchSelect() {
     </div>
   );
 }
+
+/**
+ * `selectedOption` shows a value the current options do not include (loaded
+ * with the record, before any search); a `disabled` option is shown but
+ * cannot be picked.
+ */
+export const SelectedOptionAndDisabled: StoryObj<typeof SearchSelect> = {
+  render: () => {
+    const [value, setValue] = useState<string | null>("c-9");
+    return (
+      <div className="w-72">
+        <SearchSelect
+          ariaLabel="Customer"
+          value={value}
+          onChange={setValue}
+          onSearch={() => {}}
+          selectedOption={{ value: "c-9", label: "Acme Corp", sublabel: "Loaded with the record" }}
+          options={[
+            { value: "c-1", label: "Globex" },
+            { value: "c-2", label: "Initech", sublabel: "Archived", disabled: true },
+            { value: "c-3", label: "Umbrella" },
+          ]}
+        />
+      </div>
+    );
+  },
+};

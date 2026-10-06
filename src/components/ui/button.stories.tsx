@@ -129,3 +129,22 @@ export const Loading: StoryObj<typeof Button> = {
     );
   },
 };
+
+/** `tone="destructive"` on outline, ghost or link: a quiet delete beside other actions. */
+export const DestructiveTone: StoryObj<typeof Button> = {
+  render: () => (
+    <div className="flex items-center gap-2">
+      <Button variant="destructive">Delete</Button>
+      <Button variant="outline" tone="destructive">
+        Delete
+      </Button>
+      <Button variant="ghost" tone="destructive">
+        <Trash2 size={14} />
+        Remove
+      </Button>
+      <Button variant="link" tone="destructive">
+        Remove link
+      </Button>
+    </div>
+  ),
+};
