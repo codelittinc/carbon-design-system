@@ -8,6 +8,32 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.20.0] - 2026-10-07
+
+### Added: warning status tokens
+
+`warning` was the only status with no adaptive tokens, so `bg-warning-soft`,
+`text-warning-text` and `border-warning-border` compiled to nothing: a caution
+banner built from them rendered with no tint and body-coloured text, in both
+themes, with no build error (#25). They now exist in the default, `.light` and
+`.dark` blocks, alongside the success and error sets:
+
+| Token | Dark | Light |
+|---|---|---|
+| `--color-warning-text` | `#facc15` | `#a16207` |
+| `--color-warning-soft` | `#262010` | `#fef9c3` |
+| `--color-warning-border` | `#524517` | `#fef08a` |
+| `--color-warning-muted` | `#713f12` (fixed, like `success-muted` / `error-muted`) | |
+
+`warning-text` on `warning-soft` is 10.6:1 in dark and 4.58:1 in light, which
+passes WCAG AA. The text is yellow, not the accent's amber, so a caution
+doesn't read as a highlight.
+
+Apps already using these classes start rendering the tint with no change on
+their side. `Badge`, `Alert` and `Toast` look the same as before: their warning
+tone still borrows the accent, and moving them onto these tokens is a separate
+visual change.
+
 ## [1.19.0] - 2026-10-06
 
 ### Added: `FileViewer`

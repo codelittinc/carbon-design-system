@@ -62,7 +62,10 @@ export const eyebrowClass = "text-xs font-medium uppercase tracking-wider text-t
 /**
  * Status tones, shared by Alert, Toast and Badge: a soft fill with its text
  * colour, and the border that goes with it on a bordered surface. `warning`
- * has no amber-free token of its own and borrows the accent's.
+ * still borrows the accent's amber here, although the theme now has its own
+ * `warning-soft` / `-text` / `-border`: moving these components onto them
+ * changes how every existing warning badge and alert looks, so it is its own
+ * release.
  */
 export const toneFillClass = {
   success: "bg-success-soft text-success-text",
