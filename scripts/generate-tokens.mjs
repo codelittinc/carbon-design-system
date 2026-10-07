@@ -11,9 +11,10 @@
  *   dark  = @theme + @theme static, with `.dark` applied (the default theme)
  *   light = @theme + @theme static, with `.light` applied
  *
- * theme.css is read with postcss, and only each rule's own top-level declarations count: an
- * override nested in an `@media` or a nested selector applies conditionally in a browser, so it
- * is not a plain value and is left out.
+ * theme.css is read with postcss. Every `--color-*` declaration must sit directly in one of the
+ * four theme blocks: one anywhere else (`html.light { … }`, an `@media` inside `.light`) applies
+ * in a browser but has no single plain value, so it fails the build rather than leaving PDFs
+ * and emails on the old colour.
  *
  * `var(--color-…)` references are resolved within the theme, as a browser does when the theme
  * class sits on the root element (where apps put it). Every value is then normalised to one of
@@ -34,20 +35,46 @@ const OUT = join(ROOT, "src/tokens.ts");
 const PREFIX = "--color-";
 
 /** A token name as written in CSS (`gray-0\.5`) → as it is keyed in colorTokens (`gray-0.5`). */
-export const unescape = (name) => name.replace(/\\(.)/g, "$1");
+export const cssUnescape = (name) => name.replace(/\\(.)/g, "$1");
 
-/** The one top-level rule `@theme`, `@theme static`, `.dark` or `.light`; a second copy fails. */
-function themeRule(root, label, matches) {
-  const found = root.nodes.filter(matches);
-  if (found.length !== 1) throw new Error(`theme.css: expected one "${label}" block, found ${found.length}`);
-  return found[0];
-}
+const BLOCKS = {
+  theme: { label: "@theme", matches: (n) => n.type === "atrule" && n.name === "theme" && n.params === "" },
+  static: { label: "@theme static", matches: (n) => n.type === "atrule" && n.name === "theme" && n.params === "static" },
+  dark: { label: ".dark", matches: (n) => n.type === "rule" && n.selector === ".dark" },
+  light: { label: ".light", matches: (n) => n.type === "rule" && n.selector === ".light" },
+};
 
-/** The rule's own `--color-*` declarations, in source order. Nested blocks are not read. */
-function declarations(rule) {
-  return rule.nodes
-    .filter((node) => node.type === "decl" && node.prop.startsWith(PREFIX))
-    .map((decl) => [unescape(decl.prop.slice(PREFIX.length)), decl.value.trim()]);
+/**
+ * The `--color-*` declarations of each theme block, as `[name, value]` in source order. Each
+ * block must appear exactly once at the top level, and no `--color-*` declaration may sit
+ * anywhere but directly inside one of them.
+ */
+export function themeBlocks(css) {
+  const root = postcss.parse(css);
+  const rules = Object.fromEntries(
+    Object.entries(BLOCKS).map(([key, { label, matches }]) => {
+      const found = root.nodes.filter(matches);
+      if (found.length !== 1) throw new Error(`theme.css: expected one "${label} {" block, found ${found.length}`);
+      return [key, found[0]];
+    }),
+  );
+  const owners = new Set(Object.values(rules));
+  root.walkDecls((decl) => {
+    if (decl.prop.startsWith(PREFIX) && !owners.has(decl.parent)) {
+      throw new Error(
+        `theme.css:${decl.source.start.line}: ${decl.prop} is declared outside @theme, @theme static, ` +
+          ".dark and .light, so it has no plain value for PDFs and emails. Move it into one of them.",
+      );
+    }
+  });
+  return Object.fromEntries(
+    Object.entries(rules).map(([key, rule]) => [
+      key,
+      rule.nodes
+        .filter((node) => node.type === "decl" && node.prop.startsWith(PREFIX))
+        .map((decl) => [cssUnescape(decl.prop.slice(PREFIX.length)), decl.value.trim()]),
+    ]),
+  );
 }
 
 const hex = (channels) => `#${channels.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
@@ -60,18 +87,20 @@ export function plainColor(name, value) {
   const v = value.toLowerCase();
   if (/^#[0-9a-f]{6}$/.test(v)) return v;
   if (/^#[0-9a-f]{3}$/.test(v)) return `#${[...v.slice(1)].map((c) => c + c).join("")}`;
-  const fn = v.match(/^rgba?\(([^)]*)\)$/);
+  // rgb() and rgba() are aliases. Either all spaces with an optional `/ alpha`, or all commas.
+  const fn =
+    v.match(/^rgba?\(\s*(\d+)\s+(\d+)\s+(\d+)\s*(?:\/\s*([\d.]+%?)\s*)?\)$/) ??
+    v.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+%?)\s*)?\)$/);
   if (fn) {
-    const parts = fn[1].split(/[\s,/]+/).filter(Boolean);
-    const channels = parts.slice(0, 3).map(Number);
-    const raw = parts[3] ?? "1";
-    const alpha = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw);
-    const valid =
-      (parts.length === 3 || parts.length === 4) &&
-      channels.every((c) => Number.isInteger(c) && c >= 0 && c <= 255) &&
-      alpha >= 0 &&
-      alpha <= 1;
-    if (valid) return alpha === 1 ? hex(channels) : `rgba(${channels.join(", ")}, ${Number(alpha.toFixed(4))})`;
+    const channels = fn.slice(1, 4).map(Number);
+    const raw = fn[4] ?? "1";
+    const number = raw.replace(/%$/, "");
+    const parsed = /^(\d+(\.\d*)?|\.\d+)$/.test(number) ? Number(number) : NaN;
+    // Rounded before the solid check, so 0.99999 is solid like 1.
+    const alpha = Number((raw.endsWith("%") ? parsed / 100 : parsed).toFixed(4));
+    if (channels.every((c) => c <= 255) && alpha >= 0 && alpha <= 1) {
+      return alpha === 1 ? hex(channels) : `rgba(${channels.join(", ")}, ${alpha})`;
+    }
   }
   throw new Error(
     `theme.css: --color-${name} is "${value}", which PDFs and emails cannot read. ` +
@@ -88,7 +117,7 @@ function resolveTheme(entries) {
       throw new Error(`theme.css: reference cycle ${[...chain, name].map((n) => PREFIX + n).join(" → ")}`);
     }
     const value = declared.get(name).replace(/var\(--color-((?:[a-z0-9-]|\\.)+)\)/g, (_, raw) => {
-      const ref = unescape(raw);
+      const ref = cssUnescape(raw);
       if (!declared.has(ref)) throw new Error(`theme.css: var(--color-${ref}) is not declared`);
       return resolve(ref, [...chain, name]);
     });
@@ -99,16 +128,11 @@ function resolveTheme(entries) {
 }
 
 export function colorTokensFrom(css) {
-  const root = postcss.parse(css);
-  const atTheme = (params) => (node) => node.type === "atrule" && node.name === "theme" && node.params === params;
-  const rule = (selector) => (node) => node.type === "rule" && node.selector === selector;
-  const base = [
-    ...declarations(themeRule(root, "@theme", atTheme(""))),
-    ...declarations(themeRule(root, "@theme static", atTheme("static"))),
-  ];
+  const blocks = themeBlocks(css);
+  const base = [...blocks.theme, ...blocks.static];
   return {
-    dark: resolveTheme([...base, ...declarations(themeRule(root, ".dark", rule(".dark")))]),
-    light: resolveTheme([...base, ...declarations(themeRule(root, ".light", rule(".light")))]),
+    dark: resolveTheme([...base, ...blocks.dark]),
+    light: resolveTheme([...base, ...blocks.light]),
   };
 }
 

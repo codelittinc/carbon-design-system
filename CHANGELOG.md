@@ -31,8 +31,10 @@ colorTokens.dark.accent;           // "#f59e0b"
   (today only `table-stripe` / `table-row-hover`): the forms react-pdf and
   email clients read. The generator converts `theme.css`'s `rgb(r g b / a%)` and fails the
   build on any colour syntax it cannot convert (oklch, hsl, named colours).
-  Only each theme rule's top-level declarations count: an override inside an
-  `@media` applies conditionally in a browser, so it is not a plain value.
+  Every `--color-*` declaration must sit directly in `@theme`, `@theme static`,
+  `.dark` or `.light`; one anywhere else (`html.light`, an `@media` inside
+  `.light`) fails the build, since it has no single plain value and would
+  otherwise leave PDFs and emails on the old colour.
   Outlook desktop ignores alpha, so in an email set those two over an opaque
   background and treat them as optional.
 - Types: `ColorTheme` (`"dark" | "light"`) and `ColorToken` (every token name).

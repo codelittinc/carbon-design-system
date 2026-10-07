@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import postcss from "postcss";
 // A plain .mjs build script. test/ is outside tsconfig's include, so this import is not type-checked.
-import { colorTokensFrom, plainColor, tokensSource, unescape } from "../scripts/generate-tokens.mjs";
+import { colorTokensFrom, cssUnescape, plainColor, tokensSource } from "../scripts/generate-tokens.mjs";
 import { colorTokens } from "../src/tokens";
 
 /**
@@ -19,11 +20,12 @@ describe("plain colour tokens", () => {
   });
 
   it("covers every --color-* token theme.css declares, in both themes", () => {
-    // Deliberately looser than the generator's pattern: any `--color-…:` declaration counts, so a
-    // name the generator cannot read shows up here as a missing token.
-    const declared = new Set(
-      Array.from(themeCss.matchAll(/--color-([^\s:;()]+)\s*:/g), (m) => unescape(m[1])),
-    );
+    // Every `--color-*` declaration postcss finds anywhere in the file (comments are not
+    // declarations), independent of how the generator picks its blocks.
+    const declared = new Set<string>();
+    postcss.parse(themeCss).walkDecls(/^--color-/, (decl) => {
+      declared.add(cssUnescape(decl.prop.slice("--color-".length)));
+    });
     for (const theme of ["dark", "light"] as const) {
       expect(new Set(Object.keys(colorTokens[theme]))).toEqual(declared);
     }
@@ -53,12 +55,19 @@ describe("plain colour tokens", () => {
     // An alpha of 1 is still solid, so it gets the form Outlook reads too.
     expect(plainColor("x", "rgb(1 2 3 / 100%)")).toBe("#010203");
     expect(plainColor("x", "rgba(1, 2, 3, 1)")).toBe("#010203");
+    expect(plainColor("x", "rgb(1 2 3 / 0.99999)")).toBe("#010203");
+    // rgba() is an alias of rgb(), so its alpha is optional in CSS too.
+    expect(plainColor("x", "rgba(1, 2, 3)")).toBe("#010203");
   });
 
   it("fails the build on a colour syntax PDFs and emails cannot read", () => {
     expect(() => plainColor("x", "oklch(0.7 0.1 50)")).toThrow(/--color-x/);
     expect(() => plainColor("x", "red")).toThrow(/--color-x/);
     expect(() => plainColor("x", "rgb(300 0 0)")).toThrow(/--color-x/);
+    // Typos a browser rejects must not become a valid hex here.
+    expect(() => plainColor("x", "rgb(1 2 3 / )")).toThrow(/--color-x/);
+    expect(() => plainColor("x", "rgb(1, 2 3)")).toThrow(/--color-x/);
+    expect(() => plainColor("x", "rgb(1 2 3 / 1.2.3)")).toThrow(/--color-x/);
   });
 
   it("applies .light over the defaults and leaves the theme-independent fills alone", () => {
@@ -79,16 +88,28 @@ describe("plain colour tokens", () => {
     expect(() => colorTokensFrom(cycle)).toThrow("--color-a → --color-b → --color-a");
   });
 
-  it("ignores a quoted selector in a comment and reads only top-level declarations", () => {
+  it("ignores a quoted selector in a comment", () => {
     const css = [
-      "/* Theming: put overrides in `.light {` below. */",
-      "@theme {\n  --color-bg: #000000;\n  --color-fg: #ffffff;\n}",
+      "/* Theming: put overrides in `.light {` below, e.g. --color-brand: #123456; */",
+      "@theme {\n  --color-bg: #000000;\n}",
       "@theme static {\n}",
-      // A conditional override is not a plain value: the default must win.
-      ".light {\n  --color-bg: #ffffff;\n  @media (prefers-contrast: more) {\n    --color-bg: #eeeeee;\n  }\n  --color-fg: #000000;\n}",
+      ".light {\n  --color-bg: #ffffff;\n}",
       ".dark {\n}",
     ].join("\n");
-    expect(colorTokensFrom(css).light).toEqual({ bg: "#ffffff", fg: "#000000" });
+    expect(colorTokensFrom(css).light).toEqual({ bg: "#ffffff" });
+  });
+
+  it.each([
+    ["a selector other than .light", "html.light {\n  --color-bg: #eeeeee;\n}"],
+    ["an @media inside .light", ".light {\n  --color-bg: #ffffff;\n  @media (prefers-contrast: more) {\n    --color-bg: #eeeeee;\n  }\n}"],
+  ])("fails the build on an override in %s, which has no plain value", (_, override) => {
+    const css = [
+      "@theme {\n  --color-bg: #000000;\n}",
+      "@theme static {\n}",
+      override.startsWith(".light") ? override : `.light {\n}\n${override}`,
+      ".dark {\n}",
+    ].join("\n");
+    expect(() => colorTokensFrom(css)).toThrow(/--color-bg is declared outside/);
   });
 
   it("reads a last declaration that has no semicolon", () => {

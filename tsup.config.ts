@@ -25,8 +25,10 @@ const DIRECTIVE = '"use client";';
 /**
  * Which emitted bundles are React client code, and which are safe to call from
  * a server component. `index` is client: it is almost entirely components, and
- * the directive has to cover them. `utils` must NOT be, which is the reason it
- * is a separate entry — see the comment in src/utils.ts.
+ * the directive has to cover them. `utils` and `tokens` must NOT be, which is
+ * the reason each is a separate entry: `utils` is called from server components
+ * (see the comment in src/utils.ts), and `tokens` is read where there is no
+ * React at all, to render PDFs and emails. SERVER_SAFE_ENTRIES below lists both.
  */
 const CLIENT_ENTRIES = new Set(["index.js", "rich-text-editor-impl.js"]);
 
