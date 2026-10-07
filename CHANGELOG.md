@@ -8,6 +8,30 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.21.0] - 2026-10-07
+
+### Changed: warning badges, alerts and toasts are yellow, not accent amber
+
+**Visual change.** `Badge variant="warning"`, `Alert variant="warning"`,
+`toast.warning()` and every `StatusBadge` status that maps to warning
+(`PENDING`, `PENDING_APPROVAL`, `NOTICE`, `NOT_STARTED`, `SOFT_CLOSED`) now
+use the `warning-soft` / `warning-text` / `warning-border` tokens added in
+1.20.0. Before, they borrowed the accent's amber, so a caution looked the
+same as `Badge variant="accent"`. The two are now distinct. `accent` is
+unchanged.
+
+### Added: `info-border` and `info-muted`
+
+`info` was the other status missing tokens, so `border-info-border` compiled
+to nothing. Both now exist (`info-border` in the default, `.light` and `.dark`
+blocks; `info-muted` once, fixed in both themes like the other `-muted`
+tokens). All four statuses now carry the same set, and
+`test/status-tokens.test.ts` keeps it that way.
+
+**Also visual:** warning and info `Alert`s and toasts get a tinted border
+(`border-warning-border`, `border-info-border`) where they had the neutral
+`border-border`, matching success and error.
+
 ## [1.20.0] - 2026-10-07
 
 ### Added: warning status tokens

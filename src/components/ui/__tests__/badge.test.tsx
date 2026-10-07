@@ -21,7 +21,12 @@ describe("Badge", () => {
     expect(screen.getByText("I")).toHaveClass("bg-info-soft");
 
     rerender(<Badge variant="accent">A</Badge>);
-    expect(screen.getByText("A")).toHaveClass("text-accent-text");
+    expect(screen.getByText("A")).toHaveClass("bg-accent-muted", "text-accent-text");
+
+    // A caution must not read as a highlight: warning has its own tint.
+    rerender(<Badge variant="warning">W</Badge>);
+    expect(screen.getByText("W")).toHaveClass("bg-warning-soft", "text-warning-text");
+    expect(screen.getByText("W")).not.toHaveClass("bg-accent-muted");
   });
 
   it("forwards className and span props", () => {
