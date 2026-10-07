@@ -8,7 +8,7 @@
  * `build:lib` regenerates it before bundling, so a published build cannot carry a stale copy.
  * test/tokens.test.ts fails when the committed file differs from what this produces.
  *
- *   dark  = @theme + @theme static, with `.dark` applied (the default theme)
+ *   dark  = @theme + @theme static, the default theme; `.dark` must restate it, not change it
  *   light = @theme + @theme static, with `.light` applied
  *
  * theme.css is read with postcss. Every `--color-*` declaration must sit directly in one of the
@@ -130,10 +130,18 @@ function resolveTheme(entries) {
 export function colorTokensFrom(css) {
   const blocks = themeBlocks(css);
   const base = [...blocks.theme, ...blocks.static];
-  return {
-    dark: resolveTheme([...base, ...blocks.dark]),
-    light: resolveTheme([...base, ...blocks.light]),
-  };
+  const dark = resolveTheme([...base, ...blocks.dark]);
+  // A page with no theme class shows @theme alone, so `.dark` must restate it, not change it.
+  // Otherwise colorTokens.dark (what PDFs and emails get) and the app's default would differ.
+  const defaults = resolveTheme(base);
+  const drifted = Object.keys(dark).filter((name) => dark[name] !== defaults[name]);
+  if (drifted.length > 0) {
+    throw new Error(
+      `theme.css: .dark changes ${drifted.map((name) => `${PREFIX}${name} (${defaults[name]} → ${dark[name]})`).join(", ")}. ` +
+        "Dark is the default theme, so make the same change in @theme.",
+    );
+  }
+  return { dark, light: resolveTheme([...base, ...blocks.light]) };
 }
 
 export function tokensSource(css) {
@@ -169,8 +177,20 @@ export type ColorToken = keyof (typeof colorTokens)["dark"];
 `;
 }
 
-// Compare real paths: argv[1] keeps a symlinked path (/tmp on macOS) that import.meta.url does not.
-if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+/**
+ * Whether this file is the script node was started with. Real paths, because argv[1] keeps a
+ * symlinked path (/tmp on macOS) that import.meta.url does not. An argv[1] that is not a file
+ * (`node -e`, a test runner's virtual path) means this module was imported, never an error.
+ */
+function isMain() {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (process.argv[1] && isMain()) {
   writeFileSync(OUT, tokensSource(readFileSync(THEME, "utf8")));
   console.log(`wrote ${OUT}`);
 }

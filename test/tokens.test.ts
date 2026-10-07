@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import postcss from "postcss";
@@ -115,6 +116,29 @@ describe("plain colour tokens", () => {
   it("reads a last declaration that has no semicolon", () => {
     const css = "@theme {\n  --color-bg: #000000;\n}\n@theme static {\n}\n.light {\n  --color-bg: #ffffff\n}\n.dark {\n}";
     expect(colorTokensFrom(css).light.bg).toBe("#ffffff");
+  });
+
+  it("fails the build when .dark changes a colour instead of restating @theme", () => {
+    // A page with no theme class shows @theme, so a .dark-only change would put one colour in
+    // the app's default and another in every PDF and email.
+    const css = "@theme {\n  --color-bg: #000000;\n}\n@theme static {\n}\n.light {\n}\n.dark {\n  --color-bg: #111111;\n}";
+    expect(() => colorTokensFrom(css)).toThrow("--color-bg (#000000 → #111111)");
+  });
+
+  it("accepts .dark restating @theme, even through a different reference", () => {
+    const css =
+      "@theme {\n  --color-gray: #000000;\n  --color-bg: #000000;\n}\n@theme static {\n}\n.light {\n}\n.dark {\n  --color-bg: var(--color-gray);\n}";
+    expect(colorTokensFrom(css).dark.bg).toBe("#000000");
+  });
+
+  it("can be imported when node was not started with a file path", () => {
+    // `node -e` and some test runners leave argv[1] pointing at nothing on disk.
+    const output = execFileSync(
+      process.execPath,
+      ["--input-type=module", "-e", 'await import("./scripts/generate-tokens.mjs"); console.log("ok")', "not-a-file"],
+      { encoding: "utf8" },
+    );
+    expect(output.trim()).toBe("ok");
   });
 
   it("rejects a theme block that appears twice instead of guessing which one counts", () => {

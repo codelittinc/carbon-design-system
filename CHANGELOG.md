@@ -24,8 +24,10 @@ colorTokens.light["text-primary"]; // "#18181b"
 colorTokens.dark.accent;           // "#f59e0b"
 ```
 
-- `dark` is the default theme (`@theme` + `@theme static`, then `.dark`);
-  `light` applies `.light`. The category fills are the same in both, as in
+- `dark` is the default theme (`@theme` + `@theme static`); `light` applies
+  `.light`. `.dark` must restate `@theme`, not change it: a `.dark` value that
+  differs fails the build, since the app's default (no theme class) and every
+  PDF and email would otherwise show different colours. The category fills are the same in both, as in
   the stylesheet.
 - A solid colour is `#rrggbb` and a translucent one is `rgba(r, g, b, a)`
   (today only `table-stripe` / `table-row-hover`): the forms react-pdf and
