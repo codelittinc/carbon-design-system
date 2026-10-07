@@ -55,6 +55,7 @@
   --color-error-solid: #dc2626;
   --color-error-foreground: var(--color-carbon-50);
   --color-warning: #eab308;
+  --color-warning-muted: #713f12;
   --color-info: #3b82f6;
 
   /* ── Surfaces ── */
@@ -103,6 +104,9 @@
    * (text-accent-text, text-error-text, …) instead of raw amber/red/green/blue so
    * contrast holds in both modes.
    *
+   * warning-text is yellow, not the accent's amber: a caution must not read as
+   * "highlighted", so the two stay apart even though both are warm.
+   *
    * accent-foreground is the text ON a solid accent fill (bg-accent): carbon-950
    * on dark's amber-500, white on light's amber-600.
    */
@@ -110,6 +114,7 @@
   --color-accent-text: var(--color-amber-400);
   --color-success-text: #4ade80;
   --color-error-text: #f87171;
+  --color-warning-text: #facc15;
   --color-info-text: #60a5fa;
 
   /*
@@ -120,12 +125,19 @@
    * instead of raw green-500/15-style translucent palette utilities, which do
    * not adapt when the theme flips. Dark values are the defaults; `.light`
    * overrides them below.
+   *
+   * success, error and warning each carry -text, -soft and -border, in this
+   * block, `.light` and `.dark`. A missing one is not an error anywhere:
+   * Tailwind just emits no class, and the banner renders untinted. Add a status
+   * to all three blocks or to none.
    */
   --color-success-soft: #10241a;
   --color-error-soft: #2a1416;
+  --color-warning-soft: #262010;
   --color-info-soft: #101f30;
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
+  --color-warning-border: #524517;
 
   /*
    * ── Chart series (categorical) ──
@@ -288,14 +300,17 @@
   --color-accent-text: #92400e; /* amber-800 */
   --color-success-text: #15803d;
   --color-error-text: #b91c1c;
+  --color-warning-text: #a16207; /* yellow-700: 4.58:1 on warning-soft */
   --color-info-text: #1d4ed8;
 
   /* Soft fills — pale tints; paired *-text tokens stay AA on top */
   --color-success-soft: #dcfce7;
   --color-error-soft: #fee2e2;
+  --color-warning-soft: #fef9c3;
   --color-info-soft: #dbeafe;
   --color-success-border: #86efac;
   --color-error-border: #fecaca;
+  --color-warning-border: #fef08a;
 
   /*
    * Chart series — the same eight hues stepped for the white surface. Slots 3,
@@ -338,13 +353,16 @@
   --color-accent-text: var(--color-amber-400);
   --color-success-text: #4ade80;
   --color-error-text: #f87171;
+  --color-warning-text: #facc15;
   --color-info-text: #60a5fa;
 
   --color-success-soft: #10241a;
   --color-error-soft: #2a1416;
+  --color-warning-soft: #262010;
   --color-info-soft: #101f30;
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
+  --color-warning-border: #524517;
 
   --color-chart-1: #3987e5;
   --color-chart-2: #d95926;

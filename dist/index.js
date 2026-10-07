@@ -697,7 +697,7 @@ var badgeVariants = cva(
       variant: {
         default: "bg-surface-overlay text-text-secondary",
         // `accent` and `warning` render the same: the warning tone borrows the
-        // accent's amber (there is no separate warning tint). Both names stay,
+        // accent's amber (see `toneFillClass`). Both names stay,
         // because they mean different things at the call site.
         accent: toneFillClass.warning,
         success: toneFillClass.success,
