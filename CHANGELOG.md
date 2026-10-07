@@ -27,11 +27,20 @@ colorTokens.dark.accent;           // "#f59e0b"
 - `dark` is the default theme (`@theme` + `@theme static`, then `.dark`);
   `light` applies `.light`. The category fills are the same in both, as in
   the stylesheet.
+- Every value is `#rrggbb`, or `rgba(r, g, b, a)` for the translucent
+  `table-stripe` / `table-row-hover`: the forms react-pdf and email clients
+  read. The generator converts `theme.css`'s `rgb(r g b / a%)` and fails the
+  build on any colour syntax it cannot convert (oklch, hsl, named colours).
+  Outlook desktop ignores alpha, so in an email set those two over an opaque
+  background and treat them as optional.
 - Types: `ColorTheme` (`"dark" | "light"`) and `ColorToken` (every token name).
 - `src/tokens.ts` is **generated** from `theme.css` by
   `scripts/generate-tokens.mjs` (`pnpm tokens:generate`), and `build:lib`
   regenerates it before bundling. `test/tokens.test.ts` fails when the
-  committed file and `theme.css` disagree. `theme.css` stays the one source.
+  committed file and `theme.css` disagree, and
+  `test/dist-client-boundary.test.ts` fails when the committed
+  `dist/tokens.js` differs from `src/tokens.ts`. `theme.css` stays the one
+  source.
 - A server-safe entry: no React, no `"use client"`, nothing but the object.
   Browser apps should keep using the utilities and `var(--color-…)`, which
   follow a theme switch; these values do not.

@@ -111,7 +111,8 @@ colorTokens.dark.accent;           // "#f59e0b"
 ```
 
 `colorTokens.dark` / `colorTokens.light` hold every `--color-*` token with its `var()` references
-resolved. The file is generated from `theme.css` (`pnpm tokens:generate`; `build:lib` runs it), so
+resolved. Every value is `#rrggbb`, or `rgba(r, g, b, a)` for the two translucent table
+inks, which react-pdf and email clients read. The file is generated from `theme.css` (`pnpm tokens:generate`; `build:lib` runs it), so
 `theme.css` stays the one source. In a browser app keep using the utilities, which follow a theme
 switch; these values do not.
 

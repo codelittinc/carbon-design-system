@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-// @ts-expect-error — a plain .mjs build script, typed by use here.
-import { colorTokensFrom, tokensSource } from "../scripts/generate-tokens.mjs";
+// A plain .mjs build script. test/ is outside tsconfig's include, so this import is not type-checked.
+import { colorTokensFrom, DECLARATION, plainColor, tokensSource } from "../scripts/generate-tokens.mjs";
 import { colorTokens } from "../src/tokens";
 
 /**
@@ -19,7 +19,11 @@ describe("plain colour tokens", () => {
   });
 
   it("covers every --color-* token theme.css declares, in both themes", () => {
-    const declared = new Set(Array.from(themeCss.matchAll(/--color-([a-z0-9-]+)\s*:/g), (m) => m[1]));
+    // Deliberately looser than the generator's pattern: any `--color-…:` declaration counts, so a
+    // name the generator cannot read shows up here as a missing token.
+    const declared = new Set(
+      Array.from(themeCss.matchAll(/--color-([^\s:;()]+)\s*:/g), (m) => m[1].replace(/\\(.)/g, "$1")),
+    );
     for (const theme of ["dark", "light"] as const) {
       expect(new Set(Object.keys(colorTokens[theme]))).toEqual(declared);
     }
@@ -29,6 +33,29 @@ describe("plain colour tokens", () => {
     for (const theme of ["dark", "light"] as const) {
       for (const value of Object.values(colorTokens[theme])) expect(value).not.toContain("var(");
     }
+  });
+
+  it("emits only #rrggbb or rgba(r, g, b, a), the forms react-pdf and email clients read", () => {
+    const readable = /^(#[0-9a-f]{6}|rgba\(\d{1,3}, \d{1,3}, \d{1,3}, (0|1|0?\.\d+)\))$/;
+    for (const theme of ["dark", "light"] as const) {
+      for (const [name, value] of Object.entries(colorTokens[theme])) {
+        expect(value, `${theme} ${name}`).toMatch(readable);
+      }
+    }
+  });
+
+  it("normalises the colour syntaxes theme.css uses", () => {
+    expect(plainColor("x", "#FFF")).toBe("#ffffff");
+    expect(plainColor("x", "#09090B")).toBe("#09090b");
+    expect(plainColor("x", "rgb(9 9 11 / 3.5%)")).toBe("rgba(9, 9, 11, 0.035)");
+    expect(plainColor("x", "rgba(255, 255, 255, 0.07)")).toBe("rgba(255, 255, 255, 0.07)");
+    expect(plainColor("x", "rgb(255 0 0)")).toBe("#ff0000");
+  });
+
+  it("fails the build on a colour syntax PDFs and emails cannot read", () => {
+    expect(() => plainColor("x", "oklch(0.7 0.1 50)")).toThrow(/--color-x/);
+    expect(() => plainColor("x", "red")).toThrow(/--color-x/);
+    expect(() => plainColor("x", "rgb(300 0 0)")).toThrow(/--color-x/);
   });
 
   it("applies .light over the defaults and leaves the theme-independent fills alone", () => {
@@ -41,5 +68,32 @@ describe("plain colour tokens", () => {
   it("rejects a reference to a token theme.css never declares", () => {
     const broken = "@theme {\n  --color-a: var(--color-missing);\n}\n@theme static {\n}\n.light {\n}\n.dark {\n}";
     expect(() => colorTokensFrom(broken)).toThrow(/--color-missing/);
+  });
+
+  it("names the whole chain of a reference cycle", () => {
+    const cycle =
+      "@theme {\n  --color-a: var(--color-b);\n  --color-b: var(--color-a);\n}\n@theme static {\n}\n.light {\n}\n.dark {\n}";
+    expect(() => colorTokensFrom(cycle)).toThrow("--color-a → --color-b → --color-a");
+  });
+
+  it("ignores a quoted selector in a comment and keeps nested blocks whole", () => {
+    const css = [
+      "/* Theming: put overrides in `.light {` below. */",
+      "@theme {\n  --color-bg: #000000;\n  --color-fg: #ffffff;\n}",
+      "@theme static {\n}",
+      ".light {\n  --color-bg: #ffffff;\n  @media print {\n    color: black;\n}\n  --color-fg: #000000;\n}",
+      ".dark {\n}",
+    ].join("\n");
+    expect(colorTokensFrom(css).light).toEqual({ bg: "#ffffff", fg: "#000000" });
+  });
+
+  it("rejects a theme block that appears twice instead of guessing which one counts", () => {
+    const twice = "@theme {\n}\n@theme static {\n}\n.light {\n}\n.light {\n}\n.dark {\n}";
+    expect(() => colorTokensFrom(twice)).toThrow(/found 2/);
+  });
+
+  it("reads token names with CSS escapes", () => {
+    const [m] = "--color-gray-0\\.5: #111111;".matchAll(DECLARATION);
+    expect(m[1]).toBe("gray-0\\.5");
   });
 });

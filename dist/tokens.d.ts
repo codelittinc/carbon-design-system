@@ -3,9 +3,10 @@
  * change theme.css and run `pnpm tokens:generate` (build:lib does it too).
  *
  * Every colour token as a plain CSS value, per theme, for places that cannot read a CSS
- * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. In a browser
- * app, use the utilities and `var(--color-…)` from the stylesheet instead, so a theme
- * switch reaches them.
+ * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. Every value is
+ * `#rrggbb`, or `rgba(r, g, b, a)` for the translucent table inks, which react-pdf and email
+ * clients read. In a browser app, use the utilities and `var(--color-…)` from the stylesheet
+ * instead, so a theme switch reaches them.
  *
  *   import { colorTokens } from "@codelittinc/carbon-design-system/tokens";
  *   colorTokens.light["text-primary"]; // "#18181b"
@@ -46,8 +47,8 @@ declare const colorTokens: {
         readonly "surface-overlay": "#1e1e22";
         readonly border: "#2a2a30";
         readonly "border-subtle": "#1f1f24";
-        readonly "table-stripe": "rgb(255 255 255 / 3%)";
-        readonly "table-row-hover": "rgb(255 255 255 / 7%)";
+        readonly "table-stripe": "rgba(255, 255, 255, 0.03)";
+        readonly "table-row-hover": "rgba(255, 255, 255, 0.07)";
         readonly "text-primary": "#fafafa";
         readonly "text-secondary": "#a1a1aa";
         readonly "text-muted": "#71717a";
@@ -128,8 +129,8 @@ declare const colorTokens: {
         readonly "surface-overlay": "#f0f0f1";
         readonly border: "#e4e4e7";
         readonly "border-subtle": "#f0f0f1";
-        readonly "table-stripe": "rgb(9 9 11 / 3.5%)";
-        readonly "table-row-hover": "rgb(9 9 11 / 7.5%)";
+        readonly "table-stripe": "rgba(9, 9, 11, 0.035)";
+        readonly "table-row-hover": "rgba(9, 9, 11, 0.075)";
         readonly "text-primary": "#18181b";
         readonly "text-secondary": "#52525b";
         readonly "text-muted": "#71717a";

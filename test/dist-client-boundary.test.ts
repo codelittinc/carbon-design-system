@@ -71,6 +71,20 @@ describe("committed dist/ client boundary", () => {
     expect(distFile("utils.js").startsWith(DIRECTIVE)).toBe(false);
   });
 
+  it("leaves the tokens entry importable from a server component", () => {
+    expect(distFile("tokens.js").startsWith(DIRECTIVE)).toBe(false);
+  });
+
+  it("ships the same colour values in dist/tokens.js as src/tokens.ts", async () => {
+    // src/tokens.ts is checked against theme.css, but a PDF or email on a pinned SHA runs this
+    // file. Editing theme.css and running tokens:generate without build:lib would leave it stale.
+    const [built, source] = await Promise.all([
+      import("../dist/tokens.js"),
+      import("../src/tokens"),
+    ]);
+    expect(built.colorTokens, "run `pnpm run build:lib`").toEqual(source.colorTokens);
+  });
+
   it("exports cn and the formatters from the utils entry", async () => {
     const utils = await import("../src/utils");
     expect(typeof utils.cn).toBe("function");
