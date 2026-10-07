@@ -3,10 +3,10 @@
  * change theme.css and run `pnpm tokens:generate` (build:lib does it too).
  *
  * Every colour token as a plain CSS value, per theme, for places that cannot read a CSS
- * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. Every value is
- * `#rrggbb`, or `rgba(r, g, b, a)` for the translucent table inks, which react-pdf and email
- * clients read. In a browser app, use the utilities and `var(--color-…)` from the stylesheet
- * instead, so a theme switch reaches them.
+ * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. A solid colour
+ * is `#rrggbb`; a translucent one (the table inks) is `rgba(r, g, b, a)`. Both are forms
+ * react-pdf and email clients read. In a browser app, use the utilities and `var(--color-…)`
+ * from the stylesheet instead, so a theme switch reaches them.
  *
  *   import { colorTokens } from "@codelittinc/carbon-design-system/tokens";
  *   colorTokens.light["text-primary"]; // "#18181b"

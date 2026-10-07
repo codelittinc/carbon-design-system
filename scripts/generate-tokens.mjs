@@ -11,52 +11,51 @@
  *   dark  = @theme + @theme static, with `.dark` applied (the default theme)
  *   light = @theme + @theme static, with `.light` applied
  *
+ * theme.css is read with postcss, and only each rule's own top-level declarations count: an
+ * override nested in an `@media` or a nested selector applies conditionally in a browser, so it
+ * is not a plain value and is left out.
+ *
  * `var(--color-…)` references are resolved within the theme, as a browser does when the theme
  * class sits on the root element (where apps put it). Every value is then normalised to one of
- * two forms that react-pdf and the common email clients all read: `#rrggbb`, or
- * `rgba(r, g, b, a)` for the translucent table inks. A colour in any other syntax (oklch,
- * hsl, a named colour) fails the build rather than shipping a value those renderers drop.
+ * two forms that react-pdf and the common email clients all read: `#rrggbb` for a solid colour,
+ * or `rgba(r, g, b, a)` for a translucent one (today only the table inks). A colour in any other
+ * syntax (oklch, hsl, a named colour) fails the build rather than shipping a value those
+ * renderers drop.
  */
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import postcss from "postcss";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const THEME = join(ROOT, "src/styles/theme.css");
 const OUT = join(ROOT, "src/tokens.ts");
 
-/** A `--color-<name>` declaration. The name may carry CSS escapes (`gray-0\.5`). */
-export const DECLARATION = /--color-((?:[a-z0-9-]|\\.)+)\s*:\s*([^;]+);/g;
+const PREFIX = "--color-";
 
-const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
-const unescape = (name) => name.replace(/\\(.)/g, "$1");
+/** A token name as written in CSS (`gray-0\.5`) → as it is keyed in colorTokens (`gray-0.5`). */
+export const unescape = (name) => name.replace(/\\(.)/g, "$1");
+
+/** The one top-level rule `@theme`, `@theme static`, `.dark` or `.light`; a second copy fails. */
+function themeRule(root, label, matches) {
+  const found = root.nodes.filter(matches);
+  if (found.length !== 1) throw new Error(`theme.css: expected one "${label}" block, found ${found.length}`);
+  return found[0];
+}
+
+/** The rule's own `--color-*` declarations, in source order. Nested blocks are not read. */
+function declarations(rule) {
+  return rule.nodes
+    .filter((node) => node.type === "decl" && node.prop.startsWith(PREFIX))
+    .map((decl) => [unescape(decl.prop.slice(PREFIX.length)), decl.value.trim()]);
+}
+
+const hex = (channels) => `#${channels.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 
 /**
- * The body of the top-level rule `opener` (e.g. ".light"), up to its matching brace. The rule
- * must start a line and appear exactly once, so a quote of it in prose or a second copy fails
- * loudly instead of being parsed; nested blocks (`@media { … }`) are kept whole.
+ * `#rgb`, `#rrggbb`, `rgb(r g b [/ a])` or `rgba(r, g, b, a)` → `#rrggbb` when it is solid,
+ * `rgba(r, g, b, a)` when it is translucent.
  */
-function block(css, opener) {
-  const escaped = opener.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const starts = [...css.matchAll(new RegExp(`^${escaped}\\s*\\{`, "gm"))];
-  if (starts.length !== 1) {
-    throw new Error(`theme.css: expected one "${opener} {" block, found ${starts.length}`);
-  }
-  const open = starts[0].index + starts[0][0].length;
-  let depth = 1;
-  for (let i = open; i < css.length; i++) {
-    if (css[i] === "{") depth++;
-    else if (css[i] === "}" && --depth === 0) return css.slice(open, i);
-  }
-  throw new Error(`theme.css: "${opener} {" is never closed`);
-}
-
-/** `--color-<name>: <value>;` declarations, in source order. */
-function declarations(body) {
-  return Array.from(body.matchAll(DECLARATION), (m) => [unescape(m[1]), m[2].trim()]);
-}
-
-/** `#rgb`, `#rrggbb`, `rgb(r g b / a%)` or `rgba(r, g, b, a)` → `#rrggbb` or `rgba(r, g, b, a)`. */
 export function plainColor(name, value) {
   const v = value.toLowerCase();
   if (/^#[0-9a-f]{6}$/.test(v)) return v;
@@ -65,12 +64,14 @@ export function plainColor(name, value) {
   if (fn) {
     const parts = fn[1].split(/[\s,/]+/).filter(Boolean);
     const channels = parts.slice(0, 3).map(Number);
-    if ((parts.length === 3 || parts.length === 4) && channels.every((c) => Number.isInteger(c) && c >= 0 && c <= 255)) {
-      if (parts.length === 3) return `#${channels.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-      const raw = parts[3];
-      const alpha = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw);
-      if (alpha >= 0 && alpha <= 1) return `rgba(${channels.join(", ")}, ${Number(alpha.toFixed(4))})`;
-    }
+    const raw = parts[3] ?? "1";
+    const alpha = raw.endsWith("%") ? Number(raw.slice(0, -1)) / 100 : Number(raw);
+    const valid =
+      (parts.length === 3 || parts.length === 4) &&
+      channels.every((c) => Number.isInteger(c) && c >= 0 && c <= 255) &&
+      alpha >= 0 &&
+      alpha <= 1;
+    if (valid) return alpha === 1 ? hex(channels) : `rgba(${channels.join(", ")}, ${Number(alpha.toFixed(4))})`;
   }
   throw new Error(
     `theme.css: --color-${name} is "${value}", which PDFs and emails cannot read. ` +
@@ -79,27 +80,35 @@ export function plainColor(name, value) {
 }
 
 function resolveTheme(entries) {
-  const map = new Map(entries);
-  const resolve = (value, chain) =>
-    value.replace(/var\(--color-((?:[a-z0-9-]|\\.)+)\)/g, (_, raw) => {
-      const name = unescape(raw);
-      if (chain.includes(name)) {
-        throw new Error(`theme.css: reference cycle ${[...chain, name].map((n) => `--color-${n}`).join(" → ")}`);
-      }
-      if (!map.has(name)) throw new Error(`theme.css: var(--color-${name}) is not declared`);
-      return resolve(map.get(name), [...chain, name]);
+  const declared = new Map(entries);
+  const resolved = new Map();
+  const resolve = (name, chain) => {
+    if (resolved.has(name)) return resolved.get(name);
+    if (chain.includes(name)) {
+      throw new Error(`theme.css: reference cycle ${[...chain, name].map((n) => PREFIX + n).join(" → ")}`);
+    }
+    const value = declared.get(name).replace(/var\(--color-((?:[a-z0-9-]|\\.)+)\)/g, (_, raw) => {
+      const ref = unescape(raw);
+      if (!declared.has(ref)) throw new Error(`theme.css: var(--color-${ref}) is not declared`);
+      return resolve(ref, [...chain, name]);
     });
-  return Object.fromEntries(
-    [...map].map(([name, value]) => [name, plainColor(name, resolve(value, [name]))]),
-  );
+    resolved.set(name, value);
+    return value;
+  };
+  return Object.fromEntries([...declared.keys()].map((name) => [name, plainColor(name, resolve(name, []))]));
 }
 
-export function colorTokensFrom(source) {
-  const css = stripComments(source);
-  const base = [...declarations(block(css, "@theme")), ...declarations(block(css, "@theme static"))];
+export function colorTokensFrom(css) {
+  const root = postcss.parse(css);
+  const atTheme = (params) => (node) => node.type === "atrule" && node.name === "theme" && node.params === params;
+  const rule = (selector) => (node) => node.type === "rule" && node.selector === selector;
+  const base = [
+    ...declarations(themeRule(root, "@theme", atTheme(""))),
+    ...declarations(themeRule(root, "@theme static", atTheme("static"))),
+  ];
   return {
-    dark: resolveTheme([...base, ...declarations(block(css, ".dark"))]),
-    light: resolveTheme([...base, ...declarations(block(css, ".light"))]),
+    dark: resolveTheme([...base, ...declarations(themeRule(root, ".dark", rule(".dark")))]),
+    light: resolveTheme([...base, ...declarations(themeRule(root, ".light", rule(".light")))]),
   };
 }
 
@@ -114,10 +123,10 @@ export function tokensSource(css) {
  * change theme.css and run \`pnpm tokens:generate\` (build:lib does it too).
  *
  * Every colour token as a plain CSS value, per theme, for places that cannot read a CSS
- * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. Every value is
- * \`#rrggbb\`, or \`rgba(r, g, b, a)\` for the translucent table inks, which react-pdf and email
- * clients read. In a browser app, use the utilities and \`var(--color-…)\` from the stylesheet
- * instead, so a theme switch reaches them.
+ * variable: a PDF renderer, an HTML email, a site that does not use Tailwind. A solid colour
+ * is \`#rrggbb\`; a translucent one (the table inks) is \`rgba(r, g, b, a)\`. Both are forms
+ * react-pdf and email clients read. In a browser app, use the utilities and \`var(--color-…)\`
+ * from the stylesheet instead, so a theme switch reaches them.
  *
  *   import { colorTokens } from "@codelittinc/carbon-design-system/tokens";
  *   colorTokens.light["text-primary"]; // "#18181b"

@@ -85,6 +85,20 @@ describe("committed dist/ client boundary", () => {
     expect(built.colorTokens, "run `pnpm run build:lib`").toEqual(source.colorTokens);
   });
 
+  it("ships the same token names and values in dist/tokens.d.ts as src/tokens.ts", async () => {
+    // The types are what tell a consumer a token exists, so a stale .d.ts breaks their build
+    // (or promises a token that is undefined at runtime) even when dist/tokens.js is current.
+    const { colorTokens } = await import("../src/tokens");
+    const dts = distFile("tokens.d.ts");
+    const lightAt = dts.indexOf("readonly light:");
+    const entries = (types: string) =>
+      // tsc quotes a key only when it is not an identifier ("carbon-950" but bg).
+      Array.from(types.matchAll(/readonly (?:"([^"]+)"|([\w$]+)): "([^"]+)";/g), (m) => [m[1] ?? m[2], m[3]]);
+    expect(lightAt, "run `pnpm run build:lib`").toBeGreaterThan(-1);
+    expect(entries(dts.slice(0, lightAt))).toEqual(Object.entries(colorTokens.dark));
+    expect(entries(dts.slice(lightAt))).toEqual(Object.entries(colorTokens.light));
+  });
+
   it("exports cn and the formatters from the utils entry", async () => {
     const utils = await import("../src/utils");
     expect(typeof utils.cn).toBe("function");

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 // A plain .mjs build script. test/ is outside tsconfig's include, so this import is not type-checked.
-import { colorTokensFrom, DECLARATION, plainColor, tokensSource } from "../scripts/generate-tokens.mjs";
+import { colorTokensFrom, plainColor, tokensSource, unescape } from "../scripts/generate-tokens.mjs";
 import { colorTokens } from "../src/tokens";
 
 /**
@@ -22,7 +22,7 @@ describe("plain colour tokens", () => {
     // Deliberately looser than the generator's pattern: any `--color-…:` declaration counts, so a
     // name the generator cannot read shows up here as a missing token.
     const declared = new Set(
-      Array.from(themeCss.matchAll(/--color-([^\s:;()]+)\s*:/g), (m) => m[1].replace(/\\(.)/g, "$1")),
+      Array.from(themeCss.matchAll(/--color-([^\s:;()]+)\s*:/g), (m) => unescape(m[1])),
     );
     for (const theme of ["dark", "light"] as const) {
       expect(new Set(Object.keys(colorTokens[theme]))).toEqual(declared);
@@ -50,6 +50,9 @@ describe("plain colour tokens", () => {
     expect(plainColor("x", "rgb(9 9 11 / 3.5%)")).toBe("rgba(9, 9, 11, 0.035)");
     expect(plainColor("x", "rgba(255, 255, 255, 0.07)")).toBe("rgba(255, 255, 255, 0.07)");
     expect(plainColor("x", "rgb(255 0 0)")).toBe("#ff0000");
+    // An alpha of 1 is still solid, so it gets the form Outlook reads too.
+    expect(plainColor("x", "rgb(1 2 3 / 100%)")).toBe("#010203");
+    expect(plainColor("x", "rgba(1, 2, 3, 1)")).toBe("#010203");
   });
 
   it("fails the build on a colour syntax PDFs and emails cannot read", () => {
@@ -76,15 +79,21 @@ describe("plain colour tokens", () => {
     expect(() => colorTokensFrom(cycle)).toThrow("--color-a → --color-b → --color-a");
   });
 
-  it("ignores a quoted selector in a comment and keeps nested blocks whole", () => {
+  it("ignores a quoted selector in a comment and reads only top-level declarations", () => {
     const css = [
       "/* Theming: put overrides in `.light {` below. */",
       "@theme {\n  --color-bg: #000000;\n  --color-fg: #ffffff;\n}",
       "@theme static {\n}",
-      ".light {\n  --color-bg: #ffffff;\n  @media print {\n    color: black;\n}\n  --color-fg: #000000;\n}",
+      // A conditional override is not a plain value: the default must win.
+      ".light {\n  --color-bg: #ffffff;\n  @media (prefers-contrast: more) {\n    --color-bg: #eeeeee;\n  }\n  --color-fg: #000000;\n}",
       ".dark {\n}",
     ].join("\n");
     expect(colorTokensFrom(css).light).toEqual({ bg: "#ffffff", fg: "#000000" });
+  });
+
+  it("reads a last declaration that has no semicolon", () => {
+    const css = "@theme {\n  --color-bg: #000000;\n}\n@theme static {\n}\n.light {\n  --color-bg: #ffffff\n}\n.dark {\n}";
+    expect(colorTokensFrom(css).light.bg).toBe("#ffffff");
   });
 
   it("rejects a theme block that appears twice instead of guessing which one counts", () => {
@@ -93,7 +102,7 @@ describe("plain colour tokens", () => {
   });
 
   it("reads token names with CSS escapes", () => {
-    const [m] = "--color-gray-0\\.5: #111111;".matchAll(DECLARATION);
-    expect(m[1]).toBe("gray-0\\.5");
+    const css = "@theme {\n  --color-gray-0\\.5: #111111;\n}\n@theme static {\n}\n.light {\n}\n.dark {\n}";
+    expect(colorTokensFrom(css).dark).toEqual({ "gray-0.5": "#111111" });
   });
 });
