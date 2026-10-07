@@ -15,6 +15,17 @@ describe("Alert", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Saved");
   });
 
+  it.each(["success", "error", "warning", "info"] as const)(
+    "%s reads its own soft fill, text and border",
+    (variant) => {
+      render(<Alert variant={variant}>Body</Alert>);
+      const { className } = screen.getByText("Body").closest("[role]")!;
+      expect(className).toContain(`bg-${variant}-soft`);
+      expect(className).toContain(`text-${variant}-text`);
+      expect(className).toContain(`border-${variant}-border`);
+    },
+  );
+
   it("renders a title", () => {
     render(<Alert title="Heads up">Body</Alert>);
     expect(screen.getByText("Heads up")).toBeInTheDocument();

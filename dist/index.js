@@ -516,13 +516,13 @@ var toneFillClass = {
   success: "bg-success-soft text-success-text",
   error: "bg-error-soft text-error-text",
   info: "bg-info-soft text-info-text",
-  warning: "bg-accent-muted text-accent-text"
+  warning: "bg-warning-soft text-warning-text"
 };
 var toneBorderClass = {
   success: "border-success-border",
   error: "border-error-border",
-  info: "border-border",
-  warning: "border-border"
+  info: "border-info-border",
+  warning: "border-warning-border"
 };
 var tableRowHoverClass = "hover:bg-table-row-hover";
 var linkTextClass = "text-accent-text underline-offset-4 hover:underline";
@@ -696,10 +696,7 @@ var badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-surface-overlay text-text-secondary",
-        // `accent` and `warning` render the same: the warning tone borrows the
-        // accent's amber (see `toneFillClass`). Both names stay,
-        // because they mean different things at the call site.
-        accent: toneFillClass.warning,
+        accent: "bg-accent-muted text-accent-text",
         success: toneFillClass.success,
         warning: toneFillClass.warning,
         error: toneFillClass.error,

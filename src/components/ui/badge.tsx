@@ -9,10 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-surface-overlay text-text-secondary",
-        // `accent` and `warning` render the same: the warning tone borrows the
-        // accent's amber (see `toneFillClass`). Both names stay,
-        // because they mean different things at the call site.
-        accent: toneFillClass.warning,
+        accent: "bg-accent-muted text-accent-text",
         success: toneFillClass.success,
         warning: toneFillClass.warning,
         error: toneFillClass.error,

@@ -19,7 +19,7 @@ function block(opener: string): string {
   return rest.slice(0, rest.indexOf("\n}"));
 }
 
-const STATUSES = ["success", "error", "warning"] as const;
+const STATUSES = ["success", "error", "warning", "info"] as const;
 const ADAPTIVE = ["text", "soft", "border"] as const;
 
 describe("status tokens", () => {

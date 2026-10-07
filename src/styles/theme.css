@@ -57,6 +57,7 @@
   --color-warning: #eab308;
   --color-warning-muted: #713f12;
   --color-info: #3b82f6;
+  --color-info-muted: #1e3a8a;
 
   /* ── Surfaces ── */
   --color-bg: var(--color-carbon-950);
@@ -126,7 +127,7 @@
    * not adapt when the theme flips. Dark values are the defaults; `.light`
    * overrides them below.
    *
-   * success, error and warning each carry -text, -soft and -border, in this
+   * success, error, warning and info each carry -text, -soft and -border, in this
    * block, `.light` and `.dark`. A missing one is not an error anywhere:
    * Tailwind just emits no class, and the banner renders untinted. Add a status
    * to all three blocks or to none.
@@ -138,6 +139,7 @@
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
   --color-warning-border: #524517;
+  --color-info-border: #1e3a5c;
 
   /*
    * ── Chart series (categorical) ──
@@ -311,6 +313,7 @@
   --color-success-border: #86efac;
   --color-error-border: #fecaca;
   --color-warning-border: #fef08a;
+  --color-info-border: #bfdbfe;
 
   /*
    * Chart series — the same eight hues stepped for the white surface. Slots 3,
@@ -363,6 +366,7 @@
   --color-success-border: #1f5133;
   --color-error-border: #5b2323;
   --color-warning-border: #524517;
+  --color-info-border: #1e3a5c;
 
   --color-chart-1: #3987e5;
   --color-chart-2: #d95926;

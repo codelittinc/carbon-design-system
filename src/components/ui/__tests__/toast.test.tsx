@@ -128,9 +128,10 @@ describe("imperative toast", () => {
       toast.warning("Careful");
     });
     expect(screen.getByText("FYI").closest("[role=status]")?.className).toContain("bg-info-soft");
-    expect(screen.getByText("Careful").closest("[role=status]")?.className).toContain(
-      "bg-accent-muted",
-    );
+    const warning = screen.getByText("Careful").closest("[role=status]")?.className;
+    expect(warning).toContain("bg-warning-soft");
+    expect(warning).toContain("border-warning-border");
+    expect(warning).not.toContain("accent");
   });
 
   it("is a no-op once the provider unmounts", () => {
