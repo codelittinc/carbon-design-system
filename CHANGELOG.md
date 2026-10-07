@@ -8,6 +8,55 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.19.0] - 2026-10-06
+
+### Added: `FileViewer`
+
+A file in a dialog over the page, so Backstage and Hirelitt can drop their own
+copies of the same viewer. Additive only.
+
+- **Formats:** PDF in the browser's own viewer; Word (`.docx`) laid out as
+  pages by docx-preview, with Symbol/Wingdings bullets shown as real bullets,
+  unsafe links (`javascript:`, `data:`, relative, control-character tricks)
+  turned into plain text, external links opened in a new tab, and embedded
+  HTML (altChunks) never rendered; CSV as a `Table` (delimiter detected,
+  quoted fields kept whole, ragged rows padded, first 1,000 rows, UTF-8 or
+  windows-1252); PNG, JPEG, GIF, BMP, WebP and AVIF images; plain text (first
+  200k characters). Anything else offers a Download.
+- **Usage:** wrap any trigger that forwards its ref (a `Button` of any
+  variant), or pass `open` / `onOpenChange`. Clicks on the trigger and inside
+  the dialog don't reach the trigger's ancestors, so it can sit in a clickable
+  card. Every open fetches the file afresh.
+- **Choosing the renderer:** `contentType` when given, else the response's
+  `Content-Type`. The extension is read only when the type is
+  `application/octet-stream` or missing; a `.csv` sent as
+  `application/vnd.ms-excel` or `text/plain` is still a CSV.
+- **`loadFallback`**, optional: called for a legacy `.doc` (`reason: "doc"`),
+  a `.docx` that can't be laid out (`"render-failed"`) and other types
+  (`"unsupported"`), with the URL, filename, resolved type and an
+  `AbortSignal`. Return `{ text, note? }` or `{ html }` (the viewer sanitises
+  it again), or nothing for the Download. Types: `FileViewerProps`,
+  `FileViewerFallback`, `FileViewerFallbackRequest`,
+  `FileViewerFallbackContent`, `FileViewerFallbackReason`.
+- **New dependencies:** `docx-preview` and `papaparse`. Both are reached only
+  through dynamic imports, so an app's bundler loads them the first time a
+  DOCX or a CSV opens, and pages that never open one don't ship them.
+- **Stylesheet:** the fallback-HTML typography is in
+  `@codelittinc/carbon-design-system/styles`, and the DOCX page styling ships
+  with the component. Apps that copied the `.docx-host` /
+  `.document-preview` rules can delete them.
+- **DOCX is isolated:** the document renders in a shadow root, so the
+  stylesheet docx-preview builds from the file (which a crafted `.docx` can
+  write rules into) styles the document only, never the app page, and a
+  `contain: paint` wrapper keeps the document from covering the dialog's
+  header. Embedded
+  fonts are not loaded; text uses the font families the document names.
+- **What the app must provide:** PDFs are framed, so the file route must allow
+  same-origin framing (`X-Frame-Options: SAMEORIGIN` /
+  `frame-ancestors 'self'`). DOCX needs `img-src data:` and
+  `style-src 'unsafe-inline'` in a CSP. Download saves under `filename` only
+  for same-origin URLs. See the README.
+
 ## [1.18.0] - 2026-10-06
 
 ### Added: what Backstage needs to stop hand-rolling UI

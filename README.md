@@ -128,7 +128,7 @@ import { Button, Badge, DataTable, useToast } from "@codelittinc/carbon-design-s
 ## Components
 
 Forms: Button · Input · Textarea · Checkbox · Switch · Select · MoneyInput · SearchSelect · AddressAutocomplete
-Overlays: Dialog · AlertDialog · DropdownMenu · Sheet · Popover · Tooltip · CommandPalette · Toast
+Overlays: Dialog · AlertDialog · DropdownMenu · Sheet · Popover · Tooltip · CommandPalette · Toast · FileViewer
 Data display: Badge · StatusBadge · DataTable · Tabs · Progress · Skeleton · Separator · ScrollArea · EmptyState · PageHeader · Card / CardHeader · Swatch
 Navigation: Pagination · TextLink
 Confirmation: `useConfirm()` + `ConfirmProvider` (an `AlertDialog` that resolves to the answer)
@@ -150,6 +150,53 @@ re-exports (a Next client boundary may keep the whole list). They render `aria-h
 control around an icon-only button. The list lives in
 [`src/components/ui/icons.ts`](src/components/ui/icons.ts); add an icon there rather than
 importing `lucide-react` in the app.
+
+### FileViewer
+
+A file in a dialog over the page: PDF, Word (`.docx`), CSV, PNG/JPEG/GIF/BMP/WebP/AVIF images
+and plain text. Wrap any trigger, or pass `open` / `onOpenChange`:
+
+```tsx
+import { Button, FileViewer } from "@codelittinc/carbon-design-system";
+
+<FileViewer url={file.url} filename={file.filename} contentType={file.contentType}>
+  <Button type="button" variant="ghost" aria-label={`Preview ${file.filename}`}>Preview</Button>
+</FileViewer>
+```
+
+`contentType` decides the renderer when given; otherwise the response's `Content-Type` does. The
+extension is read only when the type is `application/octet-stream` or missing (and a `.csv` sent
+as `vnd.ms-excel` or `text/plain` is still a CSV). `docx-preview` and `papaparse` load the first time a DOCX or a CSV
+opens, so pages that never open one don't ship them.
+
+Legacy `.doc`, a `.docx` the browser can't lay out, and every other type show what
+`loadFallback` returns, or a Download when there is no callback or it returns nothing. Return
+`{ text, note? }` or `{ html }` (sanitised again by the viewer):
+
+```tsx
+const loadFallback: FileViewerFallback = async ({ reason, url, signal }) => {
+  // reason: "doc" | "render-failed" | "unsupported"
+  const res = await fetch(`${url}?extract=1`, { signal });
+  if (!res.ok) return null;
+  const { text } = await res.json();
+  return { text, note: "Formatting isn't shown for Word 97–2003 files." };
+};
+```
+
+What the app must provide:
+
+- **PDFs are framed.** The viewer puts `url` in an iframe, so that route must allow same-origin
+  framing: `X-Frame-Options: SAMEORIGIN` or `Content-Security-Policy: frame-ancestors 'self'`.
+  Without it the browser shows "refused to connect" inside the dialog.
+- **Download saves under `filename` only for same-origin URLs.** Browsers ignore `download` across
+  origins, and the availability check (a `fetch` with the page's credentials) needs CORS there.
+- **DOCX needs `img-src data:` and `style-src 'unsafe-inline'`** in a CSP, for the document's
+  images and the styles docx-preview injects. The document renders in a shadow root, so those
+  styles reach the document only, never the app page, and a containment wrapper keeps it
+  below the dialog's header. Embedded fonts are not loaded; text uses
+  the font families the document names.
+- **Serve untrusted files with `X-Content-Type-Options: nosniff`, and never as `text/html`.**
+  Who may open a file is the file route's own check: the viewer adds no authorization.
 
 ### Select with an empty choice
 

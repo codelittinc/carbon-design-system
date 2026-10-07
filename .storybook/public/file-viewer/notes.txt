@@ -1,0 +1,5 @@
+Meeting notes - kickoff
+
+- Scope agreed for discovery and design.
+- Weekly status every Thursday.
+- Next step: stakeholder interviews.

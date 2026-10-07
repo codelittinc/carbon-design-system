@@ -7,7 +7,7 @@ import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, ExternalLink, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, ExternalLink, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, LoaderCircle as LoaderIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
@@ -1868,6 +1868,661 @@ var SelectItem = forwardRef(({ className, children, value, ...props }, ref) => {
   );
 });
 SelectItem.displayName = "SelectItem";
+
+// src/lib/file-viewer.ts
+var CSV_ROW_CAP = 1e3;
+var TEXT_CHAR_CAP = 2e5;
+var DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+var CSV_TYPES = /* @__PURE__ */ new Set(["text/csv", "application/csv", "text/comma-separated-values"]);
+var CSV_BY_NAME_TYPES = /* @__PURE__ */ new Set(["application/vnd.ms-excel", "text/plain", "application/octet-stream", ""]);
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/avif"]);
+var KIND_BY_EXTENSION = {
+  pdf: "pdf",
+  docx: "docx",
+  doc: "doc",
+  txt: "text",
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  bmp: "image",
+  webp: "image",
+  avif: "image"
+};
+function normalizeContentType(raw) {
+  return (raw ?? "").split(";")[0].trim().toLowerCase();
+}
+function extensionOf(filename) {
+  const dot = filename.lastIndexOf(".");
+  return dot === -1 ? "" : filename.slice(dot + 1).toLowerCase();
+}
+function fileViewerKind(contentType, filename) {
+  const type = normalizeContentType(contentType);
+  const ext = extensionOf(filename);
+  if (CSV_TYPES.has(type)) return "csv";
+  if (ext === "csv" && CSV_BY_NAME_TYPES.has(type)) return "csv";
+  if (type === "application/pdf") return "pdf";
+  if (type === DOCX_TYPE) return "docx";
+  if (type === "application/msword") return "doc";
+  if (type.startsWith("image/")) return IMAGE_TYPES.has(type) ? "image" : "unsupported";
+  if (type === "text/plain") return "text";
+  if (type === "" || type === "application/octet-stream") return KIND_BY_EXTENSION[ext] ?? "unsupported";
+  return "unsupported";
+}
+function documentLinkHref(href) {
+  if (href === null) return null;
+  const trimmed = href.trim();
+  if (trimmed.startsWith("#")) return { href: trimmed, external: false };
+  const safe = safeHref(href);
+  return safe === null ? null : { href: safe, external: true };
+}
+var SYMBOL_FONT_BULLETS = {
+  "\uF0B7": "\u2022",
+  // Symbol / Wingdings filled bullet
+  "\uF06C": "\u2022",
+  // Wingdings filled circle
+  "\uF0A7": "\u25AA",
+  // Wingdings filled square
+  "\uF0A8": "\u25E6",
+  // Wingdings hollow bullet
+  "\uF0FC": "\u2714",
+  // Wingdings check mark
+  "\uF0D8": "\u27A2",
+  // Wingdings arrowhead
+  "\uF0E0": "\u2192"
+  // Wingdings arrow
+};
+var PRIVATE_USE_GLYPH = /[-]/g;
+function replaceSymbolGlyphs(content) {
+  return content.replace(PRIVATE_USE_GLYPH, (ch) => SYMBOL_FONT_BULLETS[ch] ?? "\u2022");
+}
+function decodeText(bytes) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+}
+function normalizeNewlines(text) {
+  return text.replace(/\r\n?/g, "\n");
+}
+function capText(text, cap = TEXT_CHAR_CAP) {
+  return text.length > cap ? { text: text.slice(0, cap), truncated: true } : { text, truncated: false };
+}
+function shapeCsvRows(parsed, cap = CSV_ROW_CAP) {
+  const [first = [], ...data] = parsed;
+  const kept = data.slice(0, cap);
+  const width = Math.max(first.length, ...kept.map((row) => row.length));
+  const pad = (row) => row.length < width ? [...row, ...Array(width - row.length).fill("")] : row;
+  return { header: pad(first), rows: kept.map(pad), truncated: data.length > cap };
+}
+function EmptyState({
+  icon,
+  title,
+  as: Heading = "h3",
+  description,
+  action,
+  className
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-col items-center justify-center py-16 text-center", className), children: [
+    icon && /* @__PURE__ */ jsx("div", { className: "mb-4 text-text-faint", children: icon }),
+    /* @__PURE__ */ jsx(Heading, { className: "text-sm font-medium text-text-primary", children: title }),
+    description && /* @__PURE__ */ jsx("p", { className: "mt-1 max-w-sm text-sm text-text-muted", children: description }),
+    action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
+  ] });
+}
+var Table = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("table", { ref, className: cn("w-full text-sm", className), ...props })
+);
+Table.displayName = "Table";
+var TableHeader = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("thead", { ref, className: cn("[&_tr]:border-border", className), ...props })
+);
+TableHeader.displayName = "TableHeader";
+var TableBody = forwardRef(
+  (props, ref) => /* @__PURE__ */ jsx("tbody", { ref, ...props })
+);
+TableBody.displayName = "TableBody";
+var TableFooter = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tfoot", { ref, className: cn("[&_tr]:border-b-0 [&_tr]:border-t-2 [&_tr]:border-border", className), ...props })
+);
+TableFooter.displayName = "TableFooter";
+var TableRow = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tr", { ref, className: cn("border-b border-border-subtle", className), ...props })
+);
+TableRow.displayName = "TableRow";
+var TableHead = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx(
+    "th",
+    {
+      ref,
+      className: cn(eyebrowClass, "px-3 py-2 text-left", className),
+      ...props
+    }
+  )
+);
+TableHead.displayName = "TableHead";
+var TableCell = forwardRef(
+  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("td", { ref, className: cn("px-3 py-2", className), ...props })
+);
+TableCell.displayName = "TableCell";
+function TableEmptyRow({
+  colSpan,
+  children
+}) {
+  return /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan, className: "py-8 text-center text-text-muted", children }) });
+}
+async function parseCsv(text) {
+  const mod = await import('papaparse');
+  const Papa = mod.default ?? mod;
+  const rows = [];
+  Papa.parse(text, {
+    delimiter: "",
+    delimitersToGuess: [",", ";", "	", "|"],
+    skipEmptyLines: "greedy",
+    step: (result, parser) => {
+      if (result.data.every((cell) => cell.trim() === "")) return;
+      rows.push(result.data);
+      if (rows.length > CSV_ROW_CAP + 1) parser.abort();
+    }
+  });
+  return shapeCsvRows(rows);
+}
+function CsvView({ table }) {
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    table.truncated && /* @__PURE__ */ jsx("div", { className: "mx-4 mt-4", children: /* @__PURE__ */ jsx(Alert, { variant: "info", children: "Showing the first 1,000 rows. Download the file to see all of it." }) }),
+    /* @__PURE__ */ jsx("div", { className: "m-4 overflow-x-auto rounded-lg border border-border bg-surface", children: /* @__PURE__ */ jsxs(Table, { className: "w-auto min-w-full", children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsx(TableRow, { children: table.header.map((cell, i) => (
+        // Headers are the file's words, not UI labels: no eyebrow upper-casing.
+        /* @__PURE__ */ jsx(TableHead, { className: "whitespace-nowrap normal-case tracking-normal", children: cell }, i)
+      )) }) }),
+      /* @__PURE__ */ jsx(TableBody, { children: table.rows.length === 0 ? /* @__PURE__ */ jsx(TableEmptyRow, { colSpan: Math.max(table.header.length, 1), children: "This file has a header row but no data rows." }) : table.rows.map((row, r) => /* @__PURE__ */ jsx(TableRow, { children: row.map((cell, c) => /* @__PURE__ */ jsx(TableCell, { className: "max-w-xs whitespace-pre-wrap break-words align-top", children: cell }, c)) }, r)) })
+    ] }) })
+  ] });
+}
+function DocxView({
+  file,
+  onFetchFailed,
+  onRenderFailed
+}) {
+  const hostRef = useRef(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const library = import('docx-preview');
+      library.catch(() => {
+      });
+      const blob = await file;
+      if (cancelled) return;
+      if (blob === null) {
+        onFetchFailed();
+        return;
+      }
+      try {
+        const { renderAsync } = await library;
+        if (cancelled || !hostRef.current) return;
+        const { body, style } = shadowContainers(hostRef.current);
+        await renderAsync(blob, body, style, {
+          inWrapper: true,
+          breakPages: true,
+          // Pages may grow past their nominal height, so A4 read on Letter isn't clipped.
+          ignoreHeight: true,
+          renderHeaders: true,
+          renderFooters: true,
+          renderFootnotes: true,
+          // Images as data URLs, so nothing outlives the dialog as a blob URL.
+          useBase64URL: true,
+          // An altChunk is document-supplied HTML that the library puts in a
+          // same-origin iframe, which would run its script in the app's origin
+          // the moment the viewer opens.
+          renderAltChunks: false,
+          // Embedded fonts become @font-face rules, which browsers ignore inside
+          // a shadow root; the document's fonts fall back to the named families.
+          ignoreFonts: true
+        });
+        if (cancelled) return;
+        replaceSymbolFontBullets(style);
+        neutraliseLinks(body);
+        setReady(true);
+      } catch {
+        if (!cancelled) onRenderFailed();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    !ready && /* @__PURE__ */ jsx("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx(Spinner, { size: "lg", label: "Laying out document\u2026" }) }),
+    /* @__PURE__ */ jsx("div", { style: { contain: "paint", position: "relative" }, hidden: !ready, children: /* @__PURE__ */ jsx("div", { ref: hostRef, className: "file-viewer-docx" }) })
+  ] });
+}
+var PAGE_CSS = `
+.docx-wrapper {
+  background: transparent;
+  padding: 1.5rem 1rem 0.5rem;
+  gap: 1rem;
+}
+.docx-wrapper > section.docx {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  /* Narrow screens: a Letter or A4 page shrinks instead of scrolling sideways. */
+  max-width: 100%;
+}
+`;
+function shadowContainers(host) {
+  const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+  const page = document.createElement("style");
+  page.textContent = PAGE_CSS;
+  const style = document.createElement("div");
+  const body = document.createElement("div");
+  root.replaceChildren(style, page, body);
+  return { body, style };
+}
+function neutraliseLinks(container) {
+  for (const anchor of container.querySelectorAll("a")) {
+    const link = documentLinkHref(anchor.getAttribute("href"));
+    if (!link) {
+      anchor.removeAttribute("href");
+      continue;
+    }
+    anchor.setAttribute("href", link.href);
+    if (link.external) {
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+}
+function replaceSymbolFontBullets(styleContainer) {
+  for (const styleTag of styleContainer.querySelectorAll("style")) {
+    let rules;
+    try {
+      if (!styleTag.sheet) continue;
+      rules = styleTag.sheet.cssRules;
+    } catch {
+      continue;
+    }
+    for (const rule of Array.from(rules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const content = rule.style.content;
+      if (!content) continue;
+      const patched = replaceSymbolGlyphs(content);
+      if (patched === content) continue;
+      rule.style.setProperty("content", patched);
+      rule.style.setProperty("font-family", "inherit");
+    }
+  }
+}
+
+// src/components/ui/file-viewer-html.ts
+var HTML_NS = "http://www.w3.org/1999/xhtml";
+var ALLOWED = /* @__PURE__ */ new Set([
+  "p",
+  "br",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "strong",
+  "b",
+  "em",
+  "i",
+  "u",
+  "s",
+  "sub",
+  "sup",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "pre",
+  "code",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "caption",
+  "a",
+  "img",
+  "hr"
+]);
+var DROP_CONTENT2 = /* @__PURE__ */ new Set([
+  "script",
+  "style",
+  "iframe",
+  "noscript",
+  "svg",
+  "math",
+  "template",
+  "object",
+  "embed",
+  "head",
+  "title",
+  "textarea",
+  "form",
+  "button",
+  "select",
+  "link",
+  "meta",
+  "base"
+]);
+var DATA_IMAGE = /^data:image\/(?:png|jpeg|gif|webp|bmp|avif);base64,[a-z0-9+/=]+$/i;
+function imageSrc(raw) {
+  if (DATA_IMAGE.test(raw.trim())) return raw.trim();
+  const src = safeHref(raw);
+  return src !== null && /^https:/i.test(src) ? src : null;
+}
+function span(raw) {
+  if (raw === null || !/^\d{1,4}$/.test(raw.trim())) return null;
+  const n = Number(raw.trim());
+  return n >= 1 && n <= 1e3 ? String(n) : null;
+}
+function rebuild(source, tag, doc) {
+  const el = doc.createElement(tag);
+  if (tag === "a") {
+    const href = safeHref(source.getAttribute("href") ?? "");
+    if (href !== null) {
+      el.setAttribute("href", href);
+      el.setAttribute("target", "_blank");
+      el.setAttribute("rel", "noopener noreferrer");
+    }
+  } else if (tag === "img") {
+    const src = imageSrc(source.getAttribute("src") ?? "");
+    if (src === null) return null;
+    el.setAttribute("src", src);
+    el.setAttribute("alt", source.getAttribute("alt") ?? "");
+  } else if (tag === "td" || tag === "th") {
+    for (const name of ["colspan", "rowspan"]) {
+      const value = span(source.getAttribute(name));
+      if (value !== null) el.setAttribute(name, value);
+    }
+  }
+  return el;
+}
+function appendClean(source, target, doc) {
+  for (const node of Array.from(source.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      target.appendChild(doc.createTextNode(node.nodeValue ?? ""));
+      continue;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const element = node;
+    if (element.namespaceURI !== HTML_NS) continue;
+    const tag = element.localName;
+    if (DROP_CONTENT2.has(tag)) continue;
+    if (!ALLOWED.has(tag)) {
+      appendClean(element, target, doc);
+      continue;
+    }
+    const clean2 = rebuild(element, tag, doc);
+    if (clean2 === null) continue;
+    appendClean(element, clean2, doc);
+    target.appendChild(clean2);
+  }
+}
+function sanitizePreviewHtml(html, doc) {
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  const fragment = doc.createDocumentFragment();
+  appendClean(parsed.body, fragment, doc);
+  return fragment;
+}
+var COULD_NOT_OPEN = "We couldn't open this file. Download it to view it locally.";
+var NO_PREVIEW = {
+  doc: "Word 97\u20132003 files can't be displayed in the browser. Download it to open it locally.",
+  "render-failed": "We couldn't display this Word file. Download it to open it locally.",
+  unsupported: "This file can't be previewed in the browser."
+};
+async function request(url, signal) {
+  try {
+    const res = await fetch(url, { signal, credentials: "same-origin" });
+    if (res.ok) return res;
+    discard(res);
+    return null;
+  } catch {
+    return null;
+  }
+}
+function discard(res) {
+  res?.body?.cancel().catch(() => {
+  });
+}
+async function textOf(res) {
+  if (!res) return null;
+  try {
+    return decodeText(new Uint8Array(await res.arrayBuffer()));
+  } catch {
+    return null;
+  }
+}
+function fallbackState(result, reason) {
+  if (result && "html" in result && typeof result.html === "string" && result.html.trim()) {
+    return { step: "html", html: result.html };
+  }
+  if (result && "text" in result && typeof result.text === "string" && result.text.trim()) {
+    const note = typeof result.note === "string" && result.note.trim() ? result.note : void 0;
+    return { step: "text", ...capText(normalizeNewlines(result.text)), note };
+  }
+  return { step: "no-preview", reason };
+}
+function FileViewerBody({ url, filename, contentType, loadFallback }) {
+  const [state, setState] = useState({ step: "loading" });
+  const fallbackRef = useRef(loadFallback);
+  fallbackRef.current = loadFallback;
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const show = (next) => {
+      if (!signal.aborted) setState(next);
+    };
+    async function fallback(reason, type) {
+      const load = fallbackRef.current;
+      if (!load) return show({ step: "no-preview", reason });
+      show({ step: "loading" });
+      let result;
+      try {
+        result = await load({ reason, url, filename, contentType: type, signal });
+      } catch {
+        result = null;
+      }
+      show(fallbackState(result, reason));
+    }
+    async function open() {
+      let probe = null;
+      let type;
+      if (contentType != null) {
+        type = normalizeContentType(contentType);
+      } else {
+        probe = await request(url, signal);
+        if (!probe) return show({ step: "error" });
+        type = normalizeContentType(probe.headers.get("content-type"));
+      }
+      const file = () => probe ? Promise.resolve(probe) : request(url, signal);
+      switch (fileViewerKind(type, filename)) {
+        case "pdf": {
+          const res = await file();
+          discard(res);
+          return show(res ? { step: "pdf" } : { step: "error" });
+        }
+        case "image":
+          discard(probe);
+          return show({ step: "image" });
+        case "docx":
+          return show({
+            step: "docx",
+            file: file().then((res) => res ? res.blob().catch(() => null) : null),
+            onRenderFailed: () => void fallback("render-failed", type)
+          });
+        case "csv": {
+          const text = await textOf(await file());
+          if (text === null) return show({ step: "error" });
+          if (text.trim() === "") return show({ step: "empty" });
+          try {
+            return show({ step: "csv", table: await parseCsv(text) });
+          } catch {
+            return show({ step: "error" });
+          }
+        }
+        case "text": {
+          const text = await textOf(await file());
+          if (text === null) return show({ step: "error" });
+          if (text.trim() === "") return show({ step: "empty" });
+          return show({ step: "text", ...capText(normalizeNewlines(text)) });
+        }
+        case "doc":
+          discard(probe);
+          return fallback("doc", type);
+        case "unsupported":
+          discard(probe);
+          return fallback("unsupported", type);
+      }
+    }
+    void open();
+    return () => controller.abort();
+  }, [url, filename, contentType]);
+  switch (state.step) {
+    case "loading":
+      return /* @__PURE__ */ jsx(ViewerLoading, {});
+    case "error":
+      return /* @__PURE__ */ jsx(ViewerMessage, { text: COULD_NOT_OPEN });
+    case "empty":
+      return /* @__PURE__ */ jsx(ViewerMessage, { text: "This file is empty." });
+    case "no-preview":
+      return /* @__PURE__ */ jsx(
+        ViewerMessage,
+        {
+          text: NO_PREVIEW[state.reason],
+          action: /* @__PURE__ */ jsx(Button, { asChild: true, className: "max-w-full", children: /* @__PURE__ */ jsxs("a", { href: url, download: filename, children: [
+            "Download ",
+            filename
+          ] }) })
+        }
+      );
+    case "pdf":
+      return /* @__PURE__ */ jsx("iframe", { src: url, title: filename, className: "h-full w-full border-0 bg-surface" });
+    case "image":
+      return /* @__PURE__ */ jsx(ImageView, { url, filename, onFailed: () => setState({ step: "error" }) });
+    case "docx":
+      return /* @__PURE__ */ jsx(
+        DocxView,
+        {
+          file: state.file,
+          onFetchFailed: () => setState({ step: "error" }),
+          onRenderFailed: state.onRenderFailed
+        }
+      );
+    case "csv":
+      return /* @__PURE__ */ jsx(CsvView, { table: state.table });
+    case "text":
+      return /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(Notes, { note: state.note, truncated: state.truncated }),
+        /* @__PURE__ */ jsx(TextPage, { children: /* @__PURE__ */ jsx("pre", { className: "whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-text-primary", children: state.text }) })
+      ] });
+    case "html":
+      return /* @__PURE__ */ jsx(TextPage, { children: /* @__PURE__ */ jsx(SanitizedHtml, { html: state.html }) });
+  }
+}
+function ViewerLoading() {
+  return /* @__PURE__ */ jsx("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx(Spinner, { size: "lg", label: "Opening file\u2026" }) });
+}
+function ViewerMessage({ text, action }) {
+  return /* @__PURE__ */ jsx("div", { className: "flex h-full items-center justify-center px-6", children: /* @__PURE__ */ jsx(
+    EmptyState,
+    {
+      icon: /* @__PURE__ */ jsx(File, { className: "h-8 w-8", strokeWidth: 1.5, "aria-hidden": "true" }),
+      title: text,
+      action
+    }
+  ) });
+}
+function TextPage({ children }) {
+  return /* @__PURE__ */ jsx("div", { className: "mx-auto my-4 max-w-3xl rounded-lg bg-surface p-4 text-text-primary shadow-sm sm:p-8", children });
+}
+function Notes({ note, truncated }) {
+  if (!note && !truncated) return null;
+  return /* @__PURE__ */ jsxs("div", { className: "mx-auto mt-4 max-w-3xl space-y-2 px-4 sm:px-0", children: [
+    note && /* @__PURE__ */ jsx(Alert, { variant: "info", children: note }),
+    truncated && /* @__PURE__ */ jsx(Alert, { variant: "info", children: "Showing the first 200k characters. Download the file to read all of it." })
+  ] });
+}
+function SanitizedHtml({ html }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    ref.current?.replaceChildren(sanitizePreviewHtml(html, document));
+  }, [html]);
+  return /* @__PURE__ */ jsx("div", { ref, className: "file-viewer-html" });
+}
+function ImageView({
+  url,
+  filename,
+  onFailed
+}) {
+  const [loaded, setLoaded] = useState(false);
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    !loaded && /* @__PURE__ */ jsx(ViewerLoading, {}),
+    /* @__PURE__ */ jsx("div", { className: "flex min-h-full items-start justify-center p-4", hidden: !loaded, children: /* @__PURE__ */ jsx(
+      "img",
+      {
+        src: url,
+        alt: filename,
+        className: "max-w-full rounded-lg bg-surface shadow-sm",
+        onLoad: () => setLoaded(true),
+        onError: onFailed
+      }
+    ) })
+  ] });
+}
+function stopClick(event) {
+  event.stopPropagation();
+}
+function FileViewer({
+  url,
+  filename,
+  contentType,
+  loadFallback,
+  children,
+  open,
+  onOpenChange
+}) {
+  return /* @__PURE__ */ jsx(Dialog, { open, onOpenChange, children: /* @__PURE__ */ jsxs("span", { className: "contents", onClick: stopClick, children: [
+    children && /* @__PURE__ */ jsx(DialogTrigger, { asChild: true, children }),
+    /* @__PURE__ */ jsxs(
+      DialogContent,
+      {
+        "aria-describedby": void 0,
+        className: "h-[92dvh] max-h-[92dvh] w-[calc(100%-2rem)] max-w-5xl overflow-hidden p-0",
+        children: [
+          /* @__PURE__ */ jsxs(DialogHeader, { className: "mb-0 flex items-center gap-3 space-y-0 border-b border-border px-4 py-3 pr-12", children: [
+            /* @__PURE__ */ jsx(File, { className: "h-4 w-4 shrink-0 text-text-faint", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsx(DialogTitle, { title: filename, className: "min-w-0 flex-1 truncate text-sm font-semibold", children: filename }),
+            /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", className: "shrink-0", children: /* @__PURE__ */ jsx("a", { href: url, download: filename, children: "Download" }) }),
+            /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", variant: "outline", className: "shrink-0", children: /* @__PURE__ */ jsxs("a", { href: url, target: "_blank", rel: "noopener noreferrer", children: [
+              /* @__PURE__ */ jsx("span", { className: "hidden sm:inline", children: "Open in new tab" }),
+              /* @__PURE__ */ jsx("span", { className: "sm:hidden", children: "Open" })
+            ] }) })
+          ] }),
+          /* @__PURE__ */ jsx(DialogBody, { className: "bg-surface-overlay", children: /* @__PURE__ */ jsx(
+            FileViewerBody,
+            {
+              url,
+              filename,
+              contentType,
+              loadFallback
+            },
+            url
+          ) })
+        ]
+      }
+    )
+  ] }) });
+}
 var DropdownMenu = DropdownMenuPrimitive.Root;
 var DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 var DropdownMenuGroup = DropdownMenuPrimitive.Group;
@@ -2251,21 +2906,6 @@ function ToastProvider({ children }) {
     )
   ] });
 }
-function EmptyState({
-  icon,
-  title,
-  as: Heading = "h3",
-  description,
-  action,
-  className
-}) {
-  return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-col items-center justify-center py-16 text-center", className), children: [
-    icon && /* @__PURE__ */ jsx("div", { className: "mb-4 text-text-faint", children: icon }),
-    /* @__PURE__ */ jsx(Heading, { className: "text-sm font-medium text-text-primary", children: title }),
-    description && /* @__PURE__ */ jsx("p", { className: "mt-1 max-w-sm text-sm text-text-muted", children: description }),
-    action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
-  ] });
-}
 function PageHeader({ title, description, actions, back, className }) {
   const BackLink = back?.as ?? "a";
   return /* @__PURE__ */ jsxs("div", { className: cn("mb-6 flex items-start justify-between", className), children: [
@@ -2286,47 +2926,6 @@ function PageHeader({ title, description, actions, back, className }) {
     ] }),
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
-}
-var Table = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("table", { ref, className: cn("w-full text-sm", className), ...props })
-);
-Table.displayName = "Table";
-var TableHeader = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("thead", { ref, className: cn("[&_tr]:border-border", className), ...props })
-);
-TableHeader.displayName = "TableHeader";
-var TableBody = forwardRef(
-  (props, ref) => /* @__PURE__ */ jsx("tbody", { ref, ...props })
-);
-TableBody.displayName = "TableBody";
-var TableFooter = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tfoot", { ref, className: cn("[&_tr]:border-b-0 [&_tr]:border-t-2 [&_tr]:border-border", className), ...props })
-);
-TableFooter.displayName = "TableFooter";
-var TableRow = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("tr", { ref, className: cn("border-b border-border-subtle", className), ...props })
-);
-TableRow.displayName = "TableRow";
-var TableHead = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx(
-    "th",
-    {
-      ref,
-      className: cn(eyebrowClass, "px-3 py-2 text-left", className),
-      ...props
-    }
-  )
-);
-TableHead.displayName = "TableHead";
-var TableCell = forwardRef(
-  ({ className, ...props }, ref) => /* @__PURE__ */ jsx("td", { ref, className: cn("px-3 py-2", className), ...props })
-);
-TableCell.displayName = "TableCell";
-function TableEmptyRow({
-  colSpan,
-  children
-}) {
-  return /* @__PURE__ */ jsx(TableRow, { className: "border-0", children: /* @__PURE__ */ jsx(TableCell, { colSpan, className: "py-8 text-center text-text-muted", children }) });
 }
 var alignClasses = {
   left: { cell: "text-left", header: "text-left", content: "justify-start" },
@@ -5827,4 +6426,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
