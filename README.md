@@ -192,7 +192,8 @@ What the app must provide:
   origins, and the availability check (a `fetch` with the page's credentials) needs CORS there.
 - **DOCX needs `img-src data:` and `style-src 'unsafe-inline'`** in a CSP, for the document's
   images and the styles docx-preview injects. The document renders in a shadow root, so those
-  styles reach the document only, never the app page. Embedded fonts are not loaded; text uses
+  styles reach the document only, never the app page, and a containment wrapper keeps it
+  below the dialog's header. Embedded fonts are not loaded; text uses
   the font families the document names.
 - **Serve untrusted files with `X-Content-Type-Options: nosniff`, and never as `text/html`.**
   Who may open a file is the file route's own check: the viewer adds no authorization.

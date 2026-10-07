@@ -14,8 +14,9 @@ import { Spinner } from "./spinner";
  * file into its stylesheet unescaped (list markers, font names), so a crafted
  * `.docx` can close a rule and write its own: in the page, those rules would
  * restyle the whole app while the viewer is open. In a shadow root they reach
- * the document only, and the `contain: paint` host clips anything positioned
- * to escape it. The page styling travels in with the document as PAGE_CSS.
+ * the document and its host only, and a `contain: paint` wrapper around the
+ * host clips anything positioned to escape it, so the dialog's own header stays
+ * on top. The page styling travels in with the document as PAGE_CSS.
  */
 export function DocxView({
   file,
@@ -88,8 +89,15 @@ export function DocxView({
           <Spinner size="lg" label="Laying out document…" />
         </div>
       )}
-      {/* The shadow root's host: `contain: paint` clips anything the document positions. */}
-      <div ref={hostRef} className="file-viewer-docx [contain:paint]" hidden={!ready} />
+      {/* The containment sits on a wrapper the document's CSS can't select: a
+          `:host` rule can restyle the host itself, even past an outer
+          `!important`. `contain: paint` makes the wrapper the containing block
+          for anything fixed or absolute inside and clips it there, so a
+          crafted document can't cover the dialog header. Inline, so it doesn't
+          depend on the app's Tailwind scanning this package. */}
+      <div style={{ contain: "paint", position: "relative" }} hidden={!ready}>
+        <div ref={hostRef} className="file-viewer-docx" />
+      </div>
     </>
   );
 }

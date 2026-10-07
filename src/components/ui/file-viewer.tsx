@@ -111,7 +111,15 @@ export function FileViewer({
             </Button>
           </DialogHeader>
           <DialogBody className="bg-surface-overlay">
-            <FileViewerBody url={url} filename={filename} contentType={contentType} loadFallback={loadFallback} />
+            {/* Keyed on the file, so a new URL while open starts from a fresh body:
+                the previous renderer never frames or loads it unchecked. */}
+            <FileViewerBody
+              key={url}
+              url={url}
+              filename={filename}
+              contentType={contentType}
+              loadFallback={loadFallback}
+            />
           </DialogBody>
         </DialogContent>
       </span>

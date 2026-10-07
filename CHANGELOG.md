@@ -47,7 +47,9 @@ copies of the same viewer. Additive only.
   `.document-preview` rules can delete them.
 - **DOCX is isolated:** the document renders in a shadow root, so the
   stylesheet docx-preview builds from the file (which a crafted `.docx` can
-  write rules into) styles the document only, never the app page. Embedded
+  write rules into) styles the document only, never the app page, and a
+  `contain: paint` wrapper keeps the document from covering the dialog's
+  header. Embedded
   fonts are not loaded; text uses the font families the document names.
 - **What the app must provide:** PDFs are framed, so the file route must allow
   same-origin framing (`X-Frame-Options: SAMEORIGIN` /

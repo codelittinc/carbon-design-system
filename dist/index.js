@@ -2095,7 +2095,7 @@ function DocxView({
   }, [file]);
   return /* @__PURE__ */ jsxs(Fragment, { children: [
     !ready && /* @__PURE__ */ jsx("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx(Spinner, { size: "lg", label: "Laying out document\u2026" }) }),
-    /* @__PURE__ */ jsx("div", { ref: hostRef, className: "file-viewer-docx [contain:paint]", hidden: !ready })
+    /* @__PURE__ */ jsx("div", { style: { contain: "paint", position: "relative" }, hidden: !ready, children: /* @__PURE__ */ jsx("div", { ref: hostRef, className: "file-viewer-docx" }) })
   ] });
 }
 var PAGE_CSS = `
@@ -2317,7 +2317,6 @@ function FileViewerBody({ url, filename, contentType, loadFallback }) {
   const fallbackRef = useRef(loadFallback);
   fallbackRef.current = loadFallback;
   useEffect(() => {
-    setState({ step: "loading" });
     const controller = new AbortController();
     const { signal } = controller;
     const show = (next) => {
@@ -2509,7 +2508,16 @@ function FileViewer({
               /* @__PURE__ */ jsx("span", { className: "sm:hidden", children: "Open" })
             ] }) })
           ] }),
-          /* @__PURE__ */ jsx(DialogBody, { className: "bg-surface-overlay", children: /* @__PURE__ */ jsx(FileViewerBody, { url, filename, contentType, loadFallback }) })
+          /* @__PURE__ */ jsx(DialogBody, { className: "bg-surface-overlay", children: /* @__PURE__ */ jsx(
+            FileViewerBody,
+            {
+              url,
+              filename,
+              contentType,
+              loadFallback
+            },
+            url
+          ) })
         ]
       }
     )

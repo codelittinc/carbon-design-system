@@ -322,13 +322,28 @@ describe("PDF", () => {
     const { rerender } = render(<FileViewer open url="/files/a.pdf" filename="a.pdf" contentType="application/pdf" />);
     await frame("a.pdf");
 
+    // Every src any frame is given, however briefly, as React commits.
+    const framed: string[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        const nodes = record.type === "attributes" ? [record.target] : Array.from(record.addedNodes);
+        for (const node of nodes) {
+          if (node instanceof HTMLIFrameElement) framed.push(node.getAttribute("src") ?? "");
+        }
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["src"] });
+
     const late = deferred<Response>();
     fetchMock.mockReturnValueOnce(late.promise);
-    rerender(<FileViewer open url="/files/b.docx" filename="b.docx" contentType={DOCX} />);
-    // The old renderer is gone at once, rather than framing the new URL.
+    rerender(<FileViewer open url="/files/b.pdf" filename="b.pdf" contentType="application/pdf" />);
+    observer.disconnect();
+    expect(framed).not.toContain("/files/b.pdf");
     expect(document.querySelector("iframe")).toBeNull();
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    await act(async () => late.resolve(file("PK", DOCX)));
+    expect(screen.getByRole("status", { name: "Opening file…" })).toBeInTheDocument();
+
+    await act(async () => late.resolve(file("%PDF", "application/pdf")));
+    expect(await frame("b.pdf")).toHaveAttribute("src", "/files/b.pdf");
   });
 });
 
@@ -403,8 +418,12 @@ describe("DOCX", () => {
     // Rendered into the shadow root: no stylesheet of the document's lands in the page.
     for (const el of document.querySelectorAll("style")) expect(el.textContent).not.toContain("display: none");
     expect(root.querySelector("style")).not.toBeNull();
-    // The host clips anything the document positions to escape it.
-    expect(document.querySelector(".file-viewer-docx")).toHaveClass("[contain:paint]");
+    // Containment sits on the host's wrapper, which `:host` rules can't reach,
+    // and inline, so it doesn't depend on the app's Tailwind.
+    const host = document.querySelector<HTMLElement>(".file-viewer-docx")!;
+    expect(host.style.contain).toBe("");
+    expect(host.parentElement!.style.contain).toBe("paint");
+    expect(host.parentElement!.children).toHaveLength(1);
   });
 
   it("asks the fallback when the document can't be laid out", async () => {
