@@ -8,6 +8,34 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.22.0] - 2026-10-07
+
+### Added: `@codelittinc/carbon-design-system/tokens`, every colour as a plain value
+
+`colorTokens.dark` and `colorTokens.light` hold every `--color-*` token in
+`theme.css` as a literal CSS value, with each `var()` reference resolved. They
+are for places that cannot read a CSS variable, so they can still take their
+colours from the design system rather than copying hex values: a PDF renderer
+(react-pdf), an HTML email, or a site that does not use Tailwind (Docusaurus).
+
+```ts
+import { colorTokens } from "@codelittinc/carbon-design-system/tokens";
+colorTokens.light["text-primary"]; // "#18181b"
+colorTokens.dark.accent;           // "#f59e0b"
+```
+
+- `dark` is the default theme (`@theme` + `@theme static`, then `.dark`);
+  `light` applies `.light`. The category fills are the same in both, as in
+  the stylesheet.
+- Types: `ColorTheme` (`"dark" | "light"`) and `ColorToken` (every token name).
+- `src/tokens.ts` is **generated** from `theme.css` by
+  `scripts/generate-tokens.mjs` (`pnpm tokens:generate`), and `build:lib`
+  regenerates it before bundling. `test/tokens.test.ts` fails when the
+  committed file and `theme.css` disagree. `theme.css` stays the one source.
+- A server-safe entry: no React, no `"use client"`, nothing but the object.
+  Browser apps should keep using the utilities and `var(--color-…)`, which
+  follow a theme switch; these values do not.
+
 ## [1.21.0] - 2026-10-07
 
 ### Changed: warning badges, alerts and toasts are yellow, not accent amber

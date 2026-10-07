@@ -98,6 +98,23 @@ utilities used throughout the components — there are no hard-coded hex values 
 | **Spacing** | tightened scale `px → 20` (1px → 80px) |
 | **Radius** | `sm` 4px · `md` 6px · `lg` 8px · `xl` 12px |
 
+### Colours as plain values
+
+A PDF renderer, an HTML email or a site without Tailwind cannot read a CSS variable. Take the
+value from the design system instead of copying a hex:
+
+```ts
+import { colorTokens } from "@codelittinc/carbon-design-system/tokens";
+
+colorTokens.light["text-primary"]; // "#18181b"
+colorTokens.dark.accent;           // "#f59e0b"
+```
+
+`colorTokens.dark` / `colorTokens.light` hold every `--color-*` token with its `var()` references
+resolved. The file is generated from `theme.css` (`pnpm tokens:generate`; `build:lib` runs it), so
+`theme.css` stays the one source. In a browser app keep using the utilities, which follow a theme
+switch; these values do not.
+
 ## Installation
 
 Published to **GitHub Packages** under the `@codelittinc` scope. Point the scope

@@ -1,6 +1,6 @@
 {
   "name": "@codelittinc/carbon-design-system",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "CarbonOS Design System — Refined Carbon. Shared React UI components and design tokens.",
   "type": "module",
   "license": "MIT",
@@ -33,6 +33,11 @@
       "import": "./dist/utils.js",
       "default": "./dist/utils.js"
     },
+    "./tokens": {
+      "types": "./dist/tokens.d.ts",
+      "import": "./dist/tokens.js",
+      "default": "./dist/tokens.js"
+    },
     "./styles": "./src/styles/theme.css"
   },
   "scripts": {
@@ -40,7 +45,8 @@
     "storybook": "storybook dev -p 6006",
     "build": "storybook build",
     "build-storybook": "storybook build",
-    "build:lib": "tsup",
+    "build:lib": "node scripts/generate-tokens.mjs && tsup",
+    "tokens:generate": "node scripts/generate-tokens.mjs",
     "prepack": "pnpm run build:lib",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

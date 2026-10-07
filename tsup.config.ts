@@ -5,9 +5,11 @@ import { join } from "node:path";
 /**
  * Library build for @codelittinc/carbon-design-system.
  *
- * Emits ESM + type declarations to dist/. Two entry points:
- *   - index → the full barrel (@codelittinc/carbon-design-system)
- *   - utils → pure helpers only (@codelittinc/carbon-design-system/utils)
+ * Emits ESM + type declarations to dist/. Three entry points:
+ *   - index  → the full barrel (@codelittinc/carbon-design-system)
+ *   - utils  → pure helpers only (@codelittinc/carbon-design-system/utils)
+ *   - tokens → plain colour values (@codelittinc/carbon-design-system/tokens), generated
+ *              from theme.css by scripts/generate-tokens.mjs before each build
  *
  * Plus one file that is not an entry point: rich-text-editor-impl.js, the
  * TipTap editor, which index.js reaches only through a dynamic import. See
@@ -45,17 +47,18 @@ const lazyEditor = {
     );
   },
 };
-const SERVER_SAFE_ENTRIES = new Set(["utils.js"]);
+const SERVER_SAFE_ENTRIES = new Set(["utils.js", "tokens.js"]);
 
 export default defineConfig({
   entry: {
     index: "src/index.ts",
     utils: "src/utils.ts",
+    tokens: "src/tokens.ts",
     "rich-text-editor-impl": "src/components/ui/rich-text-editor-impl.tsx",
   },
   format: ["esm"],
   // The editor file is reached only through index.js, whose types cover it.
-  dts: { entry: { index: "src/index.ts", utils: "src/utils.ts" } },
+  dts: { entry: { index: "src/index.ts", utils: "src/utils.ts", tokens: "src/tokens.ts" } },
   esbuildPlugins: [lazyEditor],
   clean: true,
   sourcemap: false,
