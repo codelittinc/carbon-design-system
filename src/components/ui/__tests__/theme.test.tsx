@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   THEME_SCRIPT,
   ThemeProvider,
+  themeScript,
   ThemeToggle,
   useTheme,
 } from "../theme";
@@ -226,5 +227,108 @@ describe("THEME_SCRIPT", () => {
     expect(typeof THEME_SCRIPT).toBe("string");
     expect(THEME_SCRIPT.length).toBeGreaterThan(0);
     expect(THEME_SCRIPT).toContain("carbon-theme");
+  });
+});
+
+function runScript(script: string) {
+  new Function(script)();
+}
+
+describe("themeScript", () => {
+  it("keeps THEME_SCRIPT identical to the 1.23 script (dark fallback)", () => {
+    expect(THEME_SCRIPT).toBe(
+      '(function(){try{var t=localStorage.getItem("carbon-theme");if(t!=="light"&&t!=="dark")t="dark";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();',
+    );
+    expect(themeScript()).toBe(THEME_SCRIPT);
+    expect(themeScript({ defaultTheme: "dark" })).toBe(THEME_SCRIPT);
+  });
+
+  it("applies defaultTheme when nothing is saved", () => {
+    runScript(themeScript({ defaultTheme: "light" }));
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+
+  it("applies the saved theme over defaultTheme", () => {
+    localStorage.setItem("carbon-theme", "dark");
+    runScript(themeScript({ defaultTheme: "light" }));
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.classList.contains("light")).toBe(false);
+  });
+
+  it("ignores an invalid saved value", () => {
+    localStorage.setItem("carbon-theme", "sepia");
+    runScript(themeScript({ defaultTheme: "light" }));
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+  });
+
+  it("never interpolates anything but light or dark", () => {
+    const script = themeScript({ defaultTheme: '"+alert(1)+"' as never });
+    expect(script).toBe(THEME_SCRIPT);
+  });
+});
+
+describe("ThemeProvider defaultTheme", () => {
+  it("reads back the class the theme script set", () => {
+    localStorage.setItem("carbon-theme", "dark");
+    runScript(themeScript({ defaultTheme: "light" }));
+    render(
+      <ThemeProvider defaultTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("dark");
+  });
+
+  it("starts from defaultTheme on the server render", () => {
+    const markup = renderToString(
+      <ThemeProvider defaultTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(markup).toContain(">light<");
+  });
+
+  it("without a theme script, uses the saved choice over defaultTheme", () => {
+    localStorage.setItem("carbon-theme", "dark");
+    render(
+      <ThemeProvider defaultTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("without a theme script or saved choice, applies defaultTheme", () => {
+    render(
+      <ThemeProvider defaultTheme="light">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+  });
+
+  it("does not read storage when persist is false", () => {
+    localStorage.setItem("carbon-theme", "dark");
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    render(
+      <ThemeProvider defaultTheme="light" persist={false}>
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
+    expect(getItem).not.toHaveBeenCalled();
+  });
+
+  it("a concrete initialTheme still wins over defaultTheme and the saved choice", () => {
+    localStorage.setItem("carbon-theme", "dark");
+    render(
+      <ThemeProvider initialTheme="light" defaultTheme="dark">
+        <ThemeReadout />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
   });
 });

@@ -8,6 +8,22 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.24.0] - 2026-10-08
+
+### Added
+
+- `FilterBar` `searchLabel` prop: the search input's accessible name (`aria-label`). It
+  defaults to `searchPlaceholder`, so every search box now has a name that
+  `getByRole("textbox", { name })` and screen readers can find.
+- `themeScript({ defaultTheme })`: builds the no-flash theme script with a chosen fallback
+  (`"light"` or `"dark"`) for when nothing is saved. `THEME_SCRIPT` is unchanged and equals
+  `themeScript()` (dark fallback).
+- `ThemeProvider` `defaultTheme` prop: the theme to fall back to when `initialTheme` is
+  omitted. It never overrides the user's saved choice: on mount the provider uses the class
+  the theme script set, else the saved theme (when `persist`), else `defaultTheme`. Server and
+  first client render assume it. Pass the same value to `themeScript({ defaultTheme })`.
+- `MenuIcon` (hamburger, lucide `Menu`) in the icon set.
+
 ## [1.23.1] - 2026-10-08
 
 ### Fixed

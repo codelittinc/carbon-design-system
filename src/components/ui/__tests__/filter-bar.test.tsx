@@ -25,6 +25,28 @@ describe("FilterBar", () => {
     expect(screen.getByPlaceholderText("Find users")).toBeInTheDocument();
   });
 
+  it("names the search input after the placeholder by default", () => {
+    render(<FilterBar onSearchChange={() => {}} searchPlaceholder="Find users" />);
+    expect(screen.getByRole("textbox", { name: "Find users" })).toBeInTheDocument();
+  });
+
+  it("names the search input with searchLabel when given", () => {
+    render(
+      <FilterBar
+        onSearchChange={() => {}}
+        searchPlaceholder="Name or email"
+        searchLabel="Search employees"
+      />,
+    );
+    const input = screen.getByRole("textbox", { name: "Search employees" });
+    expect(input).toHaveAttribute("placeholder", "Name or email");
+  });
+
+  it("names the search input with the default placeholder when neither is given", () => {
+    render(<FilterBar onSearchChange={() => {}} />);
+    expect(screen.getByRole("textbox", { name: "Search..." })).toBeInTheDocument();
+  });
+
   it("renders children in the filter slot", () => {
     render(
       <FilterBar>
