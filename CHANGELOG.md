@@ -8,6 +8,15 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.23.0] - 2026-10-08
+
+### Added
+
+- `AddressCombobox` provider mode: `fetchSuggestions(query, { signal })`, `onSelect`,
+  `onStatusChange`, optional shared-status suppression and attribution. Provider mode never
+  loads Google scripts; lookups debounce, abort stale requests and time out after ten seconds.
+  Existing Google/structured-address behavior remains the default.
+
 ## [1.22.0] - 2026-10-07
 
 ### Added: `@codelittinc/carbon-design-system/tokens`, every colour as a plain value

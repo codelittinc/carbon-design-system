@@ -140,5 +140,5 @@ export * from "./components/ui/structured-address-input";
 // `address-combobox` exports an `AddressAutocomplete` that returns a structured
 // address (via Google Places New API). It's aliased to `AddressCombobox` so it
 // coexists with the simpler string-only `address-autocomplete` above.
-export { AddressAutocomplete as AddressCombobox } from "./components/ui/address-combobox";
+export { type AddressComboboxProps, type AddressSuggestion, type AddressSuggestionProvider, type AddressComboboxStatus, AddressAutocomplete as AddressCombobox } from "./components/ui/address-combobox";
 export * from "./components/ui/postal-address";

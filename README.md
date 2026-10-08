@@ -225,3 +225,26 @@ shows the placeholder.
 > These components were ported from the Carbon Backbone web app as the starting point for a
 > shared library. The originals remain in the app; this repository is the canonical home going
 > forward.
+
+
+### Server-backed address suggestions
+
+`AddressCombobox` keeps its existing Google/structured-address behavior by default. Pass
+`fetchSuggestions` to use your own API without loading Google scripts or a browser API key:
+
+```tsx
+<AddressCombobox
+  value={address}
+  onChange={setAddress}
+  fetchSuggestions={fetchSuggestions}
+  onSelect={formattedAddress => lookupDistance(formattedAddress)}
+  onStatusChange={setAddressStatus}
+/>
+```
+
+The provider receives `(query, { signal })` and returns `{ id, address, secondaryText? }[]`.
+Keep its function identity stable (for example, with `useCallback`). Searches require three
+characters, debounce for 250 ms, and time out after ten seconds. Superseded requests abort;
+manual entry and Retry remain available. `showStatus={false}` lets the host present one shared
+status message; `attribution` supplies a custom provider's attribution footer. Provider results
+are formatted strings; `onAddressSelect` remains specific to the default Google mode.

@@ -6,26 +6,26 @@ import { cn } from "@/lib/cn";
 import { floatingSurfaceClass, optionRowActiveClass } from "@/lib/ui-classes";
 import { Button } from "./button";
 import { Input } from "./input";
-import { parseGooglePlaceAddress, type PostalAddressDraft } from "./postal-address";
+import { parseGooglePlaceAddress } from "./postal-address";
+
+import { fetchAddressSuggestions } from "@/lib/address-suggestions";
+export type {
+  AddressComboboxProps,
+  AddressSuggestion,
+  AddressSuggestionProvider,
+  AddressComboboxStatus,
+} from "./address-combobox-types";
+import type {
+  AddressSuggestion,
+  AddressComboboxProps,
+} from "./address-combobox-types";
 
 const SEARCH_DELAY_MS = 250;
 const MIN_QUERY_LENGTH = 3;
 
-interface AddressAutocompleteProps {
-  id?: string;
-  value: string;
-  onChange: (value: string) => void;
-  onAddressSelect?: (address: PostalAddressDraft) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  className?: string;
-  variant?: "staff" | "public" | "vendor";
-  ariaLabel?: string;
-  required?: boolean;
-  autoComplete?: string;
-}
-
-type Suggestion = google.maps.places.AutocompleteSuggestion;
+type Suggestion = AddressSuggestion & {
+  prediction?: google.maps.places.PlacePrediction;
+};
 
 /*
  * The street field's height per variant, layered over `Input`, and shared with
@@ -58,6 +58,12 @@ export function AddressAutocomplete({
   value,
   onChange,
   onAddressSelect,
+  onSelect,
+  onStatusChange,
+  fetchSuggestions,
+  attribution,
+  showStatus = true,
+  disabled = false,
   onBlur,
   placeholder = "Start typing an address...",
   className,
@@ -65,7 +71,7 @@ export function AddressAutocomplete({
   ariaLabel = "Address search",
   required = false,
   autoComplete = "street-address",
-}: AddressAutocompleteProps) {
+}: AddressComboboxProps) {
   const generatedId = useId().replaceAll(":", "");
   const inputId = id ?? `address-${generatedId}`;
   const listId = `${inputId}-suggestions`;
@@ -73,12 +79,22 @@ export function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [searchActive, setSearchActive] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "ready" | "unavailable"
+  >("idle");
   const [retryAttempt, setRetryAttempt] = useState(0);
   const requestSequence = useRef(0);
-  const sessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const sessionToken =
+    useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const suppressNextSearch = useRef(false);
   const blurTimer = useRef<number | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
+
+  const statusCallback = useRef(onStatusChange);
+  statusCallback.current = onStatusChange;
+  useEffect(() => {
+    statusCallback.current?.(status);
+  }, [status]);
 
   useEffect(
     () => () => {
@@ -91,13 +107,15 @@ export function AddressAutocomplete({
   useEffect(() => {
     const query = value.trim();
     const sequence = ++requestSequence.current;
+    const controller = new AbortController();
+    activeRequest.current = controller;
     if (suppressNextSearch.current) {
       suppressNextSearch.current = false;
       setSuggestions([]);
       setStatus("idle");
       return;
     }
-    if (!searchActive || query.length < MIN_QUERY_LENGTH) {
+    if (disabled || !searchActive || query.length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
       setActiveIndex(-1);
       setStatus("idle");
@@ -105,19 +123,45 @@ export function AddressAutocomplete({
     }
 
     const timer = window.setTimeout(() => {
+      if (requestSequence.current !== sequence || controller.signal.aborted)
+        return;
       setStatus("loading");
-      void loadGooglePlacesLibrary()
-        .then(async (places) => {
-          if (requestSequence.current !== sequence) return;
-          if (!sessionToken.current) sessionToken.current = new places.AutocompleteSessionToken();
-          const response = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      void (async (): Promise<Suggestion[]> => {
+        if (fetchSuggestions)
+          return [
+            ...(await fetchAddressSuggestions(
+              fetchSuggestions,
+              query,
+              controller.signal,
+            )),
+          ];
+        const places = await loadGooglePlacesLibrary();
+        if (requestSequence.current !== sequence) return [];
+        if (!sessionToken.current)
+          sessionToken.current = new places.AutocompleteSessionToken();
+        const response =
+          await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
             input: query,
             includedRegionCodes: ["us"],
             region: "us",
             sessionToken: sessionToken.current,
           });
+        return response.suggestions.flatMap((item) =>
+          item.placePrediction
+            ? [
+                {
+                  id: item.placePrediction.placeId,
+                  address: item.placePrediction.text.toString(),
+                  secondaryText: item.placePrediction.secondaryText?.toString(),
+                  prediction: item.placePrediction,
+                },
+              ]
+            : [],
+        );
+      })()
+        .then((result) => {
           if (requestSequence.current !== sequence) return;
-          setSuggestions(response.suggestions.filter((item) => item.placePrediction));
+          setSuggestions(result);
           setActiveIndex(-1);
           setStatus("ready");
         })
@@ -129,24 +173,41 @@ export function AddressAutocomplete({
         });
     }, SEARCH_DELAY_MS);
 
-    return () => window.clearTimeout(timer);
-  }, [retryAttempt, searchActive, value]);
+    return () => {
+      controller.abort();
+      requestSequence.current += 1;
+      window.clearTimeout(timer);
+    };
+  }, [retryAttempt, searchActive, value, disabled, fetchSuggestions]);
 
   const selectSuggestion = async (suggestion: Suggestion) => {
-    const prediction = suggestion.placePrediction;
-    if (!prediction) return;
+    const prediction = suggestion.prediction;
+    if (!prediction) {
+      requestSequence.current += 1;
+      suppressNextSearch.current = true;
+      setSuggestions([]);
+      setActiveIndex(-1);
+      setSearchActive(false);
+      setStatus("idle");
+      onChange(suggestion.address);
+      onSelect?.(suggestion.address);
+      return;
+    }
     const sequence = ++requestSequence.current;
     setSuggestions([]);
     setActiveIndex(-1);
     setStatus("loading");
     try {
       const place = prediction.toPlace();
-      await place.fetchFields({ fields: ["addressComponents", "formattedAddress"] });
+      await place.fetchFields({
+        fields: ["addressComponents", "formattedAddress"],
+      });
       if (requestSequence.current !== sequence) return;
       const parsed = parseGooglePlaceAddress(place);
       suppressNextSearch.current = true;
       if (parsed && onAddressSelect) onAddressSelect(parsed);
       else onChange(place.formattedAddress || prediction.text.toString());
+      onSelect?.(place.formattedAddress || prediction.text.toString());
       sessionToken.current = null;
       setSearchActive(false);
       setStatus("idle");
@@ -157,6 +218,7 @@ export function AddressAutocomplete({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
     if (!suggestions.length) {
       if (event.key === "Escape") setSearchActive(false);
       return;
@@ -166,7 +228,9 @@ export function AddressAutocomplete({
       setActiveIndex((current) => (current + 1) % suggestions.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((current) => (current <= 0 ? suggestions.length - 1 : current - 1));
+      setActiveIndex((current) =>
+        current <= 0 ? suggestions.length - 1 : current - 1,
+      );
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault();
       void selectSuggestion(suggestions[activeIndex]!);
@@ -184,9 +248,10 @@ export function AddressAutocomplete({
   // wrapper, so only the vendor portal's emerald (its brand, which the tokens
   // do not carry) is written out.
   const vendor = variant === "vendor";
-  const scopeClass = variant === "public" ? "dark" : vendor ? "light" : undefined;
+  const scopeClass =
+    variant === "public" ? "dark" : vendor ? "light" : undefined;
   const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
-  const optionsVisible = searchActive && suggestions.length > 0;
+  const optionsVisible = !disabled && searchActive && suggestions.length > 0;
 
   return (
     <div className={cn("relative", scopeClass)}>
@@ -196,11 +261,17 @@ export function AddressAutocomplete({
         value={value}
         onChange={(event) => {
           requestSequence.current += 1;
+          activeRequest.current?.abort();
+          setSuggestions([]);
+          setActiveIndex(-1);
+          setStatus("idle");
           onChange(event.target.value);
           setSearchActive(true);
         }}
         onFocus={() => setSearchActive(true)}
         onBlur={() => {
+          requestSequence.current += 1;
+          activeRequest.current?.abort();
           onBlur?.();
           blurTimer.current = window.setTimeout(() => {
             setSearchActive(false);
@@ -215,10 +286,17 @@ export function AddressAutocomplete({
         aria-label={ariaLabel}
         aria-autocomplete="list"
         aria-controls={listId}
-        aria-describedby={status === "idle" ? undefined : statusId}
+        aria-describedby={
+          !showStatus || status === "idle" ? undefined : statusId
+        }
         aria-expanded={optionsVisible}
-        aria-activedescendant={optionsVisible && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+        aria-activedescendant={
+          optionsVisible && activeIndex >= 0
+            ? `${listId}-${activeIndex}`
+            : undefined
+        }
         role="combobox"
+        disabled={disabled}
         required={required}
         autoComplete={autoComplete}
         className={cn(inputClass, className)}
@@ -238,17 +316,22 @@ export function AddressAutocomplete({
             className="max-h-60 overflow-y-auto py-1"
           >
             {suggestions.map((suggestion, index) => {
-              const prediction = suggestion.placePrediction!;
-              const text = predictionText(prediction);
+              const text = suggestion.prediction
+                ? predictionText(suggestion.prediction)
+                : {
+                    main: suggestion.address,
+                    secondary: suggestion.secondaryText ?? "",
+                  };
               return (
                 <li
                   id={`${listId}-${index}`}
-                  key={prediction.placeId}
+                  key={suggestion.id}
                   role="option"
                   aria-selected={activeIndex === index}
                   className={cn(
                     "cursor-pointer px-3 py-2 text-sm",
-                    activeIndex === index && (vendor ? "bg-emerald-50" : optionRowActiveClass),
+                    activeIndex === index &&
+                      (vendor ? "bg-emerald-50" : optionRowActiveClass),
                   )}
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseEnter={() => setActiveIndex(index)}
@@ -256,57 +339,68 @@ export function AddressAutocomplete({
                 >
                   <span className="block font-medium">{text.main}</span>
                   {text.secondary && (
-                    <span className="mt-0.5 block text-xs text-text-muted">{text.secondary}</span>
+                    <span className="mt-0.5 block text-xs text-text-muted">
+                      {text.secondary}
+                    </span>
                   )}
                 </li>
               );
             })}
           </ul>
-          <div className="flex justify-end border-t px-3 py-1.5">
-            {/* Google's fixed attribution asset is not served through the Next image optimizer. */}
-            <img
-              src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
-              alt="Powered by Google"
-              className="h-[14px] w-auto"
-            />
-          </div>
+          {(!fetchSuggestions || attribution) && (
+            <div className="flex justify-end border-t px-3 py-1.5">
+              {/* Google's fixed attribution asset is not served through the Next image optimizer. */}
+              {fetchSuggestions ? (
+                attribution
+              ) : (
+                <img
+                  src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
+                  alt="Powered by Google"
+                  className="h-[14px] w-auto"
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      <div
-        id={statusId}
-        role="status"
-        aria-live="polite"
-        className="mt-1 text-xs text-text-muted"
-      >
-        {status === "loading" && "Finding addresses…"}
-        {status === "ready" &&
-          !suggestions.length &&
-          value.trim().length >= MIN_QUERY_LENGTH &&
-          "No matches. Continue entering the address manually."}
-        {status === "unavailable" && (
-          <span>
-            Address suggestions are unavailable. Continue entering the address manually.{" "}
-            <Button
-              type="button"
-              variant="link"
-              // Inline in the sentence: the link look without a button's box.
-              className={cn(
-                "inline h-auto p-0 text-xs underline",
-                vendor ? "text-emerald-700" : "text-accent-text",
-              )}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                sessionToken.current = null;
-                setSearchActive(true);
-                setRetryAttempt((attempt) => attempt + 1);
-              }}
-            >
-              Retry
-            </Button>
-          </span>
-        )}
-      </div>
+      {showStatus && (
+        <div
+          id={statusId}
+          role="status"
+          aria-live="polite"
+          className="mt-1 text-xs text-text-muted"
+        >
+          {status === "loading" && "Finding addresses…"}
+          {status === "ready" &&
+            !suggestions.length &&
+            value.trim().length >= MIN_QUERY_LENGTH &&
+            "No matches. Continue entering the address manually."}
+          {status === "unavailable" && (
+            <span>
+              Address suggestions are unavailable. Continue entering the address
+              manually.{" "}
+              <Button
+                type="button"
+                variant="link"
+                // Inline in the sentence: the link look without a button's box.
+                className={cn(
+                  "inline h-auto p-0 text-xs underline",
+                  vendor ? "text-emerald-700" : "text-accent-text",
+                )}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  sessionToken.current = null;
+                  setSearchActive(true);
+                  setRetryAttempt((attempt) => attempt + 1);
+                }}
+              >
+                Retry
+              </Button>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

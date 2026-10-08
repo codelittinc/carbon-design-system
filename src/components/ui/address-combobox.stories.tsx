@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { AddressAutocomplete as AddressCombobox } from "./address-combobox";
-import { EMPTY_POSTAL_ADDRESS, type PostalAddressDraft } from "./postal-address";
+import {
+  EMPTY_POSTAL_ADDRESS,
+  type PostalAddressDraft,
+} from "./postal-address";
 
 /**
  * AddressCombobox is the Google Places (New API) address picker. Unlike the
@@ -25,10 +28,13 @@ type Story = StoryObj<typeof AddressCombobox>;
 export const Default: Story = {
   render: () => {
     const [value, setValue] = useState("");
-    const [parsed, setParsed] = useState<PostalAddressDraft>(EMPTY_POSTAL_ADDRESS);
+    const [parsed, setParsed] =
+      useState<PostalAddressDraft>(EMPTY_POSTAL_ADDRESS);
     return (
       <div className="w-96 space-y-3">
-        <label className="block text-xs font-medium text-text-secondary">Street address</label>
+        <label className="block text-xs font-medium text-text-secondary">
+          Street address
+        </label>
         <AddressCombobox
           value={value}
           onChange={setValue}
@@ -57,6 +63,33 @@ export const Vendor: Story = {
           onChange={setValue}
           variant="vendor"
           placeholder="Start typing an address…"
+        />
+      </div>
+    );
+  },
+};
+
+const exampleSuggestions = async (query: string) =>
+  [
+    { id: "main", address: "100 Main St", secondaryText: "Chicago, IL" },
+    { id: "oak", address: "200 Oak St", secondaryText: "Chicago, IL" },
+  ].filter((item) =>
+    `${item.address} ${item.secondaryText}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+
+/** The host can proxy its own address API; this example uses no browser key or network. */
+export const CustomProvider: Story = {
+  render: () => {
+    const [value, setValue] = useState("");
+    return (
+      <div className="w-96">
+        <AddressCombobox
+          value={value}
+          onChange={setValue}
+          fetchSuggestions={exampleSuggestions}
+          placeholder="Type Main, Oak or Chicago"
         />
       </div>
     );
