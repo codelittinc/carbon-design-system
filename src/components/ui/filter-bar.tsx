@@ -9,6 +9,11 @@ interface FilterBarProps {
   search?: string;
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
+  /**
+   * Accessible name for the search input (its `aria-label`). Defaults to
+   * `searchPlaceholder`, since a placeholder alone is not a name.
+   */
+  searchLabel?: string;
   /** Filter controls (selects, toggles) rendered to the right of the search box. */
   children?: React.ReactNode;
   className?: string;
@@ -22,6 +27,7 @@ export function FilterBar({
   search,
   onSearchChange,
   searchPlaceholder = "Search...",
+  searchLabel,
   children,
   className,
 }: FilterBarProps) {
@@ -37,6 +43,7 @@ export function FilterBar({
             value={search ?? ""}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
+            aria-label={searchLabel ?? searchPlaceholder}
             className="pl-9"
           />
         </div>

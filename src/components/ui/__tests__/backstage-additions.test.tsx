@@ -92,10 +92,16 @@ describe("TextLink", () => {
 
 describe("icons", () => {
   it("re-exports the curated set with an Icon suffix", () => {
-    for (const name of ["ChevronDownIcon", "SearchIcon", "XIcon", "TrashIcon", "FileIcon", "CopyIcon", "ExternalLinkIcon"]) {
+    for (const name of ["ChevronDownIcon", "SearchIcon", "XIcon", "TrashIcon", "FileIcon", "CopyIcon", "ExternalLinkIcon", "MenuIcon"]) {
       expect(Icons[name as keyof typeof Icons]).toBeTruthy();
     }
     const { container } = render(<Icons.CheckIcon size={12} />);
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("exports MenuIcon as lucide's hamburger menu", () => {
+    const { container } = render(<Icons.MenuIcon size={16} />);
+    expect(container.querySelector("svg")).toHaveClass("lucide-menu");
     expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 });

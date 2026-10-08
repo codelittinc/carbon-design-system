@@ -4,7 +4,7 @@ import * as react from 'react';
 import { ReactElement, ReactNode, AnchorHTMLAttributes, ElementType } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
 import { VariantProps } from 'class-variance-authority';
-export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, LucideIcon as IconComponent, LucideProps as IconProps, Info as InfoIcon, LoaderCircle as LoaderIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
+export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, LucideIcon as IconComponent, LucideProps as IconProps, Info as InfoIcon, LoaderCircle as LoaderIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -1271,6 +1271,11 @@ interface FilterBarProps {
     search?: string;
     onSearchChange?: (value: string) => void;
     searchPlaceholder?: string;
+    /**
+     * Accessible name for the search input (its `aria-label`). Defaults to
+     * `searchPlaceholder`, since a placeholder alone is not a name.
+     */
+    searchLabel?: string;
     /** Filter controls (selects, toggles) rendered to the right of the search box. */
     children?: React.ReactNode;
     className?: string;
@@ -1279,7 +1284,7 @@ interface FilterBarProps {
  * Toolbar above a list/table: a search input with a leading icon plus a slot
  * for filter controls. Pass DS `Select`s (or `MultiStatusFilter`) as children.
  */
-declare function FilterBar({ search, onSearchChange, searchPlaceholder, children, className, }: FilterBarProps): react.JSX.Element;
+declare function FilterBar({ search, onSearchChange, searchPlaceholder, searchLabel, children, className, }: FilterBarProps): react.JSX.Element;
 
 interface StatCardProps {
     label: string;
@@ -2046,16 +2051,33 @@ interface TimesheetTableProps {
 declare function TimesheetTable({ userId, userFullName, contracts, api: apiOverrides, baseUrl, apiHeaders, defaultView, onViewChange, onNavigate, initialWeek, initialMonth, title, className, }: TimesheetTableProps): ReactElement;
 
 type Theme = "light" | "dark";
+interface ThemeScriptOptions {
+    /**
+     * The theme to use when nothing valid is saved in localStorage. Defaults to
+     * `"dark"`, the design system's default.
+     */
+    defaultTheme?: Theme;
+}
 /**
- * Inline script to drop into <head> so the saved theme is applied before the
- * first paint. The design system is dark by default (no class); this always
- * sets an explicit `light`/`dark` class so consumers can read it back on
- * hydration. Without it, a saved light preference would flash dark on load.
+ * Builds the inline script to drop into <head> so the saved theme is applied
+ * before the first paint. It always sets an explicit `light`/`dark` class so
+ * consumers can read it back on hydration; with nothing saved it uses
+ * `defaultTheme`. Without it, a saved light preference would flash dark on load.
+ *
+ * Pair it with `<ThemeProvider defaultTheme={...}>` using the same value.
+ *
+ * Usage (Next.js app root):
+ *   <head><script dangerouslySetInnerHTML={{ __html: themeScript({ defaultTheme: "light" }) }} /></head>
+ */
+declare function themeScript({ defaultTheme }?: ThemeScriptOptions): string;
+/**
+ * `themeScript()` with the default (dark) fallback. Kept for compatibility;
+ * use `themeScript({ defaultTheme })` to pick the default.
  *
  * Usage (Next.js app root):
  *   <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
  */
-declare const THEME_SCRIPT = "(function(){try{var t=localStorage.getItem(\"carbon-theme\");if(t!==\"light\"&&t!==\"dark\")t=\"dark\";var c=document.documentElement.classList;c.remove(\"light\",\"dark\");c.add(t);}catch(e){}})();";
+declare const THEME_SCRIPT: string;
 interface ThemeContextValue {
     theme: Theme;
     /**
@@ -2073,15 +2095,25 @@ interface ThemeProviderProps {
      * The theme to start from, for apps that store the choice themselves (e.g.
      * on the user's account) and render it on the server. `"system"` follows the
      * OS `prefers-color-scheme` once mounted, dark when there is no preference.
-     * Omitted, the provider reads back the class `THEME_SCRIPT` set.
+     * It wins over a saved choice. Omitted, the provider reads back the class
+     * `THEME_SCRIPT` / `themeScript()` set.
      */
     initialTheme?: Theme | "system";
+    /**
+     * The theme to fall back to when `initialTheme` is omitted and nothing has
+     * chosen one yet. Unlike `initialTheme`, it never overrides the user's
+     * choice: on mount the provider uses the class `themeScript()` set, else the
+     * saved theme (when `persist`), else this. Server and first client render
+     * assume it, so pass the same value as `themeScript({ defaultTheme })`.
+     * Omitted, the provider keeps its old behaviour (dark, nothing applied).
+     */
+    defaultTheme?: Theme;
     /** Save the choice to localStorage. Defaults to true; false never touches it. */
     persist?: boolean;
     /** Called with the new theme after `setTheme` or `toggleTheme`, never on mount. */
     onThemeChange?: (theme: Theme) => void;
 }
-declare function ThemeProvider({ children, initialTheme, persist, onThemeChange, }: ThemeProviderProps): react.JSX.Element;
+declare function ThemeProvider({ children, initialTheme, defaultTheme, persist, onThemeChange, }: ThemeProviderProps): react.JSX.Element;
 declare function useTheme(): ThemeContextValue;
 /**
  * Sun/moon button that toggles light/dark. Shows a filled orange sun while dark
@@ -2231,4 +2263,4 @@ interface AddressComboboxProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onSelect, onStatusChange, fetchSuggestions, attribution, showStatus, disabled, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressComboboxProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, type Theme, ThemeProvider, type ThemeProviderProps, type ThemeScriptOptions, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

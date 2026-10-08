@@ -8,7 +8,7 @@ import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
 import { X, ExternalLink, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, LoaderCircle as LoaderIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
+export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, LoaderCircle as LoaderIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
@@ -3793,6 +3793,7 @@ function FilterBar({
   search,
   onSearchChange,
   searchPlaceholder = "Search...",
+  searchLabel,
   children,
   className
 }) {
@@ -3811,6 +3812,7 @@ function FilterBar({
           value: search ?? "",
           onChange: (e) => onSearchChange(e.target.value),
           placeholder: searchPlaceholder,
+          "aria-label": searchLabel ?? searchPlaceholder,
           className: "pl-9"
         }
       )
@@ -5678,7 +5680,19 @@ function TimeOffList({
   ] });
 }
 var STORAGE_KEY = "carbon-theme";
-var THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="dark";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
+function themeScript({ defaultTheme = "dark" } = {}) {
+  const fallback = defaultTheme === "light" ? "light" : "dark";
+  return `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="${fallback}";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
+}
+var THEME_SCRIPT = themeScript();
+function storedTheme() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved === "light" || saved === "dark" ? saved : null;
+  } catch {
+    return null;
+  }
+}
 function applyTheme(theme) {
   const classList = document.documentElement.classList;
   classList.remove("light", "dark");
@@ -5691,20 +5705,28 @@ var ThemeContext = createContext(null);
 function ThemeProvider({
   children,
   initialTheme,
+  defaultTheme,
   persist = true,
   onThemeChange
 }) {
   const resolved = initialTheme === "light" || initialTheme === "dark";
-  const [theme, setThemeState] = useState(resolved ? initialTheme : "dark");
+  const [theme, setThemeState] = useState(
+    resolved ? initialTheme : defaultTheme ?? "dark"
+  );
   const onThemeChangeRef = useRef(onThemeChange);
   useEffect(() => {
     onThemeChangeRef.current = onThemeChange;
   }, [onThemeChange]);
   useEffect(() => {
     if (initialTheme === void 0) {
-      setThemeState(
-        document.documentElement.classList.contains("light") ? "light" : "dark"
-      );
+      const classList = document.documentElement.classList;
+      if (classList.contains("light") || classList.contains("dark") || defaultTheme === void 0) {
+        setThemeState(classList.contains("light") ? "light" : "dark");
+        return;
+      }
+      const start2 = (persist ? storedTheme() : null) ?? defaultTheme;
+      setThemeState(start2);
+      applyTheme(start2);
       return;
     }
     const start = initialTheme === "system" ? systemTheme() : initialTheme;
@@ -6533,4 +6555,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

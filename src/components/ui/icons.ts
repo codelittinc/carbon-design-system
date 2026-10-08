@@ -44,6 +44,7 @@ export {
   FileText as FileTextIcon,
   Info as InfoIcon,
   LoaderCircle as LoaderIcon,
+  Menu as MenuIcon,
   MoreHorizontal as MoreHorizontalIcon,
   Pencil as PencilIcon,
   Plus as PlusIcon,
