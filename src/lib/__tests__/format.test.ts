@@ -2,6 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatAmount, formatDate, formatMoney, formatPeriodLabel, shortMonthName } from "../format";
 
 describe("formatMoney", () => {
+  it.each([
+    ["99999999999999.9900", "$99,999,999,999,999.99"],
+    ["999999999999999.9900", "$999,999,999,999,999.99"],
+    ["999999999999999.9999", "$1,000,000,000,000,000.00"],
+    ["-99999999999999.9950", "($100,000,000,000,000.00)"],
+    ["1.005", "$1.01"],
+    ["1e3", "$1,000.00"],
+    ["9.9999999999999999e14", "$999,999,999,999,999.99"],
+    ["1e-3", "$0.00"],
+    [".005", "$0.01"],
+    ["-0.0000", "$0.00"],
+  ])("preserves exact cents for %s", (value, expected) => {
+    expect(formatMoney(value)).toBe(expected);
+  });
   it("returns $0.00 for null, undefined, empty, and NaN inputs", () => {
     expect(formatMoney(null)).toBe("$0.00");
     expect(formatMoney(undefined)).toBe("$0.00");

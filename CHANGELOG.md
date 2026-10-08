@@ -5,7 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Each entry corresponds to a published version. When you bump the version in
-`package.json`, add a matching `## [x.y.z]` section here — the publish workflow
+`package.json`, add a matching `## [1.23.1]
+
+### Fixed
+- Preserve exact decimal-string cents in `formatMoney`, `Money`, and blurred `MoneyInput` displays, including amounts beyond JavaScript's safe integer range. Monetary rounding uses half-up cents without converting strings to floating-point numbers.
+
+## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
 ## [1.23.0] - 2026-10-08

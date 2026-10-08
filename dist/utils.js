@@ -28,18 +28,32 @@ function formatDateKey(key, options) {
 
 // src/lib/format.ts
 function formatAmount(value, { symbol = true } = {}) {
-  const abs = Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  if (typeof value === "number") {
+    const abs2 = Math.abs(value).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    const body2 = symbol ? `$${abs2}` : abs2;
+    return value < 0 ? `(${body2})` : body2;
+  }
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/i.exec(value.trim());
+  if (!match || !(match[2] || match[3])) return symbol ? "$0.00" : "0.00";
+  const exponent = Number(match[4] || "0");
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 1e3) return symbol ? "$0.00" : "0.00";
+  const digits = (match[2] || "0") + (match[3] || "");
+  const point = (match[2] || "0").length + exponent;
+  const whole = point > 0 ? digits.slice(0, point).padEnd(point, "0") : "0";
+  const fraction = point < 0 ? "0".repeat(-point) + digits : digits.slice(point);
+  let cents = BigInt(whole) * 100n + BigInt((fraction + "00").slice(0, 2));
+  if ((fraction[2] || "0") >= "5") cents += 1n;
+  const integer = (cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const abs = `${integer}.${(cents % 100n).toString().padStart(2, "0")}`;
   const body = symbol ? `$${abs}` : abs;
-  return value < 0 ? `(${body})` : body;
+  return match[1] === "-" && /[1-9]/.test(whole + fraction) ? `(${body})` : body;
 }
 function formatMoney(value) {
-  if (value == null || value === "") return "$0.00";
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "$0.00";
-  return formatAmount(num);
+  if (value == null || value === "" || typeof value === "number" && isNaN(value)) return "$0.00";
+  return formatAmount(value);
 }
 var DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 function formatDate(iso) {

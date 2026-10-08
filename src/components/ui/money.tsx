@@ -14,8 +14,8 @@ interface MoneyProps extends React.HTMLAttributes<HTMLSpanElement> {
  * decimal. Wraps formatMoney for consistent $ / (parentheses) formatting.
  */
 export function Money({ value, colorNegative, className, ...props }: MoneyProps) {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  const isNegative = typeof num === "number" && !isNaN(num) && num < 0;
+  const formatted = formatMoney(value);
+  const isNegative = formatted.startsWith("(");
 
   return (
     <span
@@ -26,7 +26,7 @@ export function Money({ value, colorNegative, className, ...props }: MoneyProps)
       )}
       {...props}
     >
-      {formatMoney(value)}
+      {formatted}
     </span>
   );
 }

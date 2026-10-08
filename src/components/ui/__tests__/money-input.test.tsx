@@ -24,6 +24,17 @@ function Harness({
 }
 
 describe("MoneyInput", () => {
+  it("preserves exact large cents on blur and the raw rate on focus", async () => {
+    const onChange = vi.fn();
+    render(<Harness initial="99999999999999.9900" onChangeSpy={onChange} />);
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveValue("99,999,999,999,999.99");
+    await userEvent.click(input);
+    expect(input).toHaveValue("99999999999999.9900");
+    await userEvent.tab();
+    expect(input).toHaveValue("99,999,999,999,999.99");
+    expect(onChange).not.toHaveBeenCalled();
+  });
   it("renders the $ prefix", () => {
     render(<Harness />);
     expect(screen.getByText("$")).toBeInTheDocument();
