@@ -107,6 +107,29 @@ describe("committed dist/ client boundary", () => {
     expect(typeof utils.formatPeriodLabel).toBe("function");
   });
 
+  it("exports themeScript and THEME_SCRIPT from the utils entry", async () => {
+    // A Next.js root layout is a server component and builds this string there.
+    // From the package root it is a client reference and fails the build.
+    const utils = await import("../src/utils");
+    const root = await import("../src/index");
+    expect(utils.themeScript({ defaultTheme: "light" })).toBe(
+      '(function(){try{var t=localStorage.getItem("carbon-theme");if(t!=="light"&&t!=="dark")t="light";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();',
+    );
+    expect(utils.themeScript()).toBe(utils.THEME_SCRIPT);
+    expect(utils.THEME_SCRIPT).toContain('t="dark"');
+    // The root entry keeps exporting the same function for client imports.
+    expect(root.themeScript).toBe(utils.themeScript);
+    expect(root.THEME_SCRIPT).toBe(utils.THEME_SCRIPT);
+  });
+
+  it("ships themeScript in the committed dist/utils.js", async () => {
+    const built = await import("../dist/utils.js");
+    expect(typeof built.themeScript, "run `pnpm run build:lib`").toBe("function");
+    expect(built.themeScript({ defaultTheme: "light" })).toContain('t="light"');
+    expect(built.THEME_SCRIPT).toContain('t="dark"');
+    expect(distFile("utils.d.ts")).toMatch(/themeScript/);
+  });
+
   it("keeps cn merging conflicting tailwind classes", async () => {
     // The reason a consumer wants cn rather than string concatenation: class
     // attribute order does not settle a conflict, so p-0 must win over p-4.
