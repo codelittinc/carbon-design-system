@@ -30,8 +30,9 @@ function clean(raw: string): string {
  */
 function formatForDisplay(value: string): string {
   if (!value || value === "-" || value === ".") return value;
-  const num = parseFloat(value);
-  return isNaN(num) ? value : formatAmount(num, { symbol: false });
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim())
+    ? formatAmount(value, { symbol: false })
+    : value;
 }
 
 /**

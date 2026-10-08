@@ -8,6 +8,13 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.23.1] - 2026-10-08
+
+### Fixed
+
+- Preserve exact decimal-string cents in `formatMoney`, `Money`, and blurred `MoneyInput` displays, including amounts beyond JavaScript's safe integer range. Monetary rounding uses half-up cents without converting strings to floating-point numbers.
+- A decimal string that rounds to zero cents (for example `-0.004`) displays `$0.00`, not `($0.00)`.
+
 ## [1.23.0] - 2026-10-08
 
 ### Added

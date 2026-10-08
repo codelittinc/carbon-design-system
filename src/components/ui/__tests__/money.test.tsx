@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { Money } from "../money";
 
 describe("Money", () => {
+  it("preserves database-sized decimal strings", () => {
+    render(<Money value="999999999999999.9900" />);
+    expect(screen.getByText("$999,999,999,999,999.99")).toBeInTheDocument();
+  });
   it("renders the formatMoney output for a number", () => {
     render(<Money value={1234.5} />);
     expect(screen.getByText("$1,234.50")).toBeInTheDocument();
