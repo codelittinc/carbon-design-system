@@ -13,6 +13,7 @@ describe("formatMoney", () => {
     ["1e-3", "$0.00"],
     [".005", "$0.01"],
     ["-0.0000", "$0.00"],
+    ["-0.004", "$0.00"],
   ])("preserves exact cents for %s", (value, expected) => {
     expect(formatMoney(value)).toBe(expected);
   });

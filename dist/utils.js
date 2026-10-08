@@ -49,7 +49,7 @@ function formatAmount(value, { symbol = true } = {}) {
   const integer = (cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const abs = `${integer}.${(cents % 100n).toString().padStart(2, "0")}`;
   const body = symbol ? `$${abs}` : abs;
-  return match[1] === "-" && /[1-9]/.test(whole + fraction) ? `(${body})` : body;
+  return match[1] === "-" && cents !== 0n ? `(${body})` : body;
 }
 function formatMoney(value) {
   if (value == null || value === "" || typeof value === "number" && isNaN(value)) return "$0.00";
