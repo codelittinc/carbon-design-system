@@ -8,6 +8,16 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.24.1] - 2026-10-08
+
+### Fixed
+
+- `themeScript()` and `THEME_SCRIPT` can now be called from a server component (a Next.js
+  root layout). They are exported from the server-safe `@codelittinc/carbon-design-system/utils`
+  entry, which has no `"use client"` directive. Imported from the package root they came back
+  as client references and failed the build with "Attempted to call themeScript() from the
+  server". Root-entry exports are unchanged, so existing client imports keep working.
+
 ## [1.24.0] - 2026-10-08
 
 ### Added

@@ -12,44 +12,16 @@ import {
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
+import { THEME_STORAGE_KEY as STORAGE_KEY, type Theme } from "@/lib/theme-script";
 
-export type Theme = "light" | "dark";
-
-const STORAGE_KEY = "carbon-theme";
-
-export interface ThemeScriptOptions {
-  /**
-   * The theme to use when nothing valid is saved in localStorage. Defaults to
-   * `"dark"`, the design system's default.
-   */
-  defaultTheme?: Theme;
-}
-
-/**
- * Builds the inline script to drop into <head> so the saved theme is applied
- * before the first paint. It always sets an explicit `light`/`dark` class so
- * consumers can read it back on hydration; with nothing saved it uses
- * `defaultTheme`. Without it, a saved light preference would flash dark on load.
- *
- * Pair it with `<ThemeProvider defaultTheme={...}>` using the same value.
- *
- * Usage (Next.js app root):
- *   <head><script dangerouslySetInnerHTML={{ __html: themeScript({ defaultTheme: "light" }) }} /></head>
- */
-export function themeScript({ defaultTheme = "dark" }: ThemeScriptOptions = {}): string {
-  // Only ever interpolate one of the two literals into the script.
-  const fallback: Theme = defaultTheme === "light" ? "light" : "dark";
-  return `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="${fallback}";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
-}
-
-/**
- * `themeScript()` with the default (dark) fallback. Kept for compatibility;
- * use `themeScript({ defaultTheme })` to pick the default.
- *
- * Usage (Next.js app root):
- *   <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
- */
-export const THEME_SCRIPT = themeScript();
+// The script builder lives in a module without "use client" so the utils entry
+// can export it to server components; re-exported here so root imports work.
+export {
+  THEME_SCRIPT,
+  themeScript,
+  type Theme,
+  type ThemeScriptOptions,
+} from "@/lib/theme-script";
 
 /** The saved theme, or null when none is saved or storage is unavailable. */
 function storedTheme(): Theme | null {

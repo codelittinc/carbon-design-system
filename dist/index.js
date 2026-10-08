@@ -5679,15 +5679,17 @@ function TimeOffList({
     ] })
   ] });
 }
-var STORAGE_KEY = "carbon-theme";
+
+// src/lib/theme-script.ts
+var THEME_STORAGE_KEY = "carbon-theme";
 function themeScript({ defaultTheme = "dark" } = {}) {
   const fallback = defaultTheme === "light" ? "light" : "dark";
-  return `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="${fallback}";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
+  return `(function(){try{var t=localStorage.getItem("${THEME_STORAGE_KEY}");if(t!=="light"&&t!=="dark")t="${fallback}";var c=document.documentElement.classList;c.remove("light","dark");c.add(t);}catch(e){}})();`;
 }
 var THEME_SCRIPT = themeScript();
 function storedTheme() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
     return saved === "light" || saved === "dark" ? saved : null;
   } catch {
     return null;
@@ -5739,7 +5741,7 @@ function ThemeProvider({
       applyTheme(next);
       if (persist) {
         try {
-          localStorage.setItem(STORAGE_KEY, next);
+          localStorage.setItem(THEME_STORAGE_KEY, next);
         } catch {
         }
       }

@@ -241,4 +241,41 @@ interface CategoricalSegment {
  */
 declare function getCategoricalSegments(ids: number[]): CategoricalSegment[];
 
-export { CATEGORICAL_PALETTE, type CategoricalSegment, type LinkHrefOptions, type LinkHrefReason, type LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, type RichTextFormatting, type RichTextSanitizeOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText };
+/**
+ * The pre-paint theme script, kept apart from `components/ui/theme.tsx` so it
+ * carries no `"use client"` and no React. A Next.js root layout is a server
+ * component and builds this string there; imported from the package root it
+ * came back as a client reference and failed the build with "Attempted to call
+ * themeScript() from the server". Export it from `src/utils.ts` for that case.
+ */
+type Theme = "light" | "dark";
+interface ThemeScriptOptions {
+    /**
+     * The theme to use when nothing valid is saved in localStorage. Defaults to
+     * `"dark"`, the design system's default.
+     */
+    defaultTheme?: Theme;
+}
+/**
+ * Builds the inline script to drop into <head> so the saved theme is applied
+ * before the first paint. It always sets an explicit `light`/`dark` class so
+ * consumers can read it back on hydration; with nothing saved it uses
+ * `defaultTheme`. Without it, a saved light preference would flash dark on load.
+ *
+ * Pair it with `<ThemeProvider defaultTheme={...}>` using the same value.
+ *
+ * Usage (Next.js root layout, a server component):
+ *   import { themeScript } from "@codelittinc/carbon-design-system/utils";
+ *   <head><script dangerouslySetInnerHTML={{ __html: themeScript({ defaultTheme: "light" }) }} /></head>
+ */
+declare function themeScript({ defaultTheme }?: ThemeScriptOptions): string;
+/**
+ * `themeScript()` with the default (dark) fallback. Kept for compatibility;
+ * use `themeScript({ defaultTheme })` to pick the default.
+ *
+ * Usage (Next.js app root):
+ *   <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
+ */
+declare const THEME_SCRIPT: string;
+
+export { CATEGORICAL_PALETTE, type CategoricalSegment, type LinkHrefOptions, type LinkHrefReason, type LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, type RichTextFormatting, type RichTextSanitizeOptions, THEME_SCRIPT, type Theme, type ThemeScriptOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText, themeScript };

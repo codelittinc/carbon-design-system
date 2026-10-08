@@ -71,3 +71,16 @@ export {
   getCategoricalSegments,
   type CategoricalSegment,
 } from "./lib/categorical-colors";
+
+/**
+ * Pure string builder, and needed on the server: a Next.js root layout (a
+ * server component) puts `themeScript()` into <head>. Imported from the package
+ * root it came back as a client reference and broke the build. `ThemeProvider`
+ * and `ThemeToggle` stay in the root entry.
+ */
+export {
+  THEME_SCRIPT,
+  themeScript,
+  type Theme,
+  type ThemeScriptOptions,
+} from "./lib/theme-script";
