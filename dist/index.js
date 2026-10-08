@@ -6084,6 +6084,37 @@ function parseGooglePlaceAddress(place) {
     country: component(components, "country", true) || "US"
   };
 }
+
+// src/lib/address-suggestions.ts
+async function fetchAddressSuggestions(provider, query, signal) {
+  const controller = new AbortController();
+  let rejectCancellation;
+  const cancelled = new Promise((_, reject) => {
+    rejectCancellation = reject;
+  });
+  const cancel = () => {
+    controller.abort();
+    rejectCancellation(new Error("Address lookup cancelled"));
+  };
+  signal.addEventListener("abort", cancel, { once: true });
+  const timer = setTimeout(cancel, 1e4);
+  try {
+    if (signal.aborted) {
+      cancel();
+      return await cancelled;
+    }
+    const result = await Promise.race([
+      Promise.resolve().then(
+        () => provider(query, { signal: controller.signal })
+      ),
+      cancelled
+    ]);
+    return result.slice(0, 5);
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", cancel);
+  }
+}
 var SEARCH_DELAY_MS = 250;
 var MIN_QUERY_LENGTH = 3;
 var STAFF_INPUT_CLASS = "h-9 py-0";
@@ -6099,6 +6130,12 @@ function AddressAutocomplete2({
   value,
   onChange,
   onAddressSelect,
+  onSelect,
+  onStatusChange,
+  fetchSuggestions,
+  attribution,
+  showStatus = true,
+  disabled = false,
   onBlur,
   placeholder = "Start typing an address...",
   className,
@@ -6120,6 +6157,12 @@ function AddressAutocomplete2({
   const sessionToken = useRef(null);
   const suppressNextSearch = useRef(false);
   const blurTimer = useRef(null);
+  const activeRequest = useRef(null);
+  const statusCallback = useRef(onStatusChange);
+  statusCallback.current = onStatusChange;
+  useEffect(() => {
+    statusCallback.current?.(status);
+  }, [status]);
   useEffect(
     () => () => {
       requestSequence.current += 1;
@@ -6130,31 +6173,56 @@ function AddressAutocomplete2({
   useEffect(() => {
     const query = value.trim();
     const sequence = ++requestSequence.current;
+    const controller = new AbortController();
+    activeRequest.current = controller;
     if (suppressNextSearch.current) {
       suppressNextSearch.current = false;
       setSuggestions([]);
       setStatus("idle");
       return;
     }
-    if (!searchActive || query.length < MIN_QUERY_LENGTH) {
+    if (disabled || !searchActive || query.length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
       setActiveIndex(-1);
       setStatus("idle");
       return;
     }
     const timer = window.setTimeout(() => {
+      if (requestSequence.current !== sequence || controller.signal.aborted)
+        return;
       setStatus("loading");
-      void loadGooglePlacesLibrary().then(async (places) => {
-        if (requestSequence.current !== sequence) return;
-        if (!sessionToken.current) sessionToken.current = new places.AutocompleteSessionToken();
+      void (async () => {
+        if (fetchSuggestions)
+          return [
+            ...await fetchAddressSuggestions(
+              fetchSuggestions,
+              query,
+              controller.signal
+            )
+          ];
+        const places = await loadGooglePlacesLibrary();
+        if (requestSequence.current !== sequence) return [];
+        if (!sessionToken.current)
+          sessionToken.current = new places.AutocompleteSessionToken();
         const response = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: query,
           includedRegionCodes: ["us"],
           region: "us",
           sessionToken: sessionToken.current
         });
+        return response.suggestions.flatMap(
+          (item) => item.placePrediction ? [
+            {
+              id: item.placePrediction.placeId,
+              address: item.placePrediction.text.toString(),
+              secondaryText: item.placePrediction.secondaryText?.toString(),
+              prediction: item.placePrediction
+            }
+          ] : []
+        );
+      })().then((result) => {
         if (requestSequence.current !== sequence) return;
-        setSuggestions(response.suggestions.filter((item) => item.placePrediction));
+        setSuggestions(result);
         setActiveIndex(-1);
         setStatus("ready");
       }).catch(() => {
@@ -6164,23 +6232,40 @@ function AddressAutocomplete2({
         setStatus("unavailable");
       });
     }, SEARCH_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [retryAttempt, searchActive, value]);
+    return () => {
+      controller.abort();
+      requestSequence.current += 1;
+      window.clearTimeout(timer);
+    };
+  }, [retryAttempt, searchActive, value, disabled, fetchSuggestions]);
   const selectSuggestion = async (suggestion) => {
-    const prediction = suggestion.placePrediction;
-    if (!prediction) return;
+    const prediction = suggestion.prediction;
+    if (!prediction) {
+      requestSequence.current += 1;
+      suppressNextSearch.current = true;
+      setSuggestions([]);
+      setActiveIndex(-1);
+      setSearchActive(false);
+      setStatus("idle");
+      onChange(suggestion.address);
+      onSelect?.(suggestion.address);
+      return;
+    }
     const sequence = ++requestSequence.current;
     setSuggestions([]);
     setActiveIndex(-1);
     setStatus("loading");
     try {
       const place = prediction.toPlace();
-      await place.fetchFields({ fields: ["addressComponents", "formattedAddress"] });
+      await place.fetchFields({
+        fields: ["addressComponents", "formattedAddress"]
+      });
       if (requestSequence.current !== sequence) return;
       const parsed = parseGooglePlaceAddress(place);
       suppressNextSearch.current = true;
       if (parsed && onAddressSelect) onAddressSelect(parsed);
       else onChange(place.formattedAddress || prediction.text.toString());
+      onSelect?.(place.formattedAddress || prediction.text.toString());
       sessionToken.current = null;
       setSearchActive(false);
       setStatus("idle");
@@ -6190,6 +6275,7 @@ function AddressAutocomplete2({
     }
   };
   const handleKeyDown = (event) => {
+    if (event.nativeEvent.isComposing) return;
     if (!suggestions.length) {
       if (event.key === "Escape") setSearchActive(false);
       return;
@@ -6199,7 +6285,9 @@ function AddressAutocomplete2({
       setActiveIndex((current) => (current + 1) % suggestions.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((current) => current <= 0 ? suggestions.length - 1 : current - 1);
+      setActiveIndex(
+        (current) => current <= 0 ? suggestions.length - 1 : current - 1
+      );
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault();
       void selectSuggestion(suggestions[activeIndex]);
@@ -6213,7 +6301,7 @@ function AddressAutocomplete2({
   const vendor = variant === "vendor";
   const scopeClass = variant === "public" ? "dark" : vendor ? "light" : void 0;
   const inputClass = vendor ? VENDOR_INPUT_CLASS : STAFF_INPUT_CLASS;
-  const optionsVisible = searchActive && suggestions.length > 0;
+  const optionsVisible = !disabled && searchActive && suggestions.length > 0;
   return /* @__PURE__ */ jsxs("div", { className: cn("relative", scopeClass), children: [
     /* @__PURE__ */ jsx(
       Input,
@@ -6223,11 +6311,17 @@ function AddressAutocomplete2({
         value,
         onChange: (event) => {
           requestSequence.current += 1;
+          activeRequest.current?.abort();
+          setSuggestions([]);
+          setActiveIndex(-1);
+          setStatus("idle");
           onChange(event.target.value);
           setSearchActive(true);
         },
         onFocus: () => setSearchActive(true),
         onBlur: () => {
+          requestSequence.current += 1;
+          activeRequest.current?.abort();
           onBlur?.();
           blurTimer.current = window.setTimeout(() => {
             setSearchActive(false);
@@ -6242,10 +6336,11 @@ function AddressAutocomplete2({
         "aria-label": ariaLabel,
         "aria-autocomplete": "list",
         "aria-controls": listId,
-        "aria-describedby": status === "idle" ? void 0 : statusId,
+        "aria-describedby": !showStatus || status === "idle" ? void 0 : statusId,
         "aria-expanded": optionsVisible,
         "aria-activedescendant": optionsVisible && activeIndex >= 0 ? `${listId}-${activeIndex}` : void 0,
         role: "combobox",
+        disabled,
         required,
         autoComplete,
         className: cn(inputClass, className)
@@ -6267,8 +6362,10 @@ function AddressAutocomplete2({
               "aria-label": "Address suggestions",
               className: "max-h-60 overflow-y-auto py-1",
               children: suggestions.map((suggestion, index) => {
-                const prediction = suggestion.placePrediction;
-                const text = predictionText(prediction);
+                const text = suggestion.prediction ? predictionText(suggestion.prediction) : {
+                  main: suggestion.address,
+                  secondary: suggestion.secondaryText ?? ""
+                };
                 return /* @__PURE__ */ jsxs(
                   "li",
                   {
@@ -6287,12 +6384,12 @@ function AddressAutocomplete2({
                       text.secondary && /* @__PURE__ */ jsx("span", { className: "mt-0.5 block text-xs text-text-muted", children: text.secondary })
                     ]
                   },
-                  prediction.placeId
+                  suggestion.id
                 );
               })
             }
           ),
-          /* @__PURE__ */ jsx("div", { className: "flex justify-end border-t px-3 py-1.5", children: /* @__PURE__ */ jsx(
+          (!fetchSuggestions || attribution) && /* @__PURE__ */ jsx("div", { className: "flex justify-end border-t px-3 py-1.5", children: fetchSuggestions ? attribution : /* @__PURE__ */ jsx(
             "img",
             {
               src: "https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png",
@@ -6303,7 +6400,7 @@ function AddressAutocomplete2({
         ]
       }
     ),
-    /* @__PURE__ */ jsxs(
+    showStatus && /* @__PURE__ */ jsxs(
       "div",
       {
         id: statusId,
