@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { headerIconButtonClass } from "@/lib/ui-classes";
 import { Button } from "./button";
 import { THEME_STORAGE_KEY as STORAGE_KEY, type Theme } from "@/lib/theme-script";
 
@@ -181,7 +182,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={cn("h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised", className)}
+      className={cn(headerIconButtonClass, className)}
     >
       {mounted || resolved ? (
         isDark ? (

@@ -7,18 +7,18 @@ import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, Grip as AppsIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import * as ProgressPrimitive from '@radix-ui/react-progress';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import { useReactTable, getPaginationRowModel, getFilteredRowModel, getSortedRowModel, getCoreRowModel, flexRender } from '@tanstack/react-table';
@@ -540,6 +540,7 @@ var toneBorderClass = {
 };
 var tableRowHoverClass = "hover:bg-table-row-hover";
 var linkTextClass = "text-accent-text underline-offset-4 hover:underline";
+var headerIconButtonClass = "h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised";
 var Input = forwardRef(
   ({ className, type, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -1385,6 +1386,165 @@ var TextLink = forwardRef(
   }
 );
 TextLink.displayName = "TextLink";
+function EmptyState({
+  icon,
+  title,
+  as: Heading = "h3",
+  description,
+  action,
+  className
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-col items-center justify-center py-16 text-center", className), children: [
+    icon && /* @__PURE__ */ jsx("div", { className: "mb-4 text-text-faint", children: icon }),
+    /* @__PURE__ */ jsx(Heading, { className: "text-sm font-medium text-text-primary", children: title }),
+    description && /* @__PURE__ */ jsx("p", { className: "mt-1 max-w-sm text-sm text-text-muted", children: description }),
+    action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
+  ] });
+}
+var Popover = PopoverPrimitive.Root;
+var PopoverTrigger = PopoverPrimitive.Trigger;
+var PopoverAnchor = PopoverPrimitive.Anchor;
+var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
+  PopoverPrimitive.Content,
+  {
+    ref,
+    align,
+    sideOffset,
+    className: cn(floatingSurfaceClass, floatingMotionClass, "w-72 p-4 outline-none", className),
+    ...props
+  }
+) }));
+PopoverContent.displayName = "PopoverContent";
+var Separator = forwardRef(({ className, orientation = "horizontal", decorative = true, ...props }, ref) => /* @__PURE__ */ jsx(
+  SeparatorPrimitive.Root,
+  {
+    ref,
+    decorative,
+    orientation,
+    className: cn(
+      "shrink-0 bg-border",
+      orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
+      className
+    ),
+    ...props
+  }
+));
+Separator.displayName = "Separator";
+var appRowClass = cn(optionRowClass, "h-full items-start break-words");
+var appLinkClass = "text-text-primary hover:bg-surface-overlay focus-visible:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-accent/50";
+function AppLauncher({
+  sections,
+  moreHref,
+  moreLabel = "All your tools",
+  notice,
+  label = "Carbon apps",
+  currentLabel = "Current",
+  unavailableLabel = "Link unavailable",
+  newTabLabel = " (opens in a new tab)",
+  emptyTitle = "No apps to show yet",
+  emptyDescription = "Apps and tools you have access to show up here once IT gives you access.",
+  className
+}) {
+  const [open, setOpen] = useState(false);
+  const headingId = useId();
+  const listRef = useRef(null);
+  const shown = sections.filter((section) => section.apps.length > 0).map((section) => ({
+    ...section,
+    apps: [...section.apps].sort((a, b) => a.name.localeCompare(b.name))
+  }));
+  const hasLinks = shown.some((section) => section.apps.some((app) => app.href && !app.current));
+  return /* @__PURE__ */ jsxs(Popover, { open, onOpenChange: setOpen, children: [
+    /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
+      Button,
+      {
+        type: "button",
+        variant: "outline",
+        size: "icon",
+        "aria-label": label,
+        title: label,
+        className: cn(headerIconButtonClass, className),
+        children: /* @__PURE__ */ jsx(Grip, { size: 16, "aria-hidden": "true" })
+      }
+    ) }),
+    /* @__PURE__ */ jsxs(
+      PopoverContent,
+      {
+        align: "end",
+        "aria-label": label,
+        onOpenAutoFocus: (event) => {
+          event.preventDefault();
+          (listRef.current?.querySelector("a[href]") ?? listRef.current)?.focus();
+        },
+        className: "flex max-h-[var(--radix-popover-content-available-height)] w-[22rem] max-w-[calc(100vw-1rem)] flex-col p-0",
+        children: [
+          notice && /* @__PURE__ */ jsx("p", { className: "border-b border-border px-3 py-2 text-xs text-text-muted", children: notice }),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              ref: listRef,
+              tabIndex: hasLinks ? void 0 : 0,
+              className: "max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-1rem))] min-h-0 overflow-y-auto p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50",
+              children: shown.length === 0 ? /* @__PURE__ */ jsx(EmptyState, { title: emptyTitle, description: emptyDescription, className: "py-8" }) : /* @__PURE__ */ jsx("div", { className: "space-y-2", children: shown.map((section, i) => /* @__PURE__ */ jsxs("div", { role: "group", "aria-labelledby": `${headingId}-${i}`, children: [
+                /* @__PURE__ */ jsx("p", { id: `${headingId}-${i}`, className: cn(eyebrowClass, "px-2 pb-1 pt-1"), children: section.heading }),
+                /* @__PURE__ */ jsx("ul", { className: "grid grid-cols-1 gap-1 min-[360px]:grid-cols-2", children: section.apps.map((app, j) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(
+                  AppItem,
+                  {
+                    app,
+                    currentLabel,
+                    unavailableLabel,
+                    newTabLabel,
+                    onOpen: () => setOpen(false)
+                  }
+                ) }, `${j}-${app.name}`)) })
+              ] }, `${i}-${section.heading}`)) })
+            }
+          ),
+          moreHref && /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx(Separator, {}),
+            /* @__PURE__ */ jsx("div", { className: "p-2", children: /* @__PURE__ */ jsxs(
+              "a",
+              {
+                href: moreHref,
+                target: "_blank",
+                rel: newTabRel(),
+                onClick: () => setOpen(false),
+                className: cn(appRowClass, appLinkClass, "items-center text-accent-text"),
+                children: [
+                  /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: moreLabel }),
+                  /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel })
+                ]
+              }
+            ) })
+          ] })
+        ]
+      }
+    )
+  ] });
+}
+function AppItem({
+  app,
+  currentLabel,
+  unavailableLabel,
+  newTabLabel,
+  onOpen
+}) {
+  if (app.current) {
+    return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
+      /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
+      /* @__PURE__ */ jsx(Badge, { children: currentLabel })
+    ] });
+  }
+  if (!app.href) {
+    return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default flex-col gap-0 text-text-muted"), children: [
+      /* @__PURE__ */ jsx("span", { className: "min-w-0", children: app.name }),
+      /* @__PURE__ */ jsx("span", { className: "text-xs", children: unavailableLabel })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs("a", { href: app.href, target: "_blank", rel: newTabRel(), onClick: onOpen, className: cn(appRowClass, appLinkClass), children: [
+    /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
+    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, iconClassName: "mt-1 text-text-muted" })
+  ] });
+}
 var Dialog = DialogPrimitive2.Root;
 var DialogTrigger = DialogPrimitive2.Trigger;
 var DialogClose = DialogPrimitive2.Close;
@@ -1972,21 +2132,6 @@ function shapeCsvRows(parsed, cap = CSV_ROW_CAP) {
   const width = Math.max(first.length, ...kept.map((row) => row.length));
   const pad = (row) => row.length < width ? [...row, ...Array(width - row.length).fill("")] : row;
   return { header: pad(first), rows: kept.map(pad), truncated: data.length > cap };
-}
-function EmptyState({
-  icon,
-  title,
-  as: Heading = "h3",
-  description,
-  action,
-  className
-}) {
-  return /* @__PURE__ */ jsxs("div", { className: cn("flex flex-col items-center justify-center py-16 text-center", className), children: [
-    icon && /* @__PURE__ */ jsx("div", { className: "mb-4 text-text-faint", children: icon }),
-    /* @__PURE__ */ jsx(Heading, { className: "text-sm font-medium text-text-primary", children: title }),
-    description && /* @__PURE__ */ jsx("p", { className: "mt-1 max-w-sm text-sm text-text-muted", children: description }),
-    action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
-  ] });
 }
 var Table = forwardRef(
   ({ className, ...props }, ref) => /* @__PURE__ */ jsx("table", { ref, className: cn("w-full text-sm", className), ...props })
@@ -2634,21 +2779,6 @@ function SheetBody({ className, ...props }) {
 function SheetFooter({ className, ...props }) {
   return /* @__PURE__ */ jsx("div", { className: cn("flex justify-end gap-2 border-t border-border px-6 py-4", className), ...props });
 }
-var Separator2 = forwardRef(({ className, orientation = "horizontal", decorative = true, ...props }, ref) => /* @__PURE__ */ jsx(
-  SeparatorPrimitive.Root,
-  {
-    ref,
-    decorative,
-    orientation,
-    className: cn(
-      "shrink-0 bg-border",
-      orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
-      className
-    ),
-    ...props
-  }
-));
-Separator2.displayName = "Separator";
 function Skeleton({ className, ...props }) {
   return /* @__PURE__ */ jsx(
     "div",
@@ -2739,20 +2869,6 @@ var TooltipContent = forwardRef(({ className, sideOffset = 4, ...props }, ref) =
   }
 ) }));
 TooltipContent.displayName = "TooltipContent";
-var Popover = PopoverPrimitive.Root;
-var PopoverTrigger = PopoverPrimitive.Trigger;
-var PopoverAnchor = PopoverPrimitive.Anchor;
-var PopoverContent = forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ jsx(PopoverPrimitive.Portal, { children: /* @__PURE__ */ jsx(
-  PopoverPrimitive.Content,
-  {
-    ref,
-    align,
-    sideOffset,
-    className: cn(floatingSurfaceClass, floatingMotionClass, "w-72 p-4 outline-none", className),
-    ...props
-  }
-) }));
-PopoverContent.displayName = "PopoverContent";
 var PinContext = createContext(null);
 function usePinControls(component2) {
   const controls = useContext(PinContext);
@@ -5803,7 +5919,7 @@ function ThemeToggle({ className }) {
       onClick: toggleTheme,
       "aria-label": isDark ? "Switch to light mode" : "Switch to dark mode",
       title: isDark ? "Switch to light mode" : "Switch to dark mode",
-      className: cn("h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised", className),
+      className: cn(headerIconButtonClass, className),
       children: mounted || resolved ? isDark ? /* @__PURE__ */ jsx(Sun, { size: 16, className: "text-amber-500", fill: "currentColor" }) : /* @__PURE__ */ jsx(Moon, { size: 16, className: "text-indigo-400", fill: "currentColor" }) : /* @__PURE__ */ jsx("span", { className: "h-4 w-4" })
     }
   );
@@ -6587,4 +6703,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator2 as Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
