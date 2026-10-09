@@ -7,7 +7,7 @@ import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, ExternalLink, Check, ChevronDown, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, File, ArrowLeft, Search, Sun, Moon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
@@ -1346,11 +1346,20 @@ function StatusIndicator({
     showLabel && /* @__PURE__ */ jsx("span", { className: "text-sm text-text-secondary", children: label })
   ] });
 }
-function externalRel(rel) {
+function newTabRel(rel) {
   const tokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
   tokens.add("noopener");
   tokens.add("noreferrer");
   return [...tokens].join(" ");
+}
+function NewTabHint({
+  label = " (opens in a new tab)",
+  iconClassName
+}) {
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: cn("shrink-0", iconClassName) }),
+    /* @__PURE__ */ jsx("span", { className: "sr-only", children: label })
+  ] });
 }
 var TextLink = forwardRef(
   ({ asChild = false, external = false, className, children, target, rel, ...props }, ref) => {
@@ -1360,7 +1369,7 @@ var TextLink = forwardRef(
       {
         ref,
         target: external ? "_blank" : target,
-        rel: external ? externalRel(rel) : rel,
+        rel: external ? newTabRel(rel) : rel,
         className: cn(
           linkTextClass,
           "inline-flex items-baseline gap-1 rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
@@ -1369,10 +1378,7 @@ var TextLink = forwardRef(
         ...props,
         children: [
           /* @__PURE__ */ jsx(Slottable, { children }),
-          external && /* @__PURE__ */ jsxs(Fragment, { children: [
-            /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: "shrink-0 self-center" }),
-            /* @__PURE__ */ jsx("span", { className: "sr-only", children: " (opens in a new tab)" })
-          ] })
+          external && /* @__PURE__ */ jsx(NewTabHint, { iconClassName: "self-center" })
         ]
       }
     );
