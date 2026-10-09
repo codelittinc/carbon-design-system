@@ -99,6 +99,25 @@ describe("icons", () => {
     expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("exports the app-shell navigation icons", () => {
+    for (const [name, lucide] of [
+      ["ClipboardCheckIcon", "clipboard-check"],
+      ["LayoutDashboardIcon", "layout-dashboard"],
+      ["LayersIcon", "layers"],
+      ["LogOutIcon", "log-out"],
+      ["MapPinIcon", "map-pin"],
+      ["PanelLeftIcon", "panel-left"],
+      ["PanelLeftCloseIcon", "panel-left-close"],
+      ["SettingsIcon", "settings"],
+      ["WalletIcon", "wallet"],
+    ] as const) {
+      const Icon = Icons[name];
+      const { container, unmount } = render(<Icon size={16} />);
+      expect(container.querySelector("svg")).toHaveClass(`lucide-${lucide}`);
+      unmount();
+    }
+  });
+
   it("exports MenuIcon as lucide's hamburger menu", () => {
     const { container } = render(<Icons.MenuIcon size={16} />);
     expect(container.querySelector("svg")).toHaveClass("lucide-menu");
