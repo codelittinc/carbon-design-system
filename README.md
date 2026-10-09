@@ -148,7 +148,7 @@ import { Button, Badge, DataTable, useToast } from "@codelittinc/carbon-design-s
 Forms: Button · Input · Textarea · Checkbox · Switch · Select · MoneyInput · SearchSelect · AddressAutocomplete
 Overlays: Dialog · AlertDialog · DropdownMenu · Sheet · Popover · Tooltip · CommandPalette · Toast · FileViewer
 Data display: Badge · StatusBadge · DataTable · Tabs · Progress · Skeleton · Separator · ScrollArea · EmptyState · PageHeader · Card / CardHeader · Swatch
-Navigation: Pagination · TextLink
+Navigation: Pagination · TextLink · AppLauncher
 Confirmation: `useConfirm()` + `ConfirmProvider` (an `AlertDialog` that resolves to the answer)
 
 ### Icons

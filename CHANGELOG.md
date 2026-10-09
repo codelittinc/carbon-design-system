@@ -8,6 +8,23 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.27.0] - 2026-10-09
+
+### Added
+
+- `AppLauncher`: a grid-icon button for an app's header that opens a panel listing the apps and
+  tools a person can use, in sections (`sections: { heading, apps: { name, href, current? }[] }[]`).
+  Links open in a new tab and close the panel; the `current` app is highlighted with a "Current"
+  badge and not linked; an app whose `href` is `null` shows as text with "Link unavailable".
+  Apps are sorted by name, empty sections are left out, and an `EmptyState` shows when every
+  section is empty. Optional `notice` (one line above the list) and `moreHref` / `moreLabel` (a
+  footer link, "All your tools"). Every string is a prop with an English default (`label`,
+  `currentLabel`, `unavailableLabel`, `newTabLabel`, `emptyTitle`, `emptyDescription`). The
+  trigger matches `ThemeToggle`, so the two sit side by side. Opening it from the keyboard moves
+  focus to the first link; Escape returns it to the trigger. It fetches nothing: the app passes
+  the list in.
+- `AppsIcon` (lucide `Grip`, a 3×3 dot grid) in the icon set.
+
 ## [1.26.0] - 2026-10-09
 
 ### Added
