@@ -8,6 +8,16 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.26.0] - 2026-10-09
+
+### Added
+
+- `ProductMark`: the Carbon product mark, an accent square with the product's initial and the
+  name in the display font (`name`, optional `initial`, `compact`, `className`). `compact` draws
+  only the square for an icon rail and keeps the name as screen-reader text, so a link around it
+  stays named. Use it for an app's sidebar header and its signed-out or access-denied screen, so
+  every Carbon app's mark is the same component.
+
 ## [1.25.0] - 2026-10-09
 
 ### Added
