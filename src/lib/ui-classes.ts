@@ -89,3 +89,10 @@ export const tableRowHoverClass = "hover:bg-table-row-hover";
  * `Button variant="link"` both draw it, so the two never drift apart.
  */
 export const linkTextClass = "text-accent-text underline-offset-4 hover:underline";
+
+/**
+ * The small outlined icon button an app header pairs side by side:
+ * `ThemeToggle` and `AppLauncher`'s trigger. On `Button variant="outline"
+ * size="icon"`.
+ */
+export const headerIconButtonClass = "h-7 w-7 bg-surface-raised hover:border-carbon-600 hover:bg-surface-raised";

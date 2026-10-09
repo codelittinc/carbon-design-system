@@ -123,6 +123,12 @@ describe("icons", () => {
     expect(container.querySelector("svg")).toHaveClass("lucide-menu");
     expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
+
+  it("exports AppsIcon as lucide's 3×3 dot grid, not the nav LayoutGrid", () => {
+    const { container } = render(<Icons.AppsIcon size={16} />);
+    expect(container.querySelector("svg")).toHaveClass("lucide-grip");
+    expect(container.querySelector("svg")).not.toHaveClass("lucide-layout-grid");
+  });
 });
 
 describe("Button tone", () => {

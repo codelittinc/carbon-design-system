@@ -2,17 +2,9 @@
 
 import { forwardRef, type AnchorHTMLAttributes } from "react";
 import { Slot, Slottable } from "@radix-ui/react-slot";
-import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { linkTextClass } from "@/lib/ui-classes";
-
-/** `rel` with `noopener noreferrer` added, keeping whatever the caller set. */
-function externalRel(rel: string | undefined): string {
-  const tokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
-  tokens.add("noopener");
-  tokens.add("noreferrer");
-  return [...tokens].join(" ");
-}
+import { NewTabHint, newTabRel } from "./new-tab";
 
 interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   /**
@@ -40,7 +32,7 @@ const TextLink = forwardRef<HTMLAnchorElement, TextLinkProps>(
       <Comp
         ref={ref}
         target={external ? "_blank" : target}
-        rel={external ? externalRel(rel) : rel}
+        rel={external ? newTabRel(rel) : rel}
         className={cn(
           linkTextClass,
           "inline-flex items-baseline gap-1 rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
@@ -49,12 +41,7 @@ const TextLink = forwardRef<HTMLAnchorElement, TextLinkProps>(
         {...props}
       >
         <Slottable>{children}</Slottable>
-        {external && (
-          <>
-            <ExternalLink size={12} aria-hidden="true" className="shrink-0 self-center" />
-            <span className="sr-only">{" (opens in a new tab)"}</span>
-          </>
-        )}
+        {external && <NewTabHint iconClassName="self-center" />}
       </Comp>
     );
   },

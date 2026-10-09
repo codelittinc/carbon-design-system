@@ -59,6 +59,7 @@ export * from "./components/ui/category-chip";
 export * from "./components/ui/status-indicator";
 export * from "./components/ui/swatch";
 export * from "./components/ui/text-link";
+export * from "./components/ui/app-launcher";
 export * from "./components/ui/confirm";
 // Icons, re-exported from lucide-react with an `Icon` suffix (see icons.ts).
 export * from "./components/ui/icons";

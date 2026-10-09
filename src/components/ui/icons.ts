@@ -43,6 +43,7 @@ export {
   Eye as EyeIcon,
   File as FileIcon,
   FileText as FileTextIcon,
+  Grip as AppsIcon,
   Info as InfoIcon,
   Layers as LayersIcon,
   LayoutDashboard as LayoutDashboardIcon,
