@@ -8,6 +8,16 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.25.0] - 2026-10-09
+
+### Added
+
+- App-shell navigation icons in the curated set: `ClipboardCheckIcon`, `LayoutDashboardIcon`,
+  `LayersIcon`, `LogOutIcon`, `MapPinIcon`, `PanelLeftIcon`, `PanelLeftCloseIcon`,
+  `SettingsIcon` and `WalletIcon` (lucide `ClipboardCheck`, `LayoutDashboard`, `Layers`,
+  `LogOut`, `MapPin`, `PanelLeft`, `PanelLeftClose`, `Settings`, `Wallet`). They let an app draw
+  the Carbon sidebar (icon nav, collapse rail, sign-out item) without importing `lucide-react`.
+
 ## [1.24.1] - 2026-10-08
 
 ### Fixed
