@@ -44,8 +44,8 @@ export interface AppLauncherProps {
   className?: string;
 }
 
-/** A link's row: an option row that wraps a long name instead of clipping it. */
-const appRowClass = cn(optionRowClass, "h-full items-start break-words");
+/** An app's row: an option row whose name wraps instead of clipping, and can be selected to copy. */
+const appRowClass = cn(optionRowClass, "h-full select-text items-start break-words");
 
 const appLinkClass =
   "text-text-primary hover:bg-surface-overlay focus-visible:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-accent/50";
@@ -81,7 +81,8 @@ export function AppLauncher({
   const hasLinks = shown.some((section) => section.apps.some((app) => app.href && !app.current));
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
+    <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -105,7 +106,7 @@ export function AppLauncher({
         }}
         className="flex max-h-[var(--radix-popover-content-available-height)] w-[22rem] max-w-[calc(100vw-1rem)] flex-col p-0"
       >
-        {notice && <p className="border-b border-border px-3 py-2 text-xs text-text-muted">{notice}</p>}
+        {notice && <div className="border-b border-border px-3 py-2 text-xs text-text-muted">{notice}</div>}
         {/* Not ScrollArea: its viewport cannot scroll inside a max height. */}
         <div
           ref={listRef}
@@ -176,7 +177,7 @@ function AppItem({
 }): ReactElement {
   if (app.current) {
     return (
-      <div className={cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text")}>
+      <div aria-current="true" className={cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text")}>
         <span className="min-w-0 flex-1">{app.name}</span>
         <Badge>{currentLabel}</Badge>
       </div>

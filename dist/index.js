@@ -1430,7 +1430,7 @@ var Separator = forwardRef(({ className, orientation = "horizontal", decorative 
   }
 ));
 Separator.displayName = "Separator";
-var appRowClass = cn(optionRowClass, "h-full items-start break-words");
+var appRowClass = cn(optionRowClass, "h-full select-text items-start break-words");
 var appLinkClass = "text-text-primary hover:bg-surface-overlay focus-visible:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-accent/50";
 function AppLauncher({
   sections,
@@ -1453,73 +1453,76 @@ function AppLauncher({
     apps: [...section.apps].sort((a, b) => a.name.localeCompare(b.name))
   }));
   const hasLinks = shown.some((section) => section.apps.some((app) => app.href && !app.current));
-  return /* @__PURE__ */ jsxs(Popover, { open, onOpenChange: setOpen, children: [
-    /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
-      Button,
-      {
-        type: "button",
-        variant: "outline",
-        size: "icon",
-        "aria-label": label,
-        title: label,
-        className: cn(headerIconButtonClass, className),
-        children: /* @__PURE__ */ jsx(Grip, { size: 16, "aria-hidden": "true" })
-      }
-    ) }),
-    /* @__PURE__ */ jsxs(
-      PopoverContent,
-      {
-        align: "end",
-        "aria-label": label,
-        onOpenAutoFocus: (event) => {
-          event.preventDefault();
-          (listRef.current?.querySelector("a[href]") ?? listRef.current)?.focus();
-        },
-        className: "flex max-h-[var(--radix-popover-content-available-height)] w-[22rem] max-w-[calc(100vw-1rem)] flex-col p-0",
-        children: [
-          notice && /* @__PURE__ */ jsx("p", { className: "border-b border-border px-3 py-2 text-xs text-text-muted", children: notice }),
-          /* @__PURE__ */ jsx(
-            "div",
-            {
-              ref: listRef,
-              tabIndex: hasLinks ? void 0 : 0,
-              className: "max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-1rem))] min-h-0 overflow-y-auto p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50",
-              children: shown.length === 0 ? /* @__PURE__ */ jsx(EmptyState, { title: emptyTitle, description: emptyDescription, className: "py-8" }) : /* @__PURE__ */ jsx("div", { className: "space-y-2", children: shown.map((section, i) => /* @__PURE__ */ jsxs("div", { role: "group", "aria-labelledby": `${headingId}-${i}`, children: [
-                /* @__PURE__ */ jsx("p", { id: `${headingId}-${i}`, className: cn(eyebrowClass, "px-2 pb-1 pt-1"), children: section.heading }),
-                /* @__PURE__ */ jsx("ul", { className: "grid grid-cols-1 gap-1 min-[360px]:grid-cols-2", children: section.apps.map((app, j) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(
-                  AppItem,
-                  {
-                    app,
-                    currentLabel,
-                    unavailableLabel,
-                    newTabLabel,
-                    onOpen: () => setOpen(false)
-                  }
-                ) }, `${j}-${app.name}`)) })
-              ] }, `${i}-${section.heading}`)) })
-            }
-          ),
-          moreHref && /* @__PURE__ */ jsxs(Fragment, { children: [
-            /* @__PURE__ */ jsx(Separator, {}),
-            /* @__PURE__ */ jsx("div", { className: "p-2", children: /* @__PURE__ */ jsxs(
-              "a",
+  return (
+    // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
+    /* @__PURE__ */ jsxs(Popover, { modal: true, open, onOpenChange: setOpen, children: [
+      /* @__PURE__ */ jsx(PopoverTrigger, { asChild: true, children: /* @__PURE__ */ jsx(
+        Button,
+        {
+          type: "button",
+          variant: "outline",
+          size: "icon",
+          "aria-label": label,
+          title: label,
+          className: cn(headerIconButtonClass, className),
+          children: /* @__PURE__ */ jsx(Grip, { size: 16, "aria-hidden": "true" })
+        }
+      ) }),
+      /* @__PURE__ */ jsxs(
+        PopoverContent,
+        {
+          align: "end",
+          "aria-label": label,
+          onOpenAutoFocus: (event) => {
+            event.preventDefault();
+            (listRef.current?.querySelector("a[href]") ?? listRef.current)?.focus();
+          },
+          className: "flex max-h-[var(--radix-popover-content-available-height)] w-[22rem] max-w-[calc(100vw-1rem)] flex-col p-0",
+          children: [
+            notice && /* @__PURE__ */ jsx("div", { className: "border-b border-border px-3 py-2 text-xs text-text-muted", children: notice }),
+            /* @__PURE__ */ jsx(
+              "div",
               {
-                href: moreHref,
-                target: "_blank",
-                rel: newTabRel(),
-                onClick: () => setOpen(false),
-                className: cn(appRowClass, appLinkClass, "items-center text-accent-text"),
-                children: [
-                  /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: moreLabel }),
-                  /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel })
-                ]
+                ref: listRef,
+                tabIndex: hasLinks ? void 0 : 0,
+                className: "max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-1rem))] min-h-0 overflow-y-auto p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50",
+                children: shown.length === 0 ? /* @__PURE__ */ jsx(EmptyState, { title: emptyTitle, description: emptyDescription, className: "py-8" }) : /* @__PURE__ */ jsx("div", { className: "space-y-2", children: shown.map((section, i) => /* @__PURE__ */ jsxs("div", { role: "group", "aria-labelledby": `${headingId}-${i}`, children: [
+                  /* @__PURE__ */ jsx("p", { id: `${headingId}-${i}`, className: cn(eyebrowClass, "px-2 pb-1 pt-1"), children: section.heading }),
+                  /* @__PURE__ */ jsx("ul", { className: "grid grid-cols-1 gap-1 min-[360px]:grid-cols-2", children: section.apps.map((app, j) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(
+                    AppItem,
+                    {
+                      app,
+                      currentLabel,
+                      unavailableLabel,
+                      newTabLabel,
+                      onOpen: () => setOpen(false)
+                    }
+                  ) }, `${j}-${app.name}`)) })
+                ] }, `${i}-${section.heading}`)) })
               }
-            ) })
-          ] })
-        ]
-      }
-    )
-  ] });
+            ),
+            moreHref && /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsx(Separator, {}),
+              /* @__PURE__ */ jsx("div", { className: "p-2", children: /* @__PURE__ */ jsxs(
+                "a",
+                {
+                  href: moreHref,
+                  target: "_blank",
+                  rel: newTabRel(),
+                  onClick: () => setOpen(false),
+                  className: cn(appRowClass, appLinkClass, "items-center text-accent-text"),
+                  children: [
+                    /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: moreLabel }),
+                    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel })
+                  ]
+                }
+              ) })
+            ] })
+          ]
+        }
+      )
+    ] })
+  );
 }
 function AppItem({
   app,
@@ -1529,7 +1532,7 @@ function AppItem({
   onOpen
 }) {
   if (app.current) {
-    return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
+    return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
       /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
       /* @__PURE__ */ jsx(Badge, { children: currentLabel })
     ] });

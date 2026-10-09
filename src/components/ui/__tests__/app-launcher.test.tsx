@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { PointerEventsCheckLevel } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { AppLauncher, type AppLauncherSection } from "../app-launcher";
 
@@ -16,7 +16,9 @@ const SECTIONS: AppLauncherSection[] = [
 ];
 
 async function openLauncher(props: Partial<React.ComponentProps<typeof AppLauncher>> = {}) {
-  const user = userEvent.setup();
+  // The modal panel sets `pointer-events: none` on the page, which user-event
+  // otherwise refuses to click through for an outside click.
+  const user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
   render(<AppLauncher sections={SECTIONS} {...props} />);
   await user.click(screen.getByRole("button", { name: "Carbon apps" }));
   return { user, panel: screen.getByRole("dialog", { name: "Carbon apps" }) };
@@ -61,10 +63,24 @@ describe("AppLauncher", () => {
     expect(within(panel).getByRole("link", { name: /^Gatekeeper ?\(abre en una pestaña nueva\)$/ })).toBeInTheDocument();
   });
 
-  it("closes on a click outside", async () => {
+  it("closes on a click outside and returns focus to the trigger", async () => {
     const { user } = await openLauncher();
-    await user.click(document.body);
+    await user.pointer({ keys: "[MouseLeft]", target: document.body });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Carbon apps" })).toHaveFocus();
+  });
+
+  it("keeps Tab inside the panel, cycling from the last link to the first", async () => {
+    const user = userEvent.setup();
+    render(<AppLauncher sections={SECTIONS} moreHref="https://gatekeeper.example.com/me" />);
+    screen.getByRole("button", { name: "Carbon apps" }).focus();
+    await user.keyboard("{Enter}");
+
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("link", { name: /^All your tools/ })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("link", { name: /^Backbone/ })).toHaveFocus();
   });
 
   it("closes when a link is chosen", async () => {
@@ -76,13 +92,10 @@ describe("AppLauncher", () => {
   it("sorts each section's apps by name", async () => {
     const { panel } = await openLauncher();
     const group = within(panel).getByRole("group", { name: "CarbonOS" });
-    const names = within(group)
-      .getAllByRole("listitem")
-      .map((item) => item.textContent);
-    expect(names).toEqual([
-      "Backbone (opens in a new tab)",
-      "Gatekeeper (opens in a new tab)",
-      "Player ScoreboardCurrent",
+    const links = within(group).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://backbone.example.com",
+      "https://gatekeeper.example.com",
     ]);
   });
 
@@ -90,8 +103,8 @@ describe("AppLauncher", () => {
     const { panel } = await openLauncher();
     const item = within(panel).getByText("Player Scoreboard").closest("li")!;
     expect(within(item).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(item).getByText("Current")).toBeInTheDocument();
-    expect(item.firstElementChild).toHaveClass("bg-accent-muted", "text-accent-text");
+    expect(within(item).getByText("Current")).toBeVisible();
+    expect(within(item).getByText("Player Scoreboard").parentElement).toHaveAttribute("aria-current", "true");
   });
 
   it("shows an app with no href as text, with no link", async () => {

@@ -176,7 +176,8 @@ export const LongNames: Story = {
   ),
 };
 
-export const Dark: Story = {
+/** Storybook opens in dark; this pins the light theme. */
+export const Light: Story = {
   ...Default,
-  parameters: { themes: { themeOverride: "dark" } },
+  parameters: { themes: { themeOverride: "light" } },
 };
