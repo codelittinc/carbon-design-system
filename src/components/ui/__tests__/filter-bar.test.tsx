@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -59,5 +60,51 @@ describe("FilterBar", () => {
   it("reflects the controlled search value", () => {
     render(<FilterBar search="query" onSearchChange={() => {}} />);
     expect(screen.getByRole("textbox")).toHaveValue("query");
+  });
+
+  it("hides the search icon from screen readers", () => {
+    const { container } = render(<FilterBar onSearchChange={() => {}} />);
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("forwards a ref to the search input through searchInputProps", () => {
+    const ref = createRef<HTMLInputElement>();
+    render(<FilterBar onSearchChange={() => {}} searchInputProps={{ ref }} />);
+    expect(ref.current).toBe(screen.getByRole("textbox"));
+  });
+
+  it("passes onKeyDown through searchInputProps", async () => {
+    const user = userEvent.setup();
+    const onKeyDown = vi.fn();
+    render(<FilterBar onSearchChange={() => {}} searchInputProps={{ onKeyDown }} />);
+    await user.type(screen.getByRole("textbox"), "{Escape}");
+    expect(onKeyDown).toHaveBeenCalledWith(expect.objectContaining({ key: "Escape" }));
+  });
+
+  it("applies searchInputProps without losing value, onChange or the name", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    render(
+      <FilterBar
+        search="sl"
+        onSearchChange={onSearchChange}
+        searchLabel="Filter your tools"
+        searchInputProps={{ type: "search", autoComplete: "off", className: "h-11 sm:h-9" }}
+      />,
+    );
+    const input = screen.getByRole("searchbox", { name: "Filter your tools" });
+    expect(input).toHaveValue("sl");
+    expect(input).toHaveAttribute("type", "search");
+    expect(input).toHaveAttribute("autocomplete", "off");
+    expect(input).toHaveClass("pl-9", "h-11", "sm:h-9");
+    expect(input).not.toHaveClass("h-8");
+    await user.type(input, "a");
+    expect(onSearchChange).toHaveBeenCalledWith("sla");
+  });
+
+  it("lets className replace the wrapper's bottom margin", () => {
+    const { container } = render(<FilterBar className="mb-0" />);
+    expect(container.firstElementChild).toHaveClass("mb-0");
+    expect(container.firstElementChild).not.toHaveClass("mb-4");
   });
 });

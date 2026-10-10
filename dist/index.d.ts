@@ -141,13 +141,13 @@ interface AlertProps extends VariantProps<typeof alertVariants> {
  */
 declare function Alert({ variant, title, children, onDismiss, className }: AlertProps): ReactElement;
 
-declare const sizeClasses$1: {
+declare const sizeClasses$2: {
     readonly sm: "h-4 w-4 border-2";
     readonly md: "h-6 w-6 border-2";
     readonly lg: "h-10 w-10 border-[3px]";
 };
 interface SpinnerProps {
-    size?: keyof typeof sizeClasses$1;
+    size?: keyof typeof sizeClasses$2;
     /**
      * Text shown under the spinner. Also its accessible name; without one the
      * spinner is announced as "Loading".
@@ -322,7 +322,7 @@ interface StatusIndicatorProps {
  */
 declare function StatusIndicator({ color, label, showLabel, size, nativeTitle, className, }: StatusIndicatorProps): ReactElement;
 
-declare const sizeClasses: {
+declare const sizeClasses$1: {
     /** 8px: a legend or tooltip key beside 12px text. */
     readonly xs: "size-2";
     /** 12px. */
@@ -336,7 +336,7 @@ interface SwatchProps {
      * so the swatch follows the theme.
      */
     color: string;
-    size?: keyof typeof sizeClasses;
+    size?: keyof typeof sizeClasses$1;
     /** Faded, for a series or a status that is toggled off. */
     dimmed?: boolean;
     /**
@@ -916,6 +916,31 @@ interface ProductMarkProps {
  */
 declare function ProductMark({ name, initial, compact, className, }: ProductMarkProps): ReactElement;
 
+declare const sizeClasses: {
+    readonly sm: "size-8 text-xs";
+    readonly md: "size-10 text-sm";
+    readonly lg: "size-12 text-base";
+};
+interface MonogramProps {
+    /** What the tile stands for. The initials are derived from it. */
+    name: string;
+    /** Letters to show instead of the derived ones. Uppercased. */
+    initials?: string;
+    size?: keyof typeof sizeClasses;
+    className?: string;
+}
+/**
+ * A tile with one or two letters, for something that has no logo of its own,
+ * such as a third-party tool ("GS" for Google Suite, "SL" for Slack).
+ *
+ * Not the same as `ProductMark`, which is a Carbon app's own mark (a solid
+ * accent square with one initial, plus the app's name). A monogram is a muted
+ * tile that stands in for someone else's logo, beside a name the page already
+ * shows. It is decorative and hidden from screen readers, so put the name in
+ * visible text or in the surrounding link's label.
+ */
+declare function Monogram({ name, initials, size, className }: MonogramProps): ReactElement;
+
 interface PageHeaderBack {
     href: string;
     /** Where it goes: "Contracts", "All profiles". */
@@ -1333,15 +1358,22 @@ interface FilterBarProps {
      * `searchPlaceholder`, since a placeholder alone is not a name.
      */
     searchLabel?: string;
+    /**
+     * Extra props for the search `Input`: a `ref` to focus it, `onKeyDown`,
+     * `type`, `autoComplete`, a `className` merged onto the input's own. The
+     * value, change handler, placeholder and name stay with the props above.
+     */
+    searchInputProps?: Omit<React.ComponentPropsWithRef<typeof Input>, "value" | "defaultValue" | "onChange" | "placeholder" | "aria-label">;
     /** Filter controls (selects, toggles) rendered to the right of the search box. */
     children?: React.ReactNode;
+    /** Merged onto the wrapper, so `mb-0` replaces the default bottom margin. */
     className?: string;
 }
 /**
  * Toolbar above a list/table: a search input with a leading icon plus a slot
  * for filter controls. Pass DS `Select`s (or `MultiStatusFilter`) as children.
  */
-declare function FilterBar({ search, onSearchChange, searchPlaceholder, searchLabel, children, className, }: FilterBarProps): react.JSX.Element;
+declare function FilterBar({ search, onSearchChange, searchPlaceholder, searchLabel, searchInputProps, children, className, }: FilterBarProps): react.JSX.Element;
 
 interface StatCardProps {
     label: string;
@@ -2292,4 +2324,4 @@ interface AddressComboboxProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onSelect, onStatusChange, fetchSuggestions, attribution, showStatus, disabled, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressComboboxProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
