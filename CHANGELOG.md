@@ -8,6 +8,21 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.30.0] - 2026-10-10
+
+### Added
+
+- `Monogram` `src`: the thing's own logo, drawn to fill the tile (`object-fit: cover`). While
+  `src` is missing, or when the image fails to load, the tile shows its letters as before, so a
+  broken link never shows a broken-image icon. A new `src` gets a fresh try.
+- `Monogram` `size="xs"` (20px), for list rows.
+- `AppLauncher` `icons` and `AppLauncherApp.iconSrc`: with `icons`, every app gets a `Monogram`
+  tile before its name: its `iconSrc`, or its initials. Off by default, so existing launchers
+  are unchanged.
+- `SearchSelectOption.media`: a node drawn before the label in the option's row and, once
+  chosen, in the trigger (e.g. `<Monogram size="xs" src={logo} name={label} />`). Without it
+  the trigger and rows render exactly as before.
+
 ## [1.29.0] - 2026-10-10
 
 ### Added

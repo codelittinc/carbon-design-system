@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useId, type ReactElement } from "react";
+import { useState, useEffect, useRef, useCallback, useId, type ReactElement, type ReactNode } from "react";
 import { Search, X, ChevronDown, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -17,6 +17,12 @@ export interface SearchSelectOption {
   sublabel?: string;
   /** Shown but not selectable; the arrow keys pass over it. */
   disabled?: boolean;
+  /**
+   * Drawn before the label, in the option's row and in the trigger while it is
+   * the chosen one — a logo or a `<Monogram size="xs" />`. Decorative: the
+   * label is still what names the option.
+   */
+  media?: ReactNode;
 }
 
 interface SearchSelectProps {
@@ -372,6 +378,18 @@ export function SearchSelect({
     [open, options, activeIndex, openList, closeList, handleSelect, showCreate, handleCreate],
   );
 
+  /*
+   * `min-w-0 truncate` for the same reason as `SelectTrigger`: this span is a flex item,
+   * so its default `min-width: auto` would hold it at full text width and push the icons
+   * out through the right border instead of clipping. A searchable select is exactly where
+   * long labels arrive, since its options come from a query rather than a fixed list.
+   */
+  const triggerLabel = (
+    <span className={cn("min-w-0 truncate", selectedOption ? "text-text-primary" : "text-text-muted")}>
+      {selectedOption?.label ?? placeholder}
+    </span>
+  );
+
   return (
     <div ref={ref} onBlur={handleBlur} className={cn("relative", className)}>
       <button
@@ -392,20 +410,14 @@ export function SearchSelect({
           triggerClassName,
         )}
       >
-        {/*
-         * `min-w-0 truncate` for the same reason as `SelectTrigger`: this span is a flex item,
-         * so its default `min-width: auto` would hold it at full text width and push the icons
-         * out through the right border instead of clipping. A searchable select is exactly where
-         * long labels arrive, since its options come from a query rather than a fixed list.
-         */}
-        <span
-          className={cn(
-            "min-w-0 truncate",
-            selectedOption ? "text-text-primary" : "text-text-muted",
-          )}
-        >
-          {selectedOption?.label ?? placeholder}
-        </span>
+        {selectedOption?.media ? (
+          <span className="flex min-w-0 items-center gap-2">
+            {selectedOption.media}
+            {triggerLabel}
+          </span>
+        ) : (
+          triggerLabel
+        )}
         {/* shrink-0: the clear button and chevron keep their size; the label is what gives. */}
         <div className="flex shrink-0 items-center gap-1">
           {clearable && value && !disabled && (
@@ -493,12 +505,15 @@ export function SearchSelect({
                   {renderOption ? (
                     renderOption(option)
                   ) : (
-                    <div>
-                      <div>{option.label}</div>
-                      {option.sublabel && (
-                        <div className="text-xs text-text-muted">{option.sublabel}</div>
-                      )}
-                    </div>
+                    <>
+                      {option.media}
+                      <div className="min-w-0">
+                        <div>{option.label}</div>
+                        {option.sublabel && (
+                          <div className="text-xs text-text-muted">{option.sublabel}</div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </button>
               ))

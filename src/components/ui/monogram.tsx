@@ -1,7 +1,10 @@
-import type { ReactElement } from "react";
+"use client";
+
+import { useState, type ReactElement } from "react";
 import { cn } from "@/lib/cn";
 
 const sizeClasses = {
+  xs: "size-5 text-[0.625rem]",
   sm: "size-8 text-xs",
   md: "size-10 text-sm",
   lg: "size-12 text-base",
@@ -12,6 +15,12 @@ interface MonogramProps {
   name: string;
   /** Letters to show instead of the derived ones. Uppercased. */
   initials?: string;
+  /**
+   * The thing's own logo. Drawn to fill the tile, cropped to it. While it is
+   * missing, or when it fails to load, the tile shows the letters instead, so
+   * a broken link never leaves a broken-image icon.
+   */
+  src?: string | null;
   size?: keyof typeof sizeClasses;
   className?: string;
 }
@@ -33,8 +42,9 @@ function deriveInitials(name: string): string {
 }
 
 /**
- * A tile with one or two letters, for something that has no logo of its own,
- * such as a third-party tool ("GS" for Google Suite, "SL" for Slack).
+ * A tile for something that is not a Carbon app, such as a third-party tool:
+ * its logo when `src` is given, otherwise one or two letters ("GS" for Google
+ * Suite, "SL" for Slack).
  *
  * Not the same as `ProductMark`, which is a Carbon app's own mark (a solid
  * accent square with one initial, plus the app's name). A monogram is a muted
@@ -42,17 +52,39 @@ function deriveInitials(name: string): string {
  * shows. It is decorative and hidden from screen readers, so put the name in
  * visible text or in the surrounding link's label.
  */
-export function Monogram({ name, initials, size = "md", className }: MonogramProps): ReactElement {
+export function Monogram({
+  name,
+  initials,
+  src,
+  size = "md",
+  className,
+}: MonogramProps): ReactElement {
+  // The src that failed, not a flag: a new src gets its own chance to load.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const image = src && src !== failedSrc ? src : null;
+
   return (
     <span
       aria-hidden="true"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-md bg-accent-muted font-semibold text-accent-text",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold",
+        image
+          ? "border border-border bg-surface"
+          : "bg-accent-muted text-accent-text",
         sizeClasses[size],
         className,
       )}
     >
-      {(initials ?? deriveInitials(name)).toUpperCase()}
+      {image ? (
+        <img
+          src={image}
+          alt=""
+          onError={() => setFailedSrc(image)}
+          className="size-full object-cover"
+        />
+      ) : (
+        (initials ?? deriveInitials(name)).toUpperCase()
+      )}
     </span>
   );
 }

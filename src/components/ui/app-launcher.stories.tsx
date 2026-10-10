@@ -111,6 +111,23 @@ export const Default: Story = {
   ),
 };
 
+// A data URI, so the story needs no network.
+const LOGO =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' fill='%234A154B'/><circle cx='20' cy='20' r='9' fill='%23ECB22E'/></svg>";
+
+/** `icons`: a logo tile before each app, or its initials when it has none. */
+export const WithIcons: Story = {
+  render: () => (
+    <Launcher
+      icons
+      sections={(t) => [
+        { heading: t("carbonOS"), apps: CARBON_OS },
+        { heading: t("tools"), apps: TOOLS.map((app, i) => (i === 0 ? { ...app, iconSrc: LOGO } : app)) },
+      ]}
+    />
+  ),
+};
+
 /** About 80 apps: the list scrolls under a fixed footer. */
 export const ManyApps: Story = {
   render: () => (

@@ -7,6 +7,7 @@ import { eyebrowClass, headerIconButtonClass, optionRowClass } from "@/lib/ui-cl
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { EmptyState } from "./empty-state";
+import { Monogram } from "./monogram";
 import { NewTabHint, newTabRel } from "./new-tab";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Separator } from "./separator";
@@ -17,6 +18,8 @@ export interface AppLauncherApp {
   href: string | null;
   /** The app this launcher sits in: highlighted, not linked. */
   current?: boolean;
+  /** Its logo, drawn when the launcher has `icons`. Missing or broken: its initials. */
+  iconSrc?: string | null;
 }
 
 export interface AppLauncherSection {
@@ -30,6 +33,11 @@ export interface AppLauncherProps {
   /** A link under the list to the full catalog of the person's tools. */
   moreHref?: string;
   moreLabel?: string;
+  /**
+   * A tile before each app's name: its `iconSrc`, or its initials (`Monogram`).
+   * All apps or none, so the names stay aligned.
+   */
+  icons?: boolean;
   /** One line over the list, e.g. when the app links could not load. */
   notice?: ReactNode;
   /** The trigger's accessible name and tooltip, and the panel's name. */
@@ -59,6 +67,7 @@ export function AppLauncher({
   sections,
   moreHref,
   moreLabel = "All your tools",
+  icons = false,
   notice,
   label = "Carbon apps",
   currentLabel = "Current",
@@ -127,6 +136,7 @@ export function AppLauncher({
                       <li key={`${j}-${app.name}`}>
                         <AppItem
                           app={app}
+                          icon={icons}
                           currentLabel={currentLabel}
                           unavailableLabel={unavailableLabel}
                           newTabLabel={newTabLabel}
@@ -164,20 +174,24 @@ export function AppLauncher({
 
 function AppItem({
   app,
+  icon,
   currentLabel,
   unavailableLabel,
   newTabLabel,
   onOpen,
 }: {
   app: AppLauncherApp;
+  icon: boolean;
   currentLabel: string;
   unavailableLabel: string;
   newTabLabel: string;
   onOpen: () => void;
 }): ReactElement {
+  const tile = icon ? <Monogram name={app.name} src={app.iconSrc} size="xs" className="mt-px" /> : null;
   if (app.current) {
     return (
       <div aria-current="true" className={cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text")}>
+        {tile}
         <span className="min-w-0 flex-1">{app.name}</span>
         <Badge>{currentLabel}</Badge>
       </div>
@@ -185,14 +199,18 @@ function AppItem({
   }
   if (!app.href) {
     return (
-      <div className={cn(appRowClass, "cursor-default flex-col gap-0 text-text-muted")}>
-        <span className="min-w-0">{app.name}</span>
-        <span className="text-xs">{unavailableLabel}</span>
+      <div className={cn(appRowClass, "cursor-default text-text-muted")}>
+        {tile}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span>{app.name}</span>
+          <span className="text-xs">{unavailableLabel}</span>
+        </span>
       </div>
     );
   }
   return (
     <a href={app.href} target="_blank" rel={newTabRel()} onClick={onOpen} className={cn(appRowClass, appLinkClass)}>
+      {tile}
       <span className="min-w-0 flex-1">{app.name}</span>
       <NewTabHint label={newTabLabel} iconClassName="mt-1 text-text-muted" />
     </a>

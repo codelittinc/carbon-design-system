@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Monogram } from "../monogram";
 
@@ -44,6 +44,37 @@ describe("Monogram", () => {
     expect(tile(<Monogram name="Slack" />)).toHaveClass("size-10");
     expect(tile(<Monogram name="Slack" size="sm" />)).toHaveClass("size-8");
     expect(tile(<Monogram name="Slack" size="lg" />)).toHaveClass("size-12");
+  });
+
+  it("has an xs step for list rows", () => {
+    expect(tile(<Monogram name="Slack" size="xs" />)).toHaveClass("size-5");
+  });
+
+  it("draws the logo instead of the letters when given a src", () => {
+    const el = tile(<Monogram name="Slack" src="https://example.com/slack.png" />);
+    const img = el.querySelector("img");
+    expect(img).toHaveAttribute("src", "https://example.com/slack.png");
+    expect(img).toHaveAttribute("alt", "");
+    expect(el).not.toHaveTextContent("SL");
+    expect(el).not.toHaveClass("bg-accent-muted");
+  });
+
+  it("falls back to the letters when the logo fails to load", () => {
+    const el = tile(<Monogram name="Slack" src="https://example.com/missing.png" />);
+    fireEvent.error(el.querySelector("img")!);
+    expect(el.querySelector("img")).toBeNull();
+    expect(el).toHaveTextContent("SL");
+  });
+
+  it("tries a new src after an earlier one failed", () => {
+    const { container, rerender } = render(<Monogram name="Slack" src="https://example.com/a.png" />);
+    fireEvent.error(container.querySelector("img")!);
+    rerender(<Monogram name="Slack" src="https://example.com/b.png" />);
+    expect(container.querySelector("img")).toHaveAttribute("src", "https://example.com/b.png");
+  });
+
+  it("shows the letters for a null src", () => {
+    expect(tile(<Monogram name="Slack" src={null} />)).toHaveTextContent("SL");
   });
 
   it("merges className", () => {

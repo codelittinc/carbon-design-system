@@ -382,6 +382,8 @@ interface AppLauncherApp {
     href: string | null;
     /** The app this launcher sits in: highlighted, not linked. */
     current?: boolean;
+    /** Its logo, drawn when the launcher has `icons`. Missing or broken: its initials. */
+    iconSrc?: string | null;
 }
 interface AppLauncherSection {
     heading: string;
@@ -393,6 +395,11 @@ interface AppLauncherProps {
     /** A link under the list to the full catalog of the person's tools. */
     moreHref?: string;
     moreLabel?: string;
+    /**
+     * A tile before each app's name: its `iconSrc`, or its initials (`Monogram`).
+     * All apps or none, so the names stay aligned.
+     */
+    icons?: boolean;
     /** One line over the list, e.g. when the app links could not load. */
     notice?: ReactNode;
     /** The trigger's accessible name and tooltip, and the panel's name. */
@@ -411,7 +418,7 @@ interface AppLauncherProps {
  * sections. Links open in a new tab. Purely presentational: the app fetches
  * the list and passes it in.
  */
-declare function AppLauncher({ sections, moreHref, moreLabel, notice, label, currentLabel, unavailableLabel, newTabLabel, emptyTitle, emptyDescription, className, }: AppLauncherProps): ReactElement;
+declare function AppLauncher({ sections, moreHref, moreLabel, icons, notice, label, currentLabel, unavailableLabel, newTabLabel, emptyTitle, emptyDescription, className, }: AppLauncherProps): ReactElement;
 
 interface ConfirmOptions {
     title: ReactNode;
@@ -917,6 +924,7 @@ interface ProductMarkProps {
 declare function ProductMark({ name, initial, compact, className, }: ProductMarkProps): ReactElement;
 
 declare const sizeClasses: {
+    readonly xs: "size-5 text-[0.625rem]";
     readonly sm: "size-8 text-xs";
     readonly md: "size-10 text-sm";
     readonly lg: "size-12 text-base";
@@ -926,12 +934,19 @@ interface MonogramProps {
     name: string;
     /** Letters to show instead of the derived ones. Uppercased. */
     initials?: string;
+    /**
+     * The thing's own logo. Drawn to fill the tile, cropped to it. While it is
+     * missing, or when it fails to load, the tile shows the letters instead, so
+     * a broken link never leaves a broken-image icon.
+     */
+    src?: string | null;
     size?: keyof typeof sizeClasses;
     className?: string;
 }
 /**
- * A tile with one or two letters, for something that has no logo of its own,
- * such as a third-party tool ("GS" for Google Suite, "SL" for Slack).
+ * A tile for something that is not a Carbon app, such as a third-party tool:
+ * its logo when `src` is given, otherwise one or two letters ("GS" for Google
+ * Suite, "SL" for Slack).
  *
  * Not the same as `ProductMark`, which is a Carbon app's own mark (a solid
  * accent square with one initial, plus the app's name). A monogram is a muted
@@ -939,7 +954,7 @@ interface MonogramProps {
  * shows. It is decorative and hidden from screen readers, so put the name in
  * visible text or in the surrounding link's label.
  */
-declare function Monogram({ name, initials, size, className }: MonogramProps): ReactElement;
+declare function Monogram({ name, initials, src, size, className, }: MonogramProps): ReactElement;
 
 interface PageHeaderBack {
     href: string;
@@ -1184,6 +1199,12 @@ interface SearchSelectOption {
     sublabel?: string;
     /** Shown but not selectable; the arrow keys pass over it. */
     disabled?: boolean;
+    /**
+     * Drawn before the label, in the option's row and in the trigger while it is
+     * the chosen one — a logo or a `<Monogram size="xs" />`. Decorative: the
+     * label is still what names the option.
+     */
+    media?: ReactNode;
 }
 interface SearchSelectProps {
     value: string | null;
