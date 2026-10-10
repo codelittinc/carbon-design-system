@@ -1,9 +1,9 @@
 "use client";
 
-import { useId, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useRef, useState, type ReactElement, type ReactNode } from "react";
 import { Grip } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { eyebrowClass, headerIconButtonClass, optionRowClass } from "@/lib/ui-classes";
+import { headerIconButtonClass, optionRowClass } from "@/lib/ui-classes";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { EmptyState } from "./empty-state";
@@ -23,12 +23,13 @@ export interface AppLauncherApp {
 }
 
 export interface AppLauncherSection {
+  /** @deprecated Not shown: every section's apps are merged into one alphabetical list. */
   heading: string;
   apps: AppLauncherApp[];
 }
 
 export interface AppLauncherProps {
-  /** Sections without apps are left out; when all are empty the panel says so. */
+  /** Merged into one list sorted by name; when every section is empty the panel says so. */
   sections: AppLauncherSection[];
   /** A link under the list to the full catalog of the person's tools. */
   moreHref?: string;
@@ -60,7 +61,8 @@ const appLinkClass =
 
 /**
  * The grid-icon button that lists the apps and tools a person can open, in
- * sections. Links open in a new tab. Purely presentational: the app fetches
+ * one alphabetical list. Links open in a new tab, said only to screen readers: the panel
+ * is all links, so a per-row icon is noise. Purely presentational: the app fetches
  * the list and passes it in.
  */
 export function AppLauncher({
@@ -78,16 +80,10 @@ export function AppLauncher({
   className,
 }: AppLauncherProps): ReactElement {
   const [open, setOpen] = useState(false);
-  const headingId = useId();
   const listRef = useRef<HTMLDivElement>(null);
 
-  const shown = sections
-    .filter((section) => section.apps.length > 0)
-    .map((section) => ({
-      ...section,
-      apps: [...section.apps].sort((a, b) => a.name.localeCompare(b.name)),
-    }));
-  const hasLinks = shown.some((section) => section.apps.some((app) => app.href && !app.current));
+  const apps = sections.flatMap((section) => section.apps).sort((a, b) => a.name.localeCompare(b.name));
+  const hasLinks = apps.some((app) => app.href && !app.current);
 
   return (
     // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
@@ -122,32 +118,23 @@ export function AppLauncher({
           tabIndex={hasLinks ? undefined : 0}
           className="max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-1rem))] min-h-0 overflow-y-auto p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
         >
-          {shown.length === 0 ? (
+          {apps.length === 0 ? (
             <EmptyState title={emptyTitle} description={emptyDescription} className="py-8" />
           ) : (
-            <div className="space-y-2">
-              {shown.map((section, i) => (
-                <div key={`${i}-${section.heading}`} role="group" aria-labelledby={`${headingId}-${i}`}>
-                  <p id={`${headingId}-${i}`} className={cn(eyebrowClass, "px-2 pb-1 pt-1")}>
-                    {section.heading}
-                  </p>
-                  <ul className="grid grid-cols-1 gap-1 min-[360px]:grid-cols-2">
-                    {section.apps.map((app, j) => (
-                      <li key={`${j}-${app.name}`}>
-                        <AppItem
-                          app={app}
-                          icon={icons}
-                          currentLabel={currentLabel}
-                          unavailableLabel={unavailableLabel}
-                          newTabLabel={newTabLabel}
-                          onOpen={() => setOpen(false)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            <ul className="grid grid-cols-1 gap-1 min-[360px]:grid-cols-2">
+              {apps.map((app, i) => (
+                <li key={`${i}-${app.name}`}>
+                  <AppItem
+                    app={app}
+                    icon={icons}
+                    currentLabel={currentLabel}
+                    unavailableLabel={unavailableLabel}
+                    newTabLabel={newTabLabel}
+                    onOpen={() => setOpen(false)}
+                  />
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
         {moreHref && (
@@ -162,7 +149,7 @@ export function AppLauncher({
                 className={cn(appRowClass, appLinkClass, "items-center text-accent-text")}
               >
                 <span className="min-w-0 flex-1">{moreLabel}</span>
-                <NewTabHint label={newTabLabel} />
+                <NewTabHint label={newTabLabel} icon={false} />
               </a>
             </div>
           </>
@@ -215,7 +202,7 @@ function AppItem({
     <a href={app.href} target="_blank" rel={newTabRel()} onClick={onOpen} className={cn(appRowClass, appLinkClass)}>
       {tile}
       <span className="min-w-0 flex-1">{app.name}</span>
-      <NewTabHint label={newTabLabel} iconClassName="mt-1 text-text-muted" />
+      <NewTabHint label={newTabLabel} icon={false} />
     </a>
   );
 }

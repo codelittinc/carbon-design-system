@@ -19,17 +19,20 @@ export function newTabRel(rel?: string): string {
 interface NewTabHintProps {
   /** Screen-reader text after the link's name. Starts with a space. */
   label?: string;
+  /** Leave out the icon, e.g. where every row is a new-tab link and the icon is noise. */
+  icon?: boolean;
   iconClassName?: string;
 }
 
-/** The 12px external icon, and the sr-only "(opens in a new tab)". */
+/** The 12px external icon (unless `icon={false}`), and the sr-only "(opens in a new tab)". */
 export function NewTabHint({
   label = " (opens in a new tab)",
+  icon = true,
   iconClassName,
 }: NewTabHintProps): ReactElement {
   return (
     <>
-      <ExternalLink size={12} aria-hidden="true" className={cn("shrink-0", iconClassName)} />
+      {icon && <ExternalLink size={12} aria-hidden="true" className={cn("shrink-0", iconClassName)} />}
       <span className="sr-only">{label}</span>
     </>
   );

@@ -55,7 +55,7 @@ describe("AppLauncher", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     expect(within(link).getByText("(opens in a new tab)")).toHaveClass("sr-only");
-    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(link.querySelector("svg")).toBeNull();
   });
 
   it("takes the new-tab text as a prop", async () => {
@@ -89,14 +89,18 @@ describe("AppLauncher", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("sorts each section's apps by name", async () => {
-    const { panel } = await openLauncher();
-    const group = within(panel).getByRole("group", { name: "CarbonOS" });
-    const links = within(group).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "https://backbone.example.com",
-      "https://gatekeeper.example.com",
-    ]);
+  it("merges every section into one list sorted by name, with no headings", async () => {
+    const { panel } = await openLauncher({
+      sections: [...SECTIONS, { heading: "Reports", apps: [{ name: "Asana", href: "https://asana.com" }] }],
+    });
+    const names = within(panel)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent?.replace(/\(opens in a new tab\)|Current|Link unavailable/g, "").trim());
+    expect(names).toEqual(["Asana", "Backbone", "Gatekeeper", "Player Scoreboard", "Yardi"]);
+    expect(within(panel).queryByRole("group")).not.toBeInTheDocument();
+    for (const heading of ["CarbonOS", "Tools", "Reports"]) {
+      expect(within(panel).queryByText(heading)).not.toBeInTheDocument();
+    }
   });
 
   it("marks the current app, without a link", async () => {
@@ -124,18 +128,10 @@ describe("AppLauncher", () => {
     expect(within(item).getByText("Link unavailable")).toBeInTheDocument();
   });
 
-  it("leaves out empty sections", async () => {
-    const { panel } = await openLauncher({
-      sections: [...SECTIONS, { heading: "Reports", apps: [] }],
-    });
-    expect(within(panel).getAllByRole("group")).toHaveLength(2);
-    expect(within(panel).queryByText("Reports")).not.toBeInTheDocument();
-  });
-
   it("shows the empty state when every section is empty, and the list takes focus", async () => {
     const { panel } = await openLauncher({ sections: [{ heading: "CarbonOS", apps: [] }] });
     expect(within(panel).getByRole("heading", { name: "No apps to show yet" })).toBeInTheDocument();
-    expect(within(panel).queryByRole("group")).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("list")).not.toBeInTheDocument();
     const list = within(panel).getByText(/once IT gives you access/).closest("[tabindex]");
     expect(list).toHaveAttribute("tabindex", "0");
     expect(list).toHaveFocus();

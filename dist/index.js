@@ -1356,10 +1356,11 @@ function newTabRel(rel) {
 }
 function NewTabHint({
   label = " (opens in a new tab)",
+  icon = true,
   iconClassName
 }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: cn("shrink-0", iconClassName) }),
+    icon && /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: cn("shrink-0", iconClassName) }),
     /* @__PURE__ */ jsx("span", { className: "sr-only", children: label })
   ] });
 }
@@ -1492,13 +1493,9 @@ function AppLauncher({
   className
 }) {
   const [open, setOpen] = useState(false);
-  const headingId = useId();
   const listRef = useRef(null);
-  const shown = sections.filter((section) => section.apps.length > 0).map((section) => ({
-    ...section,
-    apps: [...section.apps].sort((a, b) => a.name.localeCompare(b.name))
-  }));
-  const hasLinks = shown.some((section) => section.apps.some((app) => app.href && !app.current));
+  const apps = sections.flatMap((section) => section.apps).sort((a, b) => a.name.localeCompare(b.name));
+  const hasLinks = apps.some((app) => app.href && !app.current);
   return (
     // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
     /* @__PURE__ */ jsxs(Popover, { modal: true, open, onOpenChange: setOpen, children: [
@@ -1532,20 +1529,17 @@ function AppLauncher({
                 ref: listRef,
                 tabIndex: hasLinks ? void 0 : 0,
                 className: "max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-1rem))] min-h-0 overflow-y-auto p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50",
-                children: shown.length === 0 ? /* @__PURE__ */ jsx(EmptyState, { title: emptyTitle, description: emptyDescription, className: "py-8" }) : /* @__PURE__ */ jsx("div", { className: "space-y-2", children: shown.map((section, i) => /* @__PURE__ */ jsxs("div", { role: "group", "aria-labelledby": `${headingId}-${i}`, children: [
-                  /* @__PURE__ */ jsx("p", { id: `${headingId}-${i}`, className: cn(eyebrowClass, "px-2 pb-1 pt-1"), children: section.heading }),
-                  /* @__PURE__ */ jsx("ul", { className: "grid grid-cols-1 gap-1 min-[360px]:grid-cols-2", children: section.apps.map((app, j) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(
-                    AppItem,
-                    {
-                      app,
-                      icon: icons2,
-                      currentLabel,
-                      unavailableLabel,
-                      newTabLabel,
-                      onOpen: () => setOpen(false)
-                    }
-                  ) }, `${j}-${app.name}`)) })
-                ] }, `${i}-${section.heading}`)) })
+                children: apps.length === 0 ? /* @__PURE__ */ jsx(EmptyState, { title: emptyTitle, description: emptyDescription, className: "py-8" }) : /* @__PURE__ */ jsx("ul", { className: "grid grid-cols-1 gap-1 min-[360px]:grid-cols-2", children: apps.map((app, i) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(
+                  AppItem,
+                  {
+                    app,
+                    icon: icons2,
+                    currentLabel,
+                    unavailableLabel,
+                    newTabLabel,
+                    onOpen: () => setOpen(false)
+                  }
+                ) }, `${i}-${app.name}`)) })
               }
             ),
             moreHref && /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -1560,7 +1554,7 @@ function AppLauncher({
                   className: cn(appRowClass, appLinkClass, "items-center text-accent-text"),
                   children: [
                     /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: moreLabel }),
-                    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel })
+                    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, icon: false })
                   ]
                 }
               ) })
@@ -1599,7 +1593,7 @@ function AppItem({
   return /* @__PURE__ */ jsxs("a", { href: app.href, target: "_blank", rel: newTabRel(), onClick: onOpen, className: cn(appRowClass, appLinkClass), children: [
     tile,
     /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
-    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, iconClassName: "mt-1 text-text-muted" })
+    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, icon: false })
   ] });
 }
 var Dialog = DialogPrimitive2.Root;
