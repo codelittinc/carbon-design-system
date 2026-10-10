@@ -8,6 +8,13 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.30.1] - 2026-10-10
+
+### Fixed
+
+- `AppLauncher`: with `icons`, the current app's row broke its name mid-word ("Gatekee / per")
+  to keep the Current badge on the same line. The badge now wraps below the name instead.
+
 ## [1.30.0] - 2026-10-10
 
 ### Added
