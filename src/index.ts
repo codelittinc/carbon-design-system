@@ -87,6 +87,7 @@ export * from "./components/ui/scroll-area";
 export * from "./components/ui/toast";
 export * from "./components/ui/empty-state";
 export * from "./components/ui/product-mark";
+export * from "./components/ui/monogram";
 export * from "./components/ui/page-header";
 export * from "./components/ui/table";
 export * from "./components/ui/data-table";

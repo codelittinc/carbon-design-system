@@ -8,6 +8,29 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.28.0] - 2026-10-10
+
+### Added
+
+- `Monogram`: a tile with one or two letters for something that has no logo of its own, such as
+  a third-party tool ("GS" for Google Suite, "SL" for Slack). Props: `name`, optional
+  `initials`, `size` (`sm` 32px, `md` 40px default, `lg` 48px) and `className`. Initials are the
+  first letter of each of the first two words, or the first two letters of a single word;
+  anything that is not a letter or digit is ignored, non-Latin letters stay whole, and the result
+  is uppercased. Drawn with `bg-accent-muted` / `text-accent-text` (AA in both themes) and
+  hidden from screen readers, so keep the name in visible text or the surrounding link's label.
+  It is not `ProductMark`, which stays the Carbon app's own mark.
+- `FilterBar` `searchInputProps`: extra props for the search `Input`, such as a `ref` to focus
+  it, `onKeyDown`, `type`, `autoComplete` and a `className` merged onto the input's own (for
+  example `h-11 sm:h-9` for a 44px touch target). `search`, `onSearchChange`,
+  `searchPlaceholder` and `searchLabel` keep control of the value, change handler, placeholder
+  and accessible name.
+
+### Changed
+
+- `FilterBar`'s search icon is explicitly `aria-hidden`. The wrapper's `className` was already
+  merged, so `className="mb-0"` removes the default bottom margin.
+
 ## [1.27.0] - 2026-10-09
 
 ### Added
