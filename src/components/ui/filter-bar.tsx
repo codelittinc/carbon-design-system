@@ -23,6 +23,18 @@ interface FilterBarProps {
     React.ComponentPropsWithRef<typeof Input>,
     "value" | "defaultValue" | "onChange" | "placeholder" | "aria-label"
   >;
+  /**
+   * `touch` makes the search input 44px tall below the `sm` breakpoint (a
+   * touch target) and the default 32px from `sm` up.
+   */
+  size?: "default" | "touch";
+  /**
+   * Below the `sm` breakpoint, stack the search box (full width) above the
+   * filter controls. From `sm` up the bar is one row either way, and its
+   * controls wrap instead of overflowing. Pass `false` for the single row at
+   * every width.
+   */
+  stackOnMobile?: boolean;
   /** Filter controls (selects, toggles) rendered to the right of the search box. */
   children?: React.ReactNode;
   /** Merged onto the wrapper, so `mb-0` replaces the default bottom margin. */
@@ -39,13 +51,28 @@ export function FilterBar({
   searchPlaceholder = "Search...",
   searchLabel,
   searchInputProps,
+  size = "default",
+  stackOnMobile = true,
   children,
   className,
 }: FilterBarProps) {
   return (
-    <div className={cn("mb-4 flex items-center gap-3", className)}>
+    <div
+      className={cn(
+        "mb-4 flex",
+        stackOnMobile
+          ? "flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
+          : "items-center gap-3",
+        className,
+      )}
+    >
       {onSearchChange && (
-        <div className="relative max-w-sm flex-1">
+        <div
+          className={cn(
+            "relative",
+            stackOnMobile ? "w-full sm:w-auto sm:max-w-sm sm:flex-1" : "max-w-sm flex-1",
+          )}
+        >
           <Search
             aria-hidden="true"
             size={14}
@@ -57,7 +84,7 @@ export function FilterBar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
             aria-label={searchLabel ?? searchPlaceholder}
-            className={cn("pl-9", searchInputProps?.className)}
+            className={cn("pl-9", size === "touch" && "h-11 sm:h-8", searchInputProps?.className)}
           />
         </div>
       )}

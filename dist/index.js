@@ -3970,33 +3970,54 @@ function FilterBar({
   searchPlaceholder = "Search...",
   searchLabel,
   searchInputProps,
+  size = "default",
+  stackOnMobile = true,
   children,
   className
 }) {
-  return /* @__PURE__ */ jsxs("div", { className: cn("mb-4 flex items-center gap-3", className), children: [
-    onSearchChange && /* @__PURE__ */ jsxs("div", { className: "relative max-w-sm flex-1", children: [
-      /* @__PURE__ */ jsx(
-        Search,
-        {
-          "aria-hidden": "true",
-          size: 14,
-          className: "absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-        }
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      className: cn(
+        "mb-4 flex",
+        stackOnMobile ? "flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3" : "items-center gap-3",
+        className
       ),
-      /* @__PURE__ */ jsx(
-        Input,
-        {
-          ...searchInputProps,
-          value: search ?? "",
-          onChange: (e) => onSearchChange(e.target.value),
-          placeholder: searchPlaceholder,
-          "aria-label": searchLabel ?? searchPlaceholder,
-          className: cn("pl-9", searchInputProps?.className)
-        }
-      )
-    ] }),
-    children
-  ] });
+      children: [
+        onSearchChange && /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: cn(
+              "relative",
+              stackOnMobile ? "w-full sm:w-auto sm:max-w-sm sm:flex-1" : "max-w-sm flex-1"
+            ),
+            children: [
+              /* @__PURE__ */ jsx(
+                Search,
+                {
+                  "aria-hidden": "true",
+                  size: 14,
+                  className: "absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                Input,
+                {
+                  ...searchInputProps,
+                  value: search ?? "",
+                  onChange: (e) => onSearchChange(e.target.value),
+                  placeholder: searchPlaceholder,
+                  "aria-label": searchLabel ?? searchPlaceholder,
+                  className: cn("pl-9", size === "touch" && "h-11 sm:h-8", searchInputProps?.className)
+                }
+              )
+            ]
+          }
+        ),
+        children
+      ]
+    }
+  );
 }
 function StatCard({
   label,
