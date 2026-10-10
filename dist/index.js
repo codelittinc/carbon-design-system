@@ -1356,10 +1356,11 @@ function newTabRel(rel) {
 }
 function NewTabHint({
   label = " (opens in a new tab)",
+  icon = true,
   iconClassName
 }) {
   return /* @__PURE__ */ jsxs(Fragment, { children: [
-    /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: cn("shrink-0", iconClassName) }),
+    icon && /* @__PURE__ */ jsx(ExternalLink, { size: 12, "aria-hidden": "true", className: cn("shrink-0", iconClassName) }),
     /* @__PURE__ */ jsx("span", { className: "sr-only", children: label })
   ] });
 }
@@ -1553,7 +1554,7 @@ function AppLauncher({
                   className: cn(appRowClass, appLinkClass, "items-center text-accent-text"),
                   children: [
                     /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: moreLabel }),
-                    /* @__PURE__ */ jsx("span", { className: "sr-only", children: newTabLabel })
+                    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, icon: false })
                   ]
                 }
               ) })
@@ -1592,7 +1593,7 @@ function AppItem({
   return /* @__PURE__ */ jsxs("a", { href: app.href, target: "_blank", rel: newTabRel(), onClick: onOpen, className: cn(appRowClass, appLinkClass), children: [
     tile,
     /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
-    /* @__PURE__ */ jsx("span", { className: "sr-only", children: newTabLabel })
+    /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, icon: false })
   ] });
 }
 var Dialog = DialogPrimitive2.Root;

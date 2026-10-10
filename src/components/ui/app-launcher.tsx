@@ -8,7 +8,7 @@ import { Badge } from "./badge";
 import { Button } from "./button";
 import { EmptyState } from "./empty-state";
 import { Monogram } from "./monogram";
-import { newTabRel } from "./new-tab";
+import { NewTabHint, newTabRel } from "./new-tab";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Separator } from "./separator";
 
@@ -23,7 +23,7 @@ export interface AppLauncherApp {
 }
 
 export interface AppLauncherSection {
-  /** Not shown: every section's apps are merged into one alphabetical list. */
+  /** @deprecated Not shown: every section's apps are merged into one alphabetical list. */
   heading: string;
   apps: AppLauncherApp[];
 }
@@ -149,7 +149,7 @@ export function AppLauncher({
                 className={cn(appRowClass, appLinkClass, "items-center text-accent-text")}
               >
                 <span className="min-w-0 flex-1">{moreLabel}</span>
-                <span className="sr-only">{newTabLabel}</span>
+                <NewTabHint label={newTabLabel} icon={false} />
               </a>
             </div>
           </>
@@ -202,7 +202,7 @@ function AppItem({
     <a href={app.href} target="_blank" rel={newTabRel()} onClick={onOpen} className={cn(appRowClass, appLinkClass)}>
       {tile}
       <span className="min-w-0 flex-1">{app.name}</span>
-      <span className="sr-only">{newTabLabel}</span>
+      <NewTabHint label={newTabLabel} icon={false} />
     </a>
   );
 }

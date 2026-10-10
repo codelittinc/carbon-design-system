@@ -387,7 +387,7 @@ interface AppLauncherApp {
     iconSrc?: string | null;
 }
 interface AppLauncherSection {
-    /** Not shown: every section's apps are merged into one alphabetical list. */
+    /** @deprecated Not shown: every section's apps are merged into one alphabetical list. */
     heading: string;
     apps: AppLauncherApp[];
 }
