@@ -107,4 +107,60 @@ describe("FilterBar", () => {
     expect(container.firstElementChild).toHaveClass("mb-0");
     expect(container.firstElementChild).not.toHaveClass("mb-4");
   });
+
+  it("stacks below sm and keeps today's row from sm up by default", () => {
+    const { container } = render(<FilterBar onSearchChange={() => {}} />);
+    const bar = container.firstElementChild;
+    expect(bar).toHaveClass("mb-4", "flex", "flex-col", "items-stretch", "gap-2");
+    expect(bar).toHaveClass("sm:flex-row", "sm:flex-wrap", "sm:items-center", "sm:gap-3");
+    const searchBox = screen.getByRole("textbox").parentElement;
+    expect(searchBox).toHaveClass("relative", "w-full", "sm:w-auto", "sm:max-w-sm", "sm:flex-1");
+    expect(searchBox).not.toHaveClass("max-w-sm");
+    expect(searchBox).not.toHaveClass("flex-1");
+  });
+
+  it("keeps the single row at every width when stackOnMobile is false", () => {
+    const { container } = render(<FilterBar onSearchChange={() => {}} stackOnMobile={false} />);
+    const bar = container.firstElementChild;
+    expect(bar).toHaveClass("mb-4", "flex", "items-center", "gap-3");
+    expect(bar).not.toHaveClass("flex-col");
+    expect(bar).not.toHaveClass("sm:flex-row");
+    expect(bar).not.toHaveClass("sm:flex-wrap");
+    const searchBox = screen.getByRole("textbox").parentElement;
+    expect(searchBox).toHaveClass("relative", "max-w-sm", "flex-1");
+    expect(searchBox).not.toHaveClass("w-full");
+  });
+
+  it("keeps the default input height unless size is touch", () => {
+    render(<FilterBar onSearchChange={() => {}} />);
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveClass("h-8", "pl-9");
+    expect(input).not.toHaveClass("h-11");
+  });
+
+  it("makes the search input 44px below sm and the default height from sm with size touch", () => {
+    render(<FilterBar onSearchChange={() => {}} size="touch" />);
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveClass("h-11", "sm:h-8", "pl-9");
+    expect(input).not.toHaveClass("h-8");
+  });
+
+  it("lets searchInputProps.className override the touch height", () => {
+    render(
+      <FilterBar
+        onSearchChange={() => {}}
+        size="touch"
+        searchInputProps={{ className: "h-12 sm:h-9" }}
+      />,
+    );
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveClass("h-12", "sm:h-9");
+    expect(input).not.toHaveClass("h-11");
+    expect(input).not.toHaveClass("sm:h-8");
+  });
+
+  it("centres the search icon vertically on the input at either size", () => {
+    const { container } = render(<FilterBar onSearchChange={() => {}} size="touch" />);
+    expect(container.querySelector("svg")).toHaveClass("absolute", "top-1/2", "-translate-y-1/2");
+  });
 });

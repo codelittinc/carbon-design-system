@@ -8,6 +8,25 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.29.0] - 2026-10-10
+
+### Added
+
+- `FilterBar` `size`: `"default" | "touch"`. `touch` makes the search input 44px tall below the
+  `sm` breakpoint (a touch target) and the default 32px from `sm` up. The search icon stays
+  centred at both heights, and `searchInputProps.className` still overrides the height.
+- `FilterBar` `stackOnMobile` (default `true`): pass `false` to keep the single row at every
+  width.
+
+### Changed
+
+- `FilterBar` is responsive. Below `sm` (640px) the search box takes the full width and the
+  filter controls stack below it (`gap-2`). From `sm` up it is the same row as before
+  (`items-center gap-3`, search box `max-w-sm flex-1`), except that controls now wrap to a new
+  line instead of overflowing when the row is too narrow. Apps that stacked it themselves with
+  `className="flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3"` can drop
+  that, and `searchInputProps={{ className: "h-11 sm:h-8" }}` becomes `size="touch"`.
+
 ## [1.28.0] - 2026-10-10
 
 ### Added

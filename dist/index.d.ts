@@ -1364,6 +1364,18 @@ interface FilterBarProps {
      * value, change handler, placeholder and name stay with the props above.
      */
     searchInputProps?: Omit<React.ComponentPropsWithRef<typeof Input>, "value" | "defaultValue" | "onChange" | "placeholder" | "aria-label">;
+    /**
+     * `touch` makes the search input 44px tall below the `sm` breakpoint (a
+     * touch target) and the default 32px from `sm` up.
+     */
+    size?: "default" | "touch";
+    /**
+     * Below the `sm` breakpoint, stack the search box (full width) above the
+     * filter controls. From `sm` up the bar is one row either way, and its
+     * controls wrap instead of overflowing. Pass `false` for the single row at
+     * every width.
+     */
+    stackOnMobile?: boolean;
     /** Filter controls (selects, toggles) rendered to the right of the search box. */
     children?: React.ReactNode;
     /** Merged onto the wrapper, so `mb-0` replaces the default bottom margin. */
@@ -1373,7 +1385,7 @@ interface FilterBarProps {
  * Toolbar above a list/table: a search input with a leading icon plus a slot
  * for filter controls. Pass DS `Select`s (or `MultiStatusFilter`) as children.
  */
-declare function FilterBar({ search, onSearchChange, searchPlaceholder, searchLabel, searchInputProps, children, className, }: FilterBarProps): react.JSX.Element;
+declare function FilterBar({ search, onSearchChange, searchPlaceholder, searchLabel, searchInputProps, size, stackOnMobile, children, className, }: FilterBarProps): react.JSX.Element;
 
 interface StatCardProps {
     label: string;
