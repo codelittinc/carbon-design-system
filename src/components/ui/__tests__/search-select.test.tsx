@@ -7,6 +7,7 @@ interface Option {
   value: string;
   label: string;
   sublabel?: string;
+  media?: React.ReactNode;
 }
 
 const OPTIONS: Option[] = [
@@ -192,6 +193,19 @@ describe("SearchSelect", () => {
     );
     expect(screen.getByText("custom-Apple")).toBeInTheDocument();
     expect(screen.getByText("custom-Banana")).toBeInTheDocument();
+  });
+
+  it("draws an option's media before its label, in the row and in the trigger once chosen", () => {
+    const options: Option[] = [
+      { value: "a", label: "Apple", media: <i data-testid="media-a" /> },
+      { value: "b", label: "Banana" },
+    ];
+    render(<Harness options={options} autoFocus />);
+    const row = screen.getByRole("option", { name: "Apple" });
+    expect(row.firstElementChild).toBe(screen.getByTestId("media-a"));
+    fireEvent.click(row);
+    const trigger = screen.getByRole("button", { name: "Apple" });
+    expect(trigger.querySelector("[data-testid='media-a']")).not.toBeNull();
   });
 
   // The options come from a query, so the longest label is not knowable in advance. jsdom does

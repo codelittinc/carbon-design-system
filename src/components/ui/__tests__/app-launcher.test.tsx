@@ -141,4 +141,31 @@ describe("AppLauncher", () => {
     expect(more).toHaveAttribute("href", "https://gatekeeper.example.com/me");
     expect(more).toHaveAttribute("rel", "noopener noreferrer");
   });
+
+  it("draws no tiles unless asked", async () => {
+    const { panel } = await openLauncher();
+    expect(panel.querySelector("[aria-hidden='true'].rounded-md")).toBeNull();
+  });
+
+  it("with icons, puts a tile before every app: its logo, or its initials", async () => {
+    const { panel } = await openLauncher({
+      icons: true,
+      sections: [
+        {
+          heading: "Tools",
+          apps: [
+            { name: "Slack", href: "https://slack.com", iconSrc: "https://example.com/slack.png" },
+            { name: "Yardi", href: null },
+            { name: "Gatekeeper", href: null, current: true },
+          ],
+        },
+      ],
+    });
+    const slack = within(panel).getByRole("link", { name: /^Slack/ });
+    expect(slack.querySelector("img")).toHaveAttribute("src", "https://example.com/slack.png");
+    const yardi = within(panel).getByText("Yardi").closest("li")!;
+    expect(yardi).toHaveTextContent(/^YA/);
+    const current = within(panel).getByText("Gatekeeper").closest("li")!;
+    expect(current).toHaveTextContent(/^GA/);
+  });
 });

@@ -1401,6 +1401,50 @@ function EmptyState({
     action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
   ] });
 }
+var sizeClasses4 = {
+  xs: "size-5 text-[0.625rem]",
+  sm: "size-8 text-xs",
+  md: "size-10 text-sm",
+  lg: "size-12 text-base"
+};
+function deriveInitials(name) {
+  const words = name.split(/\s+/).map((word) => Array.from(word.replace(/[^\p{L}\p{N}]/gu, ""))).filter((letters2) => letters2.length > 0);
+  const [first, second] = words;
+  if (!first) return "";
+  const letters = second ? [first[0], second[0]] : first.slice(0, 2);
+  return letters.join("");
+}
+function Monogram({
+  name,
+  initials,
+  src,
+  size = "md",
+  className
+}) {
+  const [failedSrc, setFailedSrc] = useState(null);
+  const image = src && src !== failedSrc ? src : null;
+  return /* @__PURE__ */ jsx(
+    "span",
+    {
+      "aria-hidden": "true",
+      className: cn(
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold",
+        image ? "border border-border bg-surface" : "bg-accent-muted text-accent-text",
+        sizeClasses4[size],
+        className
+      ),
+      children: image ? /* @__PURE__ */ jsx(
+        "img",
+        {
+          src: image,
+          alt: "",
+          onError: () => setFailedSrc(image),
+          className: "size-full object-cover"
+        }
+      ) : (initials ?? deriveInitials(name)).toUpperCase()
+    }
+  );
+}
 var Popover = PopoverPrimitive.Root;
 var PopoverTrigger = PopoverPrimitive.Trigger;
 var PopoverAnchor = PopoverPrimitive.Anchor;
@@ -1436,6 +1480,7 @@ function AppLauncher({
   sections,
   moreHref,
   moreLabel = "All your tools",
+  icons: icons2 = false,
   notice,
   label = "Carbon apps",
   currentLabel = "Current",
@@ -1492,6 +1537,7 @@ function AppLauncher({
                     AppItem,
                     {
                       app,
+                      icon: icons2,
                       currentLabel,
                       unavailableLabel,
                       newTabLabel,
@@ -1526,24 +1572,31 @@ function AppLauncher({
 }
 function AppItem({
   app,
+  icon,
   currentLabel,
   unavailableLabel,
   newTabLabel,
   onOpen
 }) {
+  const tile = icon ? /* @__PURE__ */ jsx(Monogram, { name: app.name, src: app.iconSrc, size: "xs", className: "mt-px" }) : null;
   if (app.current) {
     return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
+      tile,
       /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
       /* @__PURE__ */ jsx(Badge, { children: currentLabel })
     ] });
   }
   if (!app.href) {
-    return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default flex-col gap-0 text-text-muted"), children: [
-      /* @__PURE__ */ jsx("span", { className: "min-w-0", children: app.name }),
-      /* @__PURE__ */ jsx("span", { className: "text-xs", children: unavailableLabel })
+    return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default text-text-muted"), children: [
+      tile,
+      /* @__PURE__ */ jsxs("span", { className: "flex min-w-0 flex-1 flex-col", children: [
+        /* @__PURE__ */ jsx("span", { children: app.name }),
+        /* @__PURE__ */ jsx("span", { className: "text-xs", children: unavailableLabel })
+      ] })
     ] });
   }
   return /* @__PURE__ */ jsxs("a", { href: app.href, target: "_blank", rel: newTabRel(), onClick: onOpen, className: cn(appRowClass, appLinkClass), children: [
+    tile,
     /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
     /* @__PURE__ */ jsx(NewTabHint, { label: newTabLabel, iconClassName: "mt-1 text-text-muted" })
   ] });
@@ -3066,32 +3119,6 @@ function ProductMark({
     )
   ] });
 }
-var sizeClasses4 = {
-  sm: "size-8 text-xs",
-  md: "size-10 text-sm",
-  lg: "size-12 text-base"
-};
-function deriveInitials(name) {
-  const words = name.split(/\s+/).map((word) => Array.from(word.replace(/[^\p{L}\p{N}]/gu, ""))).filter((letters2) => letters2.length > 0);
-  const [first, second] = words;
-  if (!first) return "";
-  const letters = second ? [first[0], second[0]] : first.slice(0, 2);
-  return letters.join("");
-}
-function Monogram({ name, initials, size = "md", className }) {
-  return /* @__PURE__ */ jsx(
-    "span",
-    {
-      "aria-hidden": "true",
-      className: cn(
-        "flex shrink-0 items-center justify-center rounded-md bg-accent-muted font-semibold text-accent-text",
-        sizeClasses4[size],
-        className
-      ),
-      children: (initials ?? deriveInitials(name)).toUpperCase()
-    }
-  );
-}
 function PageHeader({ title, description, actions, back, className }) {
   const BackLink = back?.as ?? "a";
   return /* @__PURE__ */ jsxs("div", { className: cn("mb-6 flex items-start justify-between", className), children: [
@@ -3739,6 +3766,7 @@ function SearchSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [open, options, activeIndex, openList, closeList, handleSelect, showCreate, handleCreate]
   );
+  const triggerLabel = /* @__PURE__ */ jsx("span", { className: cn("min-w-0 truncate", selectedOption ? "text-text-primary" : "text-text-muted"), children: selectedOption?.label ?? placeholder });
   return /* @__PURE__ */ jsxs("div", { ref, onBlur: handleBlur, className: cn("relative", className), children: [
     /* @__PURE__ */ jsxs(
       "button",
@@ -3760,16 +3788,10 @@ function SearchSelect({
           triggerClassName
         ),
         children: [
-          /* @__PURE__ */ jsx(
-            "span",
-            {
-              className: cn(
-                "min-w-0 truncate",
-                selectedOption ? "text-text-primary" : "text-text-muted"
-              ),
-              children: selectedOption?.label ?? placeholder
-            }
-          ),
+          selectedOption?.media ? /* @__PURE__ */ jsxs("span", { className: "flex min-w-0 items-center gap-2", children: [
+            selectedOption.media,
+            triggerLabel
+          ] }) : triggerLabel,
           /* @__PURE__ */ jsxs("div", { className: "flex shrink-0 items-center gap-1", children: [
             clearable && value && !disabled && /* @__PURE__ */ jsx(
               "span",
@@ -3843,9 +3865,12 @@ function SearchSelect({
                   option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
                   optionClassName
                 ),
-                children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs("div", { children: [
-                  /* @__PURE__ */ jsx("div", { children: option.label }),
-                  option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
+                children: renderOption ? renderOption(option) : /* @__PURE__ */ jsxs(Fragment, { children: [
+                  option.media,
+                  /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
+                    /* @__PURE__ */ jsx("div", { children: option.label }),
+                    option.sublabel && /* @__PURE__ */ jsx("div", { className: "text-xs text-text-muted", children: option.sublabel })
+                  ] })
                 ] })
               },
               option.value
