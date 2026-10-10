@@ -54,6 +54,12 @@ describe("Sheet", () => {
     expect(screen.getByRole("dialog")).toHaveClass("right-0");
   });
 
+  it("does not slide for somebody who prefers reduced motion", () => {
+    render(<SheetExample />);
+    fireEvent.click(screen.getByRole("button", { name: "Open sheet" }));
+    expect(screen.getByRole("dialog")).toHaveClass("motion-reduce:animate-none", "motion-reduce:transition-none");
+  });
+
   it("applies the left-side variant classes when side=left", () => {
     render(<SheetExample side="left" />);
     fireEvent.click(screen.getByRole("button", { name: "Open sheet" }));

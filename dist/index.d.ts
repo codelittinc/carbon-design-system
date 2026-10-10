@@ -511,6 +511,12 @@ interface RadioGroupProps {
     /** Submits the chosen value under this name with a surrounding form. */
     name?: string;
     orientation?: "horizontal" | "vertical";
+    /**
+     * `touch` draws each labelled option as a bordered row at least 48px tall,
+     * the whole row its target and the chosen row marked: an answer someone taps
+     * on a phone. Vertical `options` only; the default rows are compact.
+     */
+    size?: "default" | "touch";
     /** Disables every option. */
     disabled?: boolean;
     /** A form will not submit until one option is chosen. */
@@ -525,7 +531,7 @@ interface RadioGroupProps {
  * when there are too many options to show at once, and `SegmentedControl` for
  * a view switch.
  */
-declare function RadioGroup({ value, onChange, options, children, name, orientation, disabled, required, className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, }: RadioGroupProps): ReactElement;
+declare function RadioGroup({ value, onChange, options, children, name, orientation, size, disabled, required, className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, }: RadioGroupProps): ReactElement;
 
 interface StatusBadgeProps {
     status: string;

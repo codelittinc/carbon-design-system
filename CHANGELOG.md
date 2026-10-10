@@ -8,6 +8,20 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.32.0] - 2026-10-10
+
+### Added
+
+- `RadioGroup` `size="touch"`: each labelled option is a bordered row at least 48px tall, the
+  whole row its tap target, and the chosen row marked by its border and fill as well as the
+  dot. For answers tapped on a phone, such as a training quiz. Vertical `options` only; the
+  default stays compact.
+
+### Fixed
+
+- `Sheet`: with `prefers-reduced-motion`, the panel no longer slides in and out; it appears and
+  goes at once.
+
 ## [1.31.0] - 2026-10-10
 
 ### Added

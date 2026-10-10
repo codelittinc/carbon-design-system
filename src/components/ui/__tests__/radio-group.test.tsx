@@ -80,4 +80,30 @@ describe("RadioGroup", () => {
     render(<RadioGroup options={OPTIONS} value="" onChange={() => {}} />);
     expect(screen.getByRole("radiogroup")).toHaveClass("flex-col");
   });
+
+  describe('size="touch"', () => {
+    it("makes each option a row that chooses from anywhere on it", () => {
+      const onChange = vi.fn();
+      render(<RadioGroup aria-label="Answer" size="touch" options={OPTIONS} value="" onChange={onChange} />);
+      const row = screen.getByText("EliseAI").closest("label");
+      expect(row).toHaveClass("min-h-12");
+      fireEvent.click(row!);
+      expect(onChange).toHaveBeenLastCalledWith("b");
+      expect(screen.getByRole("radio", { name: "EliseAI" })).toBeInTheDocument();
+    });
+
+    it("keeps a disabled option out of reach", () => {
+      const onChange = vi.fn();
+      render(<RadioGroup aria-label="Answer" size="touch" options={OPTIONS} value="" onChange={onChange} />);
+      expect(screen.getByRole("radio", { name: "Gusto" })).toBeDisabled();
+      expect(screen.getByText("Gusto").closest("label")).toHaveClass("cursor-not-allowed");
+    });
+
+    it("leaves horizontal groups compact", () => {
+      render(
+        <RadioGroup aria-label="Answer" size="touch" orientation="horizontal" options={OPTIONS} value="" onChange={() => {}} />,
+      );
+      expect(screen.getByText("Yardi").closest("label")).not.toHaveClass("min-h-12");
+    });
+  });
 });

@@ -1873,6 +1873,7 @@ function RadioGroup({
   children,
   name,
   orientation = "vertical",
+  size = "default",
   disabled = false,
   required = false,
   className,
@@ -1881,6 +1882,7 @@ function RadioGroup({
 }) {
   const baseId = useId();
   const vertical = orientation === "vertical";
+  const touch = vertical && size === "touch";
   return /* @__PURE__ */ jsx(
     RadioGroupPrimitive.Root,
     {
@@ -1892,10 +1894,31 @@ function RadioGroup({
       required,
       "aria-label": ariaLabel,
       "aria-labelledby": ariaLabelledBy,
-      className: cn(vertical ? "flex flex-col" : "flex flex-wrap items-center gap-4", className),
+      className: cn(
+        vertical ? cn("flex flex-col", touch && "gap-2") : "flex flex-wrap items-center gap-4",
+        className
+      ),
       children: options ? options.map((option, index) => {
         const id = `${baseId}-${index}`;
         const isDisabled = disabled || option.disabled;
+        if (touch) {
+          return /* @__PURE__ */ jsxs(
+            Label,
+            {
+              htmlFor: id,
+              className: cn(
+                "flex min-h-12 w-full items-center gap-3 rounded-md border border-border px-3 py-2 text-sm break-words text-text-primary transition-colors",
+                "has-[[data-state=checked]]:border-accent has-[[data-state=checked]]:bg-accent-muted",
+                isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-surface-overlay"
+              ),
+              children: [
+                /* @__PURE__ */ jsx(RadioGroupItem, { id, value: option.value, disabled: option.disabled }),
+                /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: option.label })
+              ]
+            },
+            option.value
+          );
+        }
         return /* @__PURE__ */ jsxs(
           "div",
           {
@@ -2875,7 +2898,7 @@ var SheetContent = forwardRef(
       {
         ref,
         className: cn(
-          "fixed z-50 flex h-full flex-col border-border bg-surface-raised shadow-lg transition duration-300 ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "fixed z-50 flex h-full flex-col border-border bg-surface-raised shadow-lg transition duration-300 ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out motion-reduce:animate-none motion-reduce:transition-none",
           side === "right" && "inset-y-0 right-0 w-full max-w-lg border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           side === "left" && "inset-y-0 left-0 w-full max-w-lg border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
           className
