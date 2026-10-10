@@ -1582,7 +1582,7 @@ function AppItem({
   if (app.current) {
     return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
       tile,
-      /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1", children: app.name }),
+      /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-auto", children: app.name }),
       /* @__PURE__ */ jsx(Badge, { children: currentLabel })
     ] });
   }

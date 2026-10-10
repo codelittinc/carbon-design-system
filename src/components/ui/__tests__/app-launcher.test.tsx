@@ -107,6 +107,16 @@ describe("AppLauncher", () => {
     expect(within(item).getByText("Player Scoreboard").parentElement).toHaveAttribute("aria-current", "true");
   });
 
+  // jsdom does no layout, so this pins the mechanism: the name is sized by its text, so the
+  // wrapping row moves the badge down rather than squeezing the name until a word breaks.
+  it("lets the Current badge wrap below the name instead of breaking it", async () => {
+    const { panel } = await openLauncher({ icons: true });
+    const name = within(panel).getByText("Player Scoreboard");
+    expect(name).toHaveClass("flex-auto");
+    expect(name).not.toHaveClass("flex-1");
+    expect(name.parentElement).toHaveClass("flex-wrap");
+  });
+
   it("shows an app with no href as text, with no link", async () => {
     const { panel } = await openLauncher();
     const item = within(panel).getByText("Yardi").closest("li")!;

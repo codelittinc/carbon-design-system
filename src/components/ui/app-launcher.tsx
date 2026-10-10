@@ -192,7 +192,10 @@ function AppItem({
     return (
       <div aria-current="true" className={cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text")}>
         {tile}
-        <span className="min-w-0 flex-1">{app.name}</span>
+        {/* flex-auto, not flex-1: sized by its text, so a row too narrow for the
+            name and the badge wraps the badge to the next line. A zero basis
+            never wraps — the name shrinks instead and breaks mid-word. */}
+        <span className="min-w-0 flex-auto">{app.name}</span>
         <Badge>{currentLabel}</Badge>
       </div>
     );
