@@ -8,6 +8,16 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.33.0] - 2026-10-10
+
+### Changed
+
+- `AppLauncher` shows every app in one list sorted by name, with no section headings: the
+  apps of all `sections` are merged. `sections` and `heading` stay in the API, so callers need
+  no change, but headings are no longer shown.
+- `AppLauncher` no longer draws the external-link icon on each app row or the "All your tools"
+  link. Links still open in a new tab, and screen readers still hear `newTabLabel`.
+
 ## [1.32.0] - 2026-10-10
 
 ### Added

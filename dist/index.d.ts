@@ -387,11 +387,12 @@ interface AppLauncherApp {
     iconSrc?: string | null;
 }
 interface AppLauncherSection {
+    /** Not shown: every section's apps are merged into one alphabetical list. */
     heading: string;
     apps: AppLauncherApp[];
 }
 interface AppLauncherProps {
-    /** Sections without apps are left out; when all are empty the panel says so. */
+    /** Merged into one list sorted by name; when every section is empty the panel says so. */
     sections: AppLauncherSection[];
     /** A link under the list to the full catalog of the person's tools. */
     moreHref?: string;
@@ -416,7 +417,8 @@ interface AppLauncherProps {
 }
 /**
  * The grid-icon button that lists the apps and tools a person can open, in
- * sections. Links open in a new tab. Purely presentational: the app fetches
+ * one alphabetical list. Links open in a new tab, said only to screen readers: the panel
+ * is all links, so a per-row icon is noise. Purely presentational: the app fetches
  * the list and passes it in.
  */
 declare function AppLauncher({ sections, moreHref, moreLabel, icons, notice, label, currentLabel, unavailableLabel, newTabLabel, emptyTitle, emptyDescription, className, }: AppLauncherProps): ReactElement;
