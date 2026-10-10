@@ -46,6 +46,12 @@ export interface RadioGroupProps {
   /** Submits the chosen value under this name with a surrounding form. */
   name?: string;
   orientation?: "horizontal" | "vertical";
+  /**
+   * `touch` draws each labelled option as a bordered row at least 48px tall,
+   * the whole row its target and the chosen row marked: an answer someone taps
+   * on a phone. Vertical `options` only; the default rows are compact.
+   */
+  size?: "default" | "touch";
   /** Disables every option. */
   disabled?: boolean;
   /** A form will not submit until one option is chosen. */
@@ -68,6 +74,7 @@ export function RadioGroup({
   children,
   name,
   orientation = "vertical",
+  size = "default",
   disabled = false,
   required = false,
   className,
@@ -76,6 +83,7 @@ export function RadioGroup({
 }: RadioGroupProps): ReactElement {
   const baseId = useId();
   const vertical = orientation === "vertical";
+  const touch = vertical && size === "touch";
 
   return (
     <RadioGroupPrimitive.Root
@@ -87,12 +95,33 @@ export function RadioGroup({
       required={required}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
-      className={cn(vertical ? "flex flex-col" : "flex flex-wrap items-center gap-4", className)}
+      className={cn(
+        vertical ? cn("flex flex-col", touch && "gap-2") : "flex flex-wrap items-center gap-4",
+        className,
+      )}
     >
       {options
         ? options.map((option, index) => {
             const id = `${baseId}-${index}`;
             const isDisabled = disabled || option.disabled;
+            if (touch) {
+              // The label is the row, so a tap anywhere on it chooses; the
+              // chosen row is marked by its border and fill as well as the dot.
+              return (
+                <Label
+                  key={option.value}
+                  htmlFor={id}
+                  className={cn(
+                    "flex min-h-12 w-full items-center gap-3 rounded-md border border-border px-3 py-2 text-sm break-words text-text-primary transition-colors",
+                    "has-[[data-state=checked]]:border-accent has-[[data-state=checked]]:bg-accent-muted",
+                    isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-surface-overlay",
+                  )}
+                >
+                  <RadioGroupItem id={id} value={option.value} disabled={option.disabled} />
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                </Label>
+              );
+            }
             return (
               <div
                 key={option.value}

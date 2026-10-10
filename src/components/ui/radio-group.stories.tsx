@@ -73,6 +73,19 @@ export const WithCustomRows: Story = {
   },
 };
 
+/** Bordered 48px rows, chosen from anywhere on the row: a quiz answered on a phone. */
+export const Touch: Story = {
+  render: () => {
+    const [value, setValue] = useState("");
+    return (
+      <div className="max-w-sm">
+        <p className="mb-2 text-sm font-medium text-text-primary">Where does a new lead first appear?</p>
+        <RadioGroup aria-label="Answer" size="touch" value={value} onChange={setValue} options={ANSWERS} />
+      </div>
+    );
+  },
+};
+
 export const DisabledOption: Story = {
   args: {
     value: "a",
