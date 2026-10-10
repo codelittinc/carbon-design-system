@@ -8,6 +8,17 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.31.0] - 2026-10-10
+
+### Added
+
+- `RadioGroup`: exactly one of a few options, all visible, on Radix's radio group (arrow keys
+  move between options, and it submits under `name` with a surrounding form). Pass `options`
+  for labelled rows laid out like `CheckboxGroup`'s, or pass `RadioGroupItem`s as `children`
+  for rows that need more than a label, such as choosing which typed answer is the correct
+  one. Vertical by default, since answers read as a list.
+- `RadioGroupItem`: one radio button, for those custom rows.
+
 ## [1.30.1] - 2026-10-10
 
 ### Fixed
