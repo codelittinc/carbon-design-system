@@ -828,21 +828,27 @@ interface SegmentTrackerOptions {
     minSeconds?: number;
     /**
      * A `timeupdate` that moves further than this (times the playback rate)
-     * since the last one is a seek the browser did not announce. Default 2.
+     * since the last one — beyond what the wall-clock time between them
+     * explains, when the caller passes it — is a seek the browser did not
+     * announce. Default 2.
      */
     jumpSeconds?: number;
 }
 interface SegmentTracker {
     /** Playback started (or resumed) at `t`. Closes any stretch still open. */
     play(t: number): VideoSegment | null;
-    /** A `timeupdate` at `t`, playing at `rate`. */
-    tick(t: number, rate?: number): VideoSegment | null;
+    /**
+     * A `timeupdate` at `t`, playing at `rate`. `now` (ms, e.g. `performance.now()`)
+     * lets a late `timeupdate` — a long task, a throttled tab — count as the
+     * playback it was rather than as a jump.
+     */
+    tick(t: number, rate?: number, now?: number): VideoSegment | null;
     /** The playhead moved to `to` by a seek. Closes the open stretch where it was. */
     seek(to: number): VideoSegment | null;
     /** Playback stopped at `t` (pause, end, the source changing), playing at `rate`. */
-    pause(t: number, rate?: number): VideoSegment | null;
+    pause(t: number, rate?: number, now?: number): VideoSegment | null;
     /** Report the open stretch up to `t` now, and keep playing (page hidden). */
-    flush(t: number, rate?: number): VideoSegment | null;
+    flush(t: number, rate?: number, now?: number): VideoSegment | null;
 }
 declare function createSegmentTracker(options?: SegmentTrackerOptions): SegmentTracker;
 
@@ -871,6 +877,9 @@ interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "
      * that it expired, which the bucket answers on the next range request.
      * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
      * whether it was playing, across a `src` change, however many it takes.
+     *
+     * A `src` whose path is different is a different VIDEO, not a fresh URL for
+     * this one: everything starts over, and its `startAt` applies.
      */
     onError?: (error: MediaError | null, positionSeconds: number) => void;
 }

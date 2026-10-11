@@ -23,6 +23,9 @@ uses it as the GitHub Release notes.
   - Changing `src` keeps the position and whether it was playing, so an expired URL can be
     swapped for a fresh one from `onError(error, positionSeconds)` without losing the place —
     also when the fresh one fails too, and `startAt` still applies when the first never loaded.
+    A `src` with a different path is a different video: nothing carries over.
+  - A late `timeupdate` (a long task, a throttled tab) still counts as watched when the
+    wall-clock time explains it; only an unexplained jump is treated as a seek.
   - No `crossOrigin`: a plain media URL plays without the server needing CORS. `<track>`
     children pass through for captions.
 - `createSegmentTracker`, the framework-free bookkeeping behind `onSegment`, for anything that

@@ -6,7 +6,6 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
-  useState,
   type SyntheticEvent,
   type VideoHTMLAttributes,
 } from "react";
@@ -16,6 +15,22 @@ import { createSegmentTracker, type SegmentTracker, type VideoSegment } from "./
 export type { VideoSegment } from "./video-segments";
 
 type VideoEvent = SyntheticEvent<HTMLVideoElement>;
+
+// The source-swap bookkeeping must run before the new source's first events;
+// on the server there is no layout phase (and React 18 warns about one).
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** The video a URL names, without the query a presigned or cache-busted URL changes. */
+function videoIdentity(src: string): string {
+  try {
+    const url = new URL(src, "http://relative.invalid");
+    return url.origin + url.pathname;
+  } catch {
+    return src;
+  }
+}
+
+const now = () => (typeof performance === "undefined" ? Date.now() : performance.now());
 
 export interface VideoViewerProps
   extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "src" | "poster" | "title" | "onError"> {
@@ -43,6 +58,9 @@ export interface VideoViewerProps
    * that it expired, which the bucket answers on the next range request.
    * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
    * whether it was playing, across a `src` change, however many it takes.
+   *
+   * A `src` whose path is different is a different VIDEO, not a fresh URL for
+   * this one: everything starts over, and its `startAt` applies.
    */
   onError?: (error: MediaError | null, positionSeconds: number) => void;
 }
@@ -92,8 +110,9 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     const videoRef = useRef<HTMLVideoElement>(null);
     useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement, []);
 
-    const [initialTracker] = useState(() => createSegmentTracker({ everySeconds: segmentEverySeconds }));
-    const tracker = useRef<SegmentTracker>(initialTracker);
+    const trackerRef = useRef<SegmentTracker | null>(null);
+    if (trackerRef.current === null) trackerRef.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
+    const tracker = trackerRef as { current: SegmentTracker };
     // Latest callbacks, so the document listeners never hold stale ones.
     const callbacks = useRef({ onSegment, onError });
     callbacks.current = { onSegment, onError };
@@ -110,6 +129,11 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     const previousSrc = useRef(src);
 
     const rate = () => videoRef.current?.playbackRate ?? 1;
+    /** The live playhead, unless a new source is loading (it reads 0 then). */
+    const livePosition = (video: HTMLVideoElement | null) => {
+      if (video && !resume.current && hadMetadata.current) position.current = video.currentTime;
+      return position.current;
+    };
     const emit = (segment: VideoSegment | null) => {
       if (segment) callbacks.current.onSegment?.(segment, position.current);
     };
@@ -128,10 +152,20 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     // back to the same place once the new source's metadata is in. A swap
     // during a swap keeps the first one's target; a swap before any metadata
     // has nothing to keep, and `startAt` still applies.
-    useLayoutEffect(() => {
-      if (previousSrc.current === src) return;
+    useIsomorphicLayoutEffect(() => {
+      const previous = previousSrc.current;
+      if (previous === src) return;
       previousSrc.current = src;
       emit(tracker.current.pause(position.current, rate()));
+      if (videoIdentity(previous) !== videoIdentity(src)) {
+        // Another video: nothing of this one carries over.
+        resume.current = null;
+        hadMetadata.current = false;
+        startDone.current = false;
+        wasPlaying.current = false;
+        position.current = 0;
+        return;
+      }
       if (hadMetadata.current && !resume.current) {
         resume.current = { time: position.current, playing: wasPlaying.current };
       }
@@ -152,7 +186,7 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       if (trackerEvery.current === segmentEverySeconds) return;
       trackerEvery.current = segmentEverySeconds;
       const playing = wasPlaying.current;
-      emit(tracker.current.pause(position.current, rate()));
+      emit(tracker.current.pause(livePosition(videoRef.current), rate()));
       tracker.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
       if (playing) tracker.current.play(position.current);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,11 +194,9 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
 
     // The page going away or out of sight reports what was watched so far.
     useEffect(() => {
-      const flush = () => {
-        const video = videoRef.current;
-        if (video && !resume.current) position.current = video.currentTime;
-        emit(tracker.current.flush(position.current, rate()));
-      };
+      // The element, held here: at unmount the ref is already null.
+      const video = videoRef.current;
+      const flush = () => emit(tracker.current.flush(livePosition(video), rate(), now()));
       const onVisibility = () => {
         if (document.visibilityState === "hidden") flush();
       };
@@ -173,7 +205,7 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       return () => {
         document.removeEventListener("visibilitychange", onVisibility);
         window.removeEventListener("pagehide", flush);
-        emit(tracker.current.pause(position.current, rate()));
+        emit(tracker.current.pause(livePosition(video), video?.playbackRate ?? 1, now()));
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -186,7 +218,12 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
         resume.current = null;
         video.currentTime = pending.time;
         position.current = pending.time;
-        if (pending.playing) video.play()?.catch(() => {});
+        if (pending.playing) {
+          // Refused (an autoplay policy, another swap): it is paused, so say so.
+          video.play()?.catch(() => {
+            wasPlaying.current = false;
+          });
+        }
         return;
       }
       applyStartAt(video);
@@ -204,11 +241,13 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       // While a new source loads its playhead reads 0; that is not where we are.
       if (video.seeking || resume.current) return;
       position.current = video.currentTime;
-      emit(tracker.current.tick(video.currentTime, video.playbackRate));
+      emit(tracker.current.tick(video.currentTime, video.playbackRate, now()));
     };
 
     const handleSeeking = (event: VideoEvent) => {
       if (resume.current) return;
+      // Somebody chose a place: a `startAt` arriving after this must not move them.
+      startDone.current = true;
       position.current = event.currentTarget.currentTime;
       emit(tracker.current.seek(position.current));
     };
@@ -223,7 +262,7 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       if (video.ended || resume.current) return;
       wasPlaying.current = false;
       position.current = video.currentTime;
-      emit(tracker.current.pause(position.current, video.playbackRate));
+      emit(tracker.current.pause(position.current, video.playbackRate, now()));
     };
 
     const handleEnded = (event: VideoEvent) => {

@@ -99,14 +99,14 @@ describe("VideoViewer", () => {
   });
 
   it("starts at `startAt` once, on the first source only", () => {
-    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" startAt={42} />);
+    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" startAt={42} />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(42);
 
     media.state.currentTime = 50;
     fireEvent.timeUpdate(video());
-    rerender(<VideoViewer src="b.mp4" title="Leasing basics" startAt={42} />);
+    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" startAt={42} />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(50);
   });
@@ -136,13 +136,13 @@ describe("VideoViewer", () => {
   });
 
   it("does not resume playing after a `src` change when it was paused", () => {
-    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" />);
+    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     media.playTo(8);
     media.pause();
     media.state.currentTime = 0; // a new source starts from the top
-    rerender(<VideoViewer src="b.mp4" title="Leasing basics" />);
+    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(8);
     expect(media.play).not.toHaveBeenCalled();
@@ -166,20 +166,48 @@ describe("VideoViewer", () => {
 
   it("does not lose the position to the new source's playhead at 0, even when it fails too", () => {
     const onError = vi.fn();
-    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" onError={onError} />);
+    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" onError={onError} />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     media.playTo(30);
 
-    rerender(<VideoViewer src="b.mp4" title="Leasing basics" onError={onError} />);
+    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" onError={onError} />);
     media.state.currentTime = 0;
     fireEvent.timeUpdate(video());
     fireEvent.error(video());
     expect(onError).toHaveBeenLastCalledWith(null, 30);
 
-    rerender(<VideoViewer src="c.mp4" title="Leasing basics" onError={onError} />);
+    rerender(<VideoViewer src="v.mp4?sig=3" title="Leasing basics" onError={onError} />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(30);
+  });
+
+  it("treats a src with another path as another video: nothing carries over", () => {
+    const onSegment = vi.fn();
+    const { rerender } = render(
+      <VideoViewer src="https://bucket.test/a.mp4?sig=1" title="Leasing basics" onSegment={onSegment} startAt={10} />,
+    );
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    media.playTo(300);
+
+    rerender(<VideoViewer src="https://bucket.test/b.mp4?sig=1" title="Leasing basics" onSegment={onSegment} startAt={40} />);
+    // Started at 10, so the 15 s stretches end at 295; the swap closes the last one.
+    expect(onSegment).toHaveBeenLastCalledWith({ start: 295, end: 300 }, 300);
+    media.state.currentTime = 0;
+    media.state.paused = true;
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(40);
+    expect(media.play).not.toHaveBeenCalled();
+  });
+
+  it("a seek before playback wins over a `startAt` that arrives later", () => {
+    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    media.seek(120);
+    rerender(<VideoViewer src="a.mp4" title="Leasing basics" startAt={45} />);
+    expect(media.state.currentTime).toBe(120);
   });
 
   it("still applies `startAt` when the first source failed before it loaded", () => {

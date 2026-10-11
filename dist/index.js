@@ -97,8 +97,8 @@ function monthOfKey(key) {
   const date = parseDateKey(key);
   return date ? { year: date.year, month: date.month } : null;
 }
-function todayIn(now = /* @__PURE__ */ new Date()) {
-  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+function todayIn(now2 = /* @__PURE__ */ new Date()) {
+  return { year: now2.getFullYear(), month: now2.getMonth() + 1, day: now2.getDate() };
 }
 function monthKey({ year, month }) {
   return `${year}-${String(month).padStart(2, "0")}`;
@@ -2847,38 +2847,50 @@ function round(t) {
   return Math.round(t * 10) / 10;
 }
 function createSegmentTracker(options = {}) {
-  const everySeconds = options.everySeconds ?? 15;
   const minSeconds = options.minSeconds ?? 0.5;
+  const everySeconds = Math.max(options.everySeconds ?? 15, minSeconds, 1);
   const jumpSeconds = options.jumpSeconds ?? 2;
   let playing = false;
   let start = null;
   let last = null;
+  let lastAt;
   const close = (from, to) => {
     if (from === null || to === null || !Number.isFinite(from) || !Number.isFinite(to)) return null;
     if (to - from < minSeconds) return null;
     return { start: round(from), end: round(to) };
   };
-  const continues = (t, rate) => last !== null && t >= last - BACKWARD_TOLERANCE && t <= last + jumpSeconds * Math.max(rate, 1);
+  const continues = (t, rate, now2) => {
+    if (last === null || t < last - BACKWARD_TOLERANCE) return false;
+    const elapsed = now2 !== void 0 && lastAt !== void 0 ? Math.max(0, now2 - lastAt) / 1e3 : 0;
+    return t <= last + (jumpSeconds + elapsed) * Math.max(rate, 1);
+  };
+  const at = (now2) => {
+    lastAt = now2;
+  };
   return {
     play(t) {
       const segment = playing ? close(start, last) : null;
       playing = true;
       start = t;
       last = t;
+      at(void 0);
       return segment;
     },
-    tick(t, rate = 1) {
+    tick(t, rate = 1, now2) {
       if (!playing || start === null) {
         last = t;
+        at(now2);
         return null;
       }
-      if (!continues(t, rate)) {
+      if (!continues(t, rate, now2)) {
         const segment = close(start, last);
         start = t;
         last = t;
+        at(now2);
         return segment;
       }
       last = Math.max(last ?? t, t);
+      at(now2);
       if (last - start >= everySeconds) {
         const segment = close(start, last);
         start = last;
@@ -2890,30 +2902,42 @@ function createSegmentTracker(options = {}) {
       const segment = playing ? close(start, last) : null;
       start = playing ? to : null;
       last = to;
+      at(void 0);
       return segment;
     },
-    pause(t, rate = 1) {
+    pause(t, rate = 1, now2) {
       if (!playing) {
         last = t;
         return null;
       }
-      const end = continues(t, rate) ? Math.max(last ?? t, t) : last;
+      const end = continues(t, rate, now2) ? Math.max(last ?? t, t) : last;
       const segment = close(start, end);
       playing = false;
       start = null;
       last = t;
       return segment;
     },
-    flush(t, rate = 1) {
+    flush(t, rate = 1, now2) {
       if (!playing || start === null) return null;
-      const end = continues(t, rate) ? Math.max(last ?? t, t) : last;
+      const end = continues(t, rate, now2) ? Math.max(last ?? t, t) : last;
       const segment = close(start, end);
       if (segment) start = end;
       last = end;
+      at(now2);
       return segment;
     }
   };
 }
+var useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+function videoIdentity(src) {
+  try {
+    const url = new URL(src, "http://relative.invalid");
+    return url.origin + url.pathname;
+  } catch {
+    return src;
+  }
+}
+var now = () => typeof performance === "undefined" ? Date.now() : performance.now();
 function both(mine, theirs) {
   return (event) => {
     mine(event);
@@ -2942,8 +2966,9 @@ var VideoViewer = forwardRef(
   }, ref) => {
     const videoRef = useRef(null);
     useImperativeHandle(ref, () => videoRef.current, []);
-    const [initialTracker] = useState(() => createSegmentTracker({ everySeconds: segmentEverySeconds }));
-    const tracker = useRef(initialTracker);
+    const trackerRef = useRef(null);
+    if (trackerRef.current === null) trackerRef.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
+    const tracker = trackerRef;
     const callbacks = useRef({ onSegment, onError });
     callbacks.current = { onSegment, onError };
     const position = useRef(0);
@@ -2953,6 +2978,10 @@ var VideoViewer = forwardRef(
     const startDone = useRef(false);
     const previousSrc = useRef(src);
     const rate = () => videoRef.current?.playbackRate ?? 1;
+    const livePosition = (video) => {
+      if (video && !resume.current && hadMetadata.current) position.current = video.currentTime;
+      return position.current;
+    };
     const emit2 = (segment) => {
       if (segment) callbacks.current.onSegment?.(segment, position.current);
     };
@@ -2965,10 +2994,19 @@ var VideoViewer = forwardRef(
         position.current = startAt;
       }
     };
-    useLayoutEffect(() => {
-      if (previousSrc.current === src) return;
+    useIsomorphicLayoutEffect(() => {
+      const previous = previousSrc.current;
+      if (previous === src) return;
       previousSrc.current = src;
       emit2(tracker.current.pause(position.current, rate()));
+      if (videoIdentity(previous) !== videoIdentity(src)) {
+        resume.current = null;
+        hadMetadata.current = false;
+        startDone.current = false;
+        wasPlaying.current = false;
+        position.current = 0;
+        return;
+      }
       if (hadMetadata.current && !resume.current) {
         resume.current = { time: position.current, playing: wasPlaying.current };
       }
@@ -2982,16 +3020,13 @@ var VideoViewer = forwardRef(
       if (trackerEvery.current === segmentEverySeconds) return;
       trackerEvery.current = segmentEverySeconds;
       const playing = wasPlaying.current;
-      emit2(tracker.current.pause(position.current, rate()));
+      emit2(tracker.current.pause(livePosition(videoRef.current), rate()));
       tracker.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
       if (playing) tracker.current.play(position.current);
     }, [segmentEverySeconds]);
     useEffect(() => {
-      const flush = () => {
-        const video = videoRef.current;
-        if (video && !resume.current) position.current = video.currentTime;
-        emit2(tracker.current.flush(position.current, rate()));
-      };
+      const video = videoRef.current;
+      const flush = () => emit2(tracker.current.flush(livePosition(video), rate(), now()));
       const onVisibility = () => {
         if (document.visibilityState === "hidden") flush();
       };
@@ -3000,7 +3035,7 @@ var VideoViewer = forwardRef(
       return () => {
         document.removeEventListener("visibilitychange", onVisibility);
         window.removeEventListener("pagehide", flush);
-        emit2(tracker.current.pause(position.current, rate()));
+        emit2(tracker.current.pause(livePosition(video), video?.playbackRate ?? 1, now()));
       };
     }, []);
     const handleLoadedMetadata = (event) => {
@@ -3011,8 +3046,11 @@ var VideoViewer = forwardRef(
         resume.current = null;
         video.currentTime = pending2.time;
         position.current = pending2.time;
-        if (pending2.playing) video.play()?.catch(() => {
-        });
+        if (pending2.playing) {
+          video.play()?.catch(() => {
+            wasPlaying.current = false;
+          });
+        }
         return;
       }
       applyStartAt(video);
@@ -3027,10 +3065,11 @@ var VideoViewer = forwardRef(
       const video = event.currentTarget;
       if (video.seeking || resume.current) return;
       position.current = video.currentTime;
-      emit2(tracker.current.tick(video.currentTime, video.playbackRate));
+      emit2(tracker.current.tick(video.currentTime, video.playbackRate, now()));
     };
     const handleSeeking = (event) => {
       if (resume.current) return;
+      startDone.current = true;
       position.current = event.currentTarget.currentTime;
       emit2(tracker.current.seek(position.current));
     };
@@ -3042,7 +3081,7 @@ var VideoViewer = forwardRef(
       if (video.ended || resume.current) return;
       wasPlaying.current = false;
       position.current = video.currentTime;
-      emit2(tracker.current.pause(position.current, video.playbackRate));
+      emit2(tracker.current.pause(position.current, video.playbackRate, now()));
     };
     const handleEnded = (event) => {
       wasPlaying.current = false;

@@ -102,4 +102,26 @@ describe("createSegmentTracker", () => {
     tracker.tick(5, 2);
     expect(tracker.pause(8, 2)).toEqual({ start: 4, end: 8 });
   });
+
+  it("a late timeupdate that wall-clock time explains is playback, not a jump", () => {
+    const tracker = createSegmentTracker();
+    tracker.play(0);
+    tracker.tick(1, 1, 1000);
+    // 4 s of media after 4 s of wall time (a long task held the event): still watching.
+    expect(tracker.tick(5, 1, 5000)).toBeNull();
+    expect(tracker.pause(6, 1, 6000)).toEqual({ start: 0, end: 6 });
+    // 40 s of media after 1 s of wall time is a jump.
+    tracker.play(10);
+    tracker.tick(11, 1, 10_000);
+    expect(tracker.tick(51, 1, 11_000)).toEqual({ start: 10, end: 11 });
+  });
+
+  it("an interval below the minimum still reports", () => {
+    const tracker = createSegmentTracker({ everySeconds: 0 });
+    tracker.play(0);
+    expect(play(tracker, 0, 2)).toEqual([
+      { start: 0, end: 1 },
+      { start: 1, end: 2 },
+    ]);
+  });
 });
