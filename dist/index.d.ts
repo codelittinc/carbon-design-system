@@ -835,7 +835,10 @@ interface SegmentTrackerOptions {
     jumpSeconds?: number;
 }
 interface SegmentTracker {
-    /** Playback started (or resumed) at `t`. Closes any stretch still open. */
+    /**
+     * Playback started (or resumed) at `t`. A stretch still open carries on when
+     * `t` continues it — a `playing` after a buffering stall — and is closed otherwise.
+     */
     play(t: number): VideoSegment | null;
     /**
      * A `timeupdate` at `t`, playing at `rate`. `now` (ms, e.g. `performance.now()`)
@@ -878,10 +881,22 @@ interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "
      * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
      * whether it was playing, across a `src` change, however many it takes.
      *
-     * A `src` whose path is different is a different VIDEO, not a fresh URL for
-     * this one: everything starts over, and its `startAt` applies.
+     * A `src` that names another video is a different VIDEO, not a fresh URL
+     * for this one: everything starts over, and its `startAt` applies. Which
+     * video a URL names is `videoKey` when given, or else the URL without its
+     * signing parameters (`X-Amz-*`, `Signature`, `Expires`, …).
+     *
+     * The fresh URL must be a different string: the same one changes nothing,
+     * and the element stays in its error state. For a stable redirect endpoint,
+     * add a cache-busting parameter (and pass `videoKey`).
      */
     onError?: (error: MediaError | null, positionSeconds: number) => void;
+    /**
+     * Which video this is — a material id, say. When it is unchanged, a new
+     * `src` is a refreshed URL for the same video; when it changes, a new video.
+     * Leave it out and the URL decides (see `onError`).
+     */
+    videoKey?: string;
 }
 /**
  * Plays a video file — an MP4 from a URL, typically a presigned one on a

@@ -65,35 +65,28 @@ export const ReportsWatchedSegments: Story = {
 };
 
 /**
- * A source that fails, as an expired presigned URL does. `onError` gets the
- * position; swapping `src` for a working one carries on from there.
+ * A presigned URL expires; the consumer swaps in a fresh one for the SAME
+ * video (here, the same file with a new signature). Play for a few seconds,
+ * then swap: the viewer comes back to the same place, still playing.
  */
-export const RecoversFromAnError: Story = {
+export const KeepsItsPlaceOnAFreshUrl: Story = {
   render: (args) => {
-    const [src, setSrc] = useState("video-viewer/expired.mp4");
-    const [error, setError] = useState<string | null>(null);
+    const [signature, setSignature] = useState(1);
+    const [lastError, setLastError] = useState<string | null>(null);
     return (
       <div className="max-w-2xl space-y-3">
         <VideoViewer
           {...args}
-          src={src}
-          onError={(_e, position) => setError(`Failed at ${position.toFixed(1)} s`)}
+          src={`video-viewer/sample.mp4?X-Amz-Signature=${signature}`}
+          onError={(_e, position) => setLastError(`Failed at ${position.toFixed(1)} s`)}
         />
-        {error ? (
-          <div className="flex items-center gap-3 text-sm text-text-muted">
-            <span>{error}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setError(null);
-                setSrc("video-viewer/sample.mp4");
-              }}
-            >
-              Load a fresh URL
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-3 text-sm text-text-muted">
+          <Button size="sm" variant="outline" onClick={() => setSignature((n) => n + 1)}>
+            Swap to a fresh URL
+          </Button>
+          <span>Signature #{signature}</span>
+          {lastError ? <span>{lastError}</span> : null}
+        </div>
       </div>
     );
   },

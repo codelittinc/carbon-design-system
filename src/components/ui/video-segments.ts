@@ -29,7 +29,10 @@ export interface SegmentTrackerOptions {
 }
 
 export interface SegmentTracker {
-  /** Playback started (or resumed) at `t`. Closes any stretch still open. */
+  /**
+   * Playback started (or resumed) at `t`. A stretch still open carries on when
+   * `t` continues it — a `playing` after a buffering stall — and is closed otherwise.
+   */
   play(t: number): VideoSegment | null;
   /**
    * A `timeupdate` at `t`, playing at `rate`. `now` (ms, e.g. `performance.now()`)
@@ -54,7 +57,9 @@ function round(t: number): number {
 export function createSegmentTracker(options: SegmentTrackerOptions = {}): SegmentTracker {
   const minSeconds = options.minSeconds ?? 0.5;
   // Below the minimum nothing could ever be reported: every stretch would be cut too short.
-  const everySeconds = Math.max(options.everySeconds ?? 15, minSeconds, 1);
+  // Not a number (an unset config) is the default, never "never".
+  const requested = options.everySeconds;
+  const everySeconds = Math.max(Number.isFinite(requested) ? (requested as number) : 15, minSeconds, 1);
   const jumpSeconds = options.jumpSeconds ?? 2;
 
   let playing = false;
@@ -81,6 +86,10 @@ export function createSegmentTracker(options: SegmentTrackerOptions = {}): Segme
 
   return {
     play(t) {
+      if (playing && start !== null && continues(t, 1)) {
+        last = Math.max(last ?? t, t);
+        return null;
+      }
       const segment = playing ? close(start, last) : null;
       playing = true;
       start = t;

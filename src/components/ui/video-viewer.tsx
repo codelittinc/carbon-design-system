@@ -20,11 +20,16 @@ type VideoEvent = SyntheticEvent<HTMLVideoElement>;
 // on the server there is no layout phase (and React 18 warns about one).
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-/** The video a URL names, without the query a presigned or cache-busted URL changes. */
+/** Query parameters that sign a URL rather than name a video (S3 SigV4/V2, CloudFront). */
+const SIGNING_PARAM = /^(x-amz-.*|signature|expires|awsaccesskeyid|key-pair-id|policy)$/i;
+
+/** The video a URL names: the URL without the parameters a re-signed URL changes. */
 function videoIdentity(src: string): string {
   try {
     const url = new URL(src, "http://relative.invalid");
-    return url.origin + url.pathname;
+    const kept = [...url.searchParams].filter(([key]) => !SIGNING_PARAM.test(key));
+    kept.sort(([a], [b]) => a.localeCompare(b));
+    return `${url.origin}${url.pathname}?${new URLSearchParams(kept).toString()}`;
   } catch {
     return src;
   }
@@ -59,10 +64,22 @@ export interface VideoViewerProps
    * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
    * whether it was playing, across a `src` change, however many it takes.
    *
-   * A `src` whose path is different is a different VIDEO, not a fresh URL for
-   * this one: everything starts over, and its `startAt` applies.
+   * A `src` that names another video is a different VIDEO, not a fresh URL
+   * for this one: everything starts over, and its `startAt` applies. Which
+   * video a URL names is `videoKey` when given, or else the URL without its
+   * signing parameters (`X-Amz-*`, `Signature`, `Expires`, …).
+   *
+   * The fresh URL must be a different string: the same one changes nothing,
+   * and the element stays in its error state. For a stable redirect endpoint,
+   * add a cache-busting parameter (and pass `videoKey`).
    */
   onError?: (error: MediaError | null, positionSeconds: number) => void;
+  /**
+   * Which video this is — a material id, say. When it is unchanged, a new
+   * `src` is a refreshed URL for the same video; when it changes, a new video.
+   * Leave it out and the URL decides (see `onError`).
+   */
+  videoKey?: string;
 }
 
 /** Calls the consumer's handler as well as ours. */
@@ -94,6 +111,7 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       onSegment,
       segmentEverySeconds = 15,
       onError,
+      videoKey,
       className,
       children,
       onPlaying,
@@ -113,9 +131,10 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     const trackerRef = useRef<SegmentTracker | null>(null);
     if (trackerRef.current === null) trackerRef.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
     const tracker = trackerRef as { current: SegmentTracker };
-    // Latest callbacks, so the document listeners never hold stale ones.
+    // The callbacks as of the last commit. Updated in a layout effect declared
+    // AFTER the source-swap one, so a swap reports the old video's last stretch
+    // to the old video's `onSegment`, never the new one's.
     const callbacks = useRef({ onSegment, onError });
-    callbacks.current = { onSegment, onError };
 
     /** Where the playhead last really was. Not overwritten while a new source loads. */
     const position = useRef(0);
@@ -126,7 +145,9 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     const hadMetadata = useRef(false);
     /** `startAt` is used up once applied, or once playback starts without it. */
     const startDone = useRef(false);
+    const identity = videoKey ?? videoIdentity(src);
     const previousSrc = useRef(src);
+    const previousIdentity = useRef(identity);
 
     const rate = () => videoRef.current?.playbackRate ?? 1;
     /** The live playhead, unless a new source is loading (it reads 0 then). */
@@ -153,11 +174,12 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
     // during a swap keeps the first one's target; a swap before any metadata
     // has nothing to keep, and `startAt` still applies.
     useIsomorphicLayoutEffect(() => {
-      const previous = previousSrc.current;
-      if (previous === src) return;
+      if (previousSrc.current === src) return;
       previousSrc.current = src;
+      const sameVideo = previousIdentity.current === identity;
+      previousIdentity.current = identity;
       emit(tracker.current.pause(position.current, rate()));
-      if (videoIdentity(previous) !== videoIdentity(src)) {
+      if (!sameVideo) {
         // Another video: nothing of this one carries over.
         resume.current = null;
         hadMetadata.current = false;
@@ -171,6 +193,10 @@ const VideoViewer = forwardRef<HTMLVideoElement, VideoViewerProps>(
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src]);
+
+    useIsomorphicLayoutEffect(() => {
+      callbacks.current = { onSegment, onError };
+    });
 
     // A `startAt` that arrives after the metadata, before anybody pressed play.
     useEffect(() => {

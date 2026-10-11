@@ -2848,7 +2848,8 @@ function round(t) {
 }
 function createSegmentTracker(options = {}) {
   const minSeconds = options.minSeconds ?? 0.5;
-  const everySeconds = Math.max(options.everySeconds ?? 15, minSeconds, 1);
+  const requested = options.everySeconds;
+  const everySeconds = Math.max(Number.isFinite(requested) ? requested : 15, minSeconds, 1);
   const jumpSeconds = options.jumpSeconds ?? 2;
   let playing = false;
   let start = null;
@@ -2869,6 +2870,10 @@ function createSegmentTracker(options = {}) {
   };
   return {
     play(t) {
+      if (playing && start !== null && continues(t, 1)) {
+        last = Math.max(last ?? t, t);
+        return null;
+      }
       const segment = playing ? close(start, last) : null;
       playing = true;
       start = t;
@@ -2929,10 +2934,13 @@ function createSegmentTracker(options = {}) {
   };
 }
 var useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+var SIGNING_PARAM = /^(x-amz-.*|signature|expires|awsaccesskeyid|key-pair-id|policy)$/i;
 function videoIdentity(src) {
   try {
     const url = new URL(src, "http://relative.invalid");
-    return url.origin + url.pathname;
+    const kept = [...url.searchParams].filter(([key]) => !SIGNING_PARAM.test(key));
+    kept.sort(([a], [b]) => a.localeCompare(b));
+    return `${url.origin}${url.pathname}?${new URLSearchParams(kept).toString()}`;
   } catch {
     return src;
   }
@@ -2953,6 +2961,7 @@ var VideoViewer = forwardRef(
     onSegment,
     segmentEverySeconds = 15,
     onError,
+    videoKey,
     className,
     children,
     onPlaying,
@@ -2970,13 +2979,14 @@ var VideoViewer = forwardRef(
     if (trackerRef.current === null) trackerRef.current = createSegmentTracker({ everySeconds: segmentEverySeconds });
     const tracker = trackerRef;
     const callbacks = useRef({ onSegment, onError });
-    callbacks.current = { onSegment, onError };
     const position = useRef(0);
     const wasPlaying = useRef(false);
     const resume = useRef(null);
     const hadMetadata = useRef(false);
     const startDone = useRef(false);
+    const identity = videoKey ?? videoIdentity(src);
     const previousSrc = useRef(src);
+    const previousIdentity = useRef(identity);
     const rate = () => videoRef.current?.playbackRate ?? 1;
     const livePosition = (video) => {
       if (video && !resume.current && hadMetadata.current) position.current = video.currentTime;
@@ -2995,11 +3005,12 @@ var VideoViewer = forwardRef(
       }
     };
     useIsomorphicLayoutEffect(() => {
-      const previous = previousSrc.current;
-      if (previous === src) return;
+      if (previousSrc.current === src) return;
       previousSrc.current = src;
+      const sameVideo = previousIdentity.current === identity;
+      previousIdentity.current = identity;
       emit2(tracker.current.pause(position.current, rate()));
-      if (videoIdentity(previous) !== videoIdentity(src)) {
+      if (!sameVideo) {
         resume.current = null;
         hadMetadata.current = false;
         startDone.current = false;
@@ -3011,6 +3022,9 @@ var VideoViewer = forwardRef(
         resume.current = { time: position.current, playing: wasPlaying.current };
       }
     }, [src]);
+    useIsomorphicLayoutEffect(() => {
+      callbacks.current = { onSegment, onError };
+    });
     useEffect(() => {
       const video = videoRef.current;
       if (video && hadMetadata.current && !resume.current) applyStartAt(video);

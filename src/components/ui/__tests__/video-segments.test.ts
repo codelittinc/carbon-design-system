@@ -86,11 +86,26 @@ describe("createSegmentTracker", () => {
     expect(tracker.pause(50)).toBeNull();
   });
 
-  it("a second play closes a stretch left open", () => {
+  it("a play that continues the open stretch (after a stall) keeps it", () => {
+    const tracker = createSegmentTracker({ everySeconds: 100 });
+    tracker.play(0);
+    play(tracker, 0, 3);
+    expect(tracker.play(3)).toBeNull();
+    play(tracker, 3, 6);
+    expect(tracker.pause(6)).toEqual({ start: 0, end: 6 });
+  });
+
+  it("a play somewhere else closes the stretch left open", () => {
     const tracker = createSegmentTracker();
     tracker.play(0);
     play(tracker, 0, 3);
-    expect(tracker.play(3)).toEqual({ start: 0, end: 3 });
+    expect(tracker.play(40)).toEqual({ start: 0, end: 3 });
+  });
+
+  it("an interval that is not a number is the default", () => {
+    const tracker = createSegmentTracker({ everySeconds: Number.NaN });
+    tracker.play(0);
+    expect(play(tracker, 0, 16)).toEqual([{ start: 0, end: 15 }]);
   });
 
   it("pause and flush allow for the playback rate, like tick", () => {

@@ -99,14 +99,14 @@ describe("VideoViewer", () => {
   });
 
   it("starts at `startAt` once, on the first source only", () => {
-    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" startAt={42} />);
+    const { rerender } = render(<VideoViewer src="v.mp4?X-Amz-Signature=1" title="Leasing basics" startAt={42} />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(42);
 
     media.state.currentTime = 50;
     fireEvent.timeUpdate(video());
-    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" startAt={42} />);
+    rerender(<VideoViewer src="v.mp4?X-Amz-Signature=2" title="Leasing basics" startAt={42} />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(50);
   });
@@ -129,20 +129,20 @@ describe("VideoViewer", () => {
     expect(onError).toHaveBeenCalledWith(null, 30);
 
     media.state.currentTime = 0; // a new source starts from the top
-    rerender(<VideoViewer src="a.mp4?fresh" title="Leasing basics" onError={onError} />);
+    rerender(<VideoViewer src="a.mp4?X-Amz-Signature=2" title="Leasing basics" onError={onError} />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(30);
     expect(media.play).toHaveBeenCalled();
   });
 
   it("does not resume playing after a `src` change when it was paused", () => {
-    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" />);
+    const { rerender } = render(<VideoViewer src="v.mp4?X-Amz-Signature=1" title="Leasing basics" />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     media.playTo(8);
     media.pause();
     media.state.currentTime = 0; // a new source starts from the top
-    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" />);
+    rerender(<VideoViewer src="v.mp4?X-Amz-Signature=2" title="Leasing basics" />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(8);
     expect(media.play).not.toHaveBeenCalled();
@@ -166,18 +166,18 @@ describe("VideoViewer", () => {
 
   it("does not lose the position to the new source's playhead at 0, even when it fails too", () => {
     const onError = vi.fn();
-    const { rerender } = render(<VideoViewer src="v.mp4?sig=1" title="Leasing basics" onError={onError} />);
+    const { rerender } = render(<VideoViewer src="v.mp4?X-Amz-Signature=1" title="Leasing basics" onError={onError} />);
     const media = fakeMedia(video());
     fireEvent.loadedMetadata(video());
     media.playTo(30);
 
-    rerender(<VideoViewer src="v.mp4?sig=2" title="Leasing basics" onError={onError} />);
+    rerender(<VideoViewer src="v.mp4?X-Amz-Signature=2" title="Leasing basics" onError={onError} />);
     media.state.currentTime = 0;
     fireEvent.timeUpdate(video());
     fireEvent.error(video());
     expect(onError).toHaveBeenLastCalledWith(null, 30);
 
-    rerender(<VideoViewer src="v.mp4?sig=3" title="Leasing basics" onError={onError} />);
+    rerender(<VideoViewer src="v.mp4?X-Amz-Signature=3" title="Leasing basics" onError={onError} />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(30);
   });
@@ -185,13 +185,13 @@ describe("VideoViewer", () => {
   it("treats a src with another path as another video: nothing carries over", () => {
     const onSegment = vi.fn();
     const { rerender } = render(
-      <VideoViewer src="https://bucket.test/a.mp4?sig=1" title="Leasing basics" onSegment={onSegment} startAt={10} />,
+      <VideoViewer src="https://bucket.test/a.mp4?X-Amz-Signature=1" title="Leasing basics" onSegment={onSegment} startAt={10} />,
     );
     const media = fakeMedia(video(), 600);
     fireEvent.loadedMetadata(video());
     media.playTo(300);
 
-    rerender(<VideoViewer src="https://bucket.test/b.mp4?sig=1" title="Leasing basics" onSegment={onSegment} startAt={40} />);
+    rerender(<VideoViewer src="https://bucket.test/b.mp4?X-Amz-Signature=1" title="Leasing basics" onSegment={onSegment} startAt={40} />);
     // Started at 10, so the 15 s stretches end at 295; the swap closes the last one.
     expect(onSegment).toHaveBeenLastCalledWith({ start: 295, end: 300 }, 300);
     media.state.currentTime = 0;
@@ -199,6 +199,51 @@ describe("VideoViewer", () => {
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(40);
     expect(media.play).not.toHaveBeenCalled();
+  });
+
+  it("reports the old video's last stretch to the old video's callback", () => {
+    const onA = vi.fn();
+    const onB = vi.fn();
+    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" onSegment={onA} />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    media.playTo(12);
+    rerender(<VideoViewer src="b.mp4" title="Leasing basics" onSegment={onB} />);
+    expect(onA).toHaveBeenLastCalledWith({ start: 0, end: 12 }, 12);
+    expect(onB).not.toHaveBeenCalled();
+  });
+
+  it("a query that names the video is part of which video it is; a signature is not", () => {
+    const { rerender } = render(<VideoViewer src="/stream?file=intro.mp4" title="Leasing basics" />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    media.playTo(95);
+    rerender(<VideoViewer src="/stream?file=leasing.mp4" title="Leasing basics" />);
+    media.state.currentTime = 0;
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(0);
+
+    media.playTo(20);
+    rerender(<VideoViewer src="/stream?file=leasing.mp4&Signature=x&Expires=9" title="Leasing basics" />);
+    media.state.currentTime = 0;
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(20);
+  });
+
+  it("`videoKey` decides: same key is a refresh whatever the URL, another key a new video", () => {
+    const { rerender } = render(<VideoViewer src="/api/files/1?r=0" videoKey="m1" title="Leasing basics" />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    media.playTo(50);
+    rerender(<VideoViewer src="/api/files/1?r=1" videoKey="m1" title="Leasing basics" />);
+    media.state.currentTime = 0;
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(50);
+
+    rerender(<VideoViewer src="/api/files/1?r=2" videoKey="m2" title="Leasing basics" />);
+    media.state.currentTime = 0;
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(0);
   });
 
   it("a seek before playback wins over a `startAt` that arrives later", () => {
