@@ -12,9 +12,9 @@ uses it as the GitHub Release notes.
 
 ### Changed
 
-- `AppLauncher` no longer shows a "Current" badge on the app you are in: the row is only
-  highlighted. Screen readers still hear `currentLabel` after its name, and the row keeps
-  `aria-current`.
+- `AppLauncher` no longer shows a "Current" badge on the app you are in: the row is
+  highlighted, with its name in a heavier weight so it is not marked by colour alone. Screen
+  readers still hear `currentLabel` after its name, and the row keeps `aria-current`.
 
 ## [1.33.0] - 2026-10-10
 

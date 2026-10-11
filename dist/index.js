@@ -1575,17 +1575,20 @@ function AppItem({
 }) {
   const tile = icon ? /* @__PURE__ */ jsx(Monogram, { name: app.name, src: app.iconSrc, size: "xs", className: "mt-px" }) : null;
   if (app.current) {
-    return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default bg-accent-muted text-accent-text"), children: [
-      tile,
-      /* @__PURE__ */ jsxs("span", { className: "min-w-0 flex-1", children: [
-        app.name,
-        /* @__PURE__ */ jsxs("span", { className: "sr-only", children: [
-          " (",
-          currentLabel,
-          ")"
+    return (
+      // font-medium as well as the fill, so the row is not marked by colour alone.
+      /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default bg-accent-muted font-medium text-accent-text"), children: [
+        tile,
+        /* @__PURE__ */ jsxs("span", { className: "min-w-0 flex-1", children: [
+          app.name,
+          /* @__PURE__ */ jsxs("span", { className: "sr-only select-none", children: [
+            " (",
+            currentLabel,
+            ")"
+          ] })
         ] })
       ] })
-    ] });
+    );
   }
   if (!app.href) {
     return /* @__PURE__ */ jsxs("div", { className: cn(appRowClass, "cursor-default text-text-muted"), children: [

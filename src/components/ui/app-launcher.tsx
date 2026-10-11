@@ -42,7 +42,10 @@ export interface AppLauncherProps {
   notice?: ReactNode;
   /** The trigger's accessible name and tooltip, and the panel's name. */
   label?: string;
-  /** Screen-reader text after the current app's name; the row itself is only highlighted. */
+  /**
+   * Screen-reader text after the current app's name, wrapped in parentheses. Nothing
+   * visible: the row is marked by its highlight and a heavier weight.
+   */
   currentLabel?: string;
   unavailableLabel?: string;
   /** Screen-reader text after each link's name. Starts with a space. */
@@ -177,11 +180,13 @@ function AppItem({
   const tile = icon ? <Monogram name={app.name} src={app.iconSrc} size="xs" className="mt-px" /> : null;
   if (app.current) {
     return (
-      <div aria-current="true" className={cn(appRowClass, "cursor-default bg-accent-muted text-accent-text")}>
+      // font-medium as well as the fill, so the row is not marked by colour alone.
+      <div aria-current="true" className={cn(appRowClass, "cursor-default bg-accent-muted font-medium text-accent-text")}>
         {tile}
         <span className="min-w-0 flex-1">
           {app.name}
-          <span className="sr-only"> ({currentLabel})</span>
+          {/* select-none: copying the name does not pick up the hidden label. */}
+          <span className="sr-only select-none"> ({currentLabel})</span>
         </span>
       </div>
     );

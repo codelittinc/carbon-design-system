@@ -108,10 +108,11 @@ describe("AppLauncher", () => {
     const item = within(panel).getByText("Player Scoreboard").closest("li")!;
     expect(within(item).queryByRole("link")).not.toBeInTheDocument();
     const row = item.querySelector("[aria-current='true']")!;
-    expect(row).toHaveClass("bg-accent-muted");
+    expect(row).toHaveClass("bg-accent-muted", "font-medium");
     expect(row).toHaveTextContent("Player Scoreboard (Current)");
-    expect(within(item).getByText("(Current)", { exact: false })).toHaveClass("sr-only");
-    expect(item.querySelector(".rounded-full")).toBeNull();
+    expect(within(item).getByText("(Current)", { exact: false })).toHaveClass("sr-only", "select-none");
+    // The only "Current" in the row is that hidden suffix: no visible badge.
+    expect(within(item).queryByText("Current")).toBeNull();
   });
 
   it("shows an app with no href as text, with no link", async () => {
