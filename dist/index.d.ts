@@ -1,7 +1,7 @@
 import { RichTextFormatting, Theme } from './utils.js';
 export { CATEGORICAL_PALETTE, CategoricalSegment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, THEME_SCRIPT, ThemeScriptOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, sanitizeRichText, themeScript } from './utils.js';
 import * as react from 'react';
-import { ReactElement, ReactNode, AnchorHTMLAttributes, ElementType } from 'react';
+import { ReactElement, ReactNode, AnchorHTMLAttributes, VideoHTMLAttributes, ElementType } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
 import { VariantProps } from 'class-variance-authority';
 export { AlertCircle as AlertCircleIcon, Grip as AppsIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, LucideIcon as IconComponent, LucideProps as IconProps, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
@@ -805,6 +805,87 @@ interface FileViewerProps {
  * framing of that route; see the README.
  */
 declare function FileViewer({ url, filename, contentType, loadFallback, children, open, onOpenChange, }: FileViewerProps): ReactElement;
+
+/**
+ * Which stretches of a video somebody actually played — the bookkeeping behind
+ * `VideoViewer`'s `onSegment`, kept free of React and the DOM so it can be
+ * tested on its own and reused by anything that drives a media element.
+ *
+ * A segment is `[start, end)` in media seconds, played without a seek inside
+ * it. Seeking closes the open stretch before the jump, so skipping ahead is
+ * never reported as watched. Times are rounded to a tenth of a second.
+ */
+interface VideoSegment {
+    /** Seconds, inclusive start of a stretch the viewer actually played. */
+    start: number;
+    /** Seconds, exclusive end. Always greater than `start`. */
+    end: number;
+}
+interface SegmentTrackerOptions {
+    /** An open stretch is reported once it is this long, and a new one starts. Default 15. */
+    everySeconds?: number;
+    /** Shorter stretches are dropped. Default 0.5. */
+    minSeconds?: number;
+    /**
+     * A `timeupdate` that moves further than this (times the playback rate)
+     * since the last one is a seek the browser did not announce. Default 2.
+     */
+    jumpSeconds?: number;
+}
+interface SegmentTracker {
+    /** Playback started (or resumed) at `t`. Closes any stretch still open. */
+    play(t: number): VideoSegment | null;
+    /** A `timeupdate` at `t`, playing at `rate`. */
+    tick(t: number, rate?: number): VideoSegment | null;
+    /** The playhead moved to `to` by a seek. Closes the open stretch where it was. */
+    seek(to: number): VideoSegment | null;
+    /** Playback stopped at `t` (pause, end, the source changing). */
+    pause(t: number): VideoSegment | null;
+    /** Report the open stretch up to `t` now, and keep playing (page hidden). */
+    flush(t: number): VideoSegment | null;
+}
+declare function createSegmentTracker(options?: SegmentTrackerOptions): SegmentTracker;
+
+interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "src" | "poster" | "title" | "onError" | "onEnded"> {
+    src: string;
+    poster?: string;
+    /** The video's accessible name, such as the material's title. */
+    title: string;
+    /**
+     * Seek here once the first source's metadata has loaded: where somebody
+     * stopped last time. Ignored when it is within a second of the end.
+     */
+    startAt?: number;
+    /**
+     * A stretch actually played, with no seek inside it, and where the playhead
+     * is now. Called on pause, before a seek, on end, when the page is hidden,
+     * on unmount, and every `segmentEverySeconds` while playing. Stretches
+     * under half a second are not reported.
+     */
+    onSegment?: (segment: VideoSegment, positionSeconds: number) => void;
+    /** How often an open stretch is reported while playing. Default 15. */
+    segmentEverySeconds?: number;
+    /**
+     * The video failed to load or to continue — for a presigned URL, usually
+     * that it expired, which the bucket answers on the next range request.
+     * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
+     * whether it was playing, across a `src` change.
+     */
+    onError?: (error: MediaError | null, positionSeconds: number) => void;
+    onEnded?: () => void;
+}
+/**
+ * Plays a video file — an MP4 from a URL, typically a presigned one on a
+ * bucket — with the browser's own controls, and reports which parts were
+ * actually watched through `onSegment`. Seeking past a part is not watching
+ * it, so the reported segments add up to real viewing.
+ *
+ * The browser's controls are deliberate: they are keyboard-operable,
+ * screen-reader-labelled and familiar on every platform. `crossOrigin` is not
+ * set, so a plain media URL plays without the bucket needing CORS. Pass
+ * `<track>` elements as children for captions.
+ */
+declare const VideoViewer: react.ForwardRefExoticComponent<VideoViewerProps & react.RefAttributes<HTMLVideoElement>>;
 
 declare const AlertDialog: react.FC<AlertDialogPrimitive.AlertDialogProps>;
 declare const AlertDialogTrigger: react.ForwardRefExoticComponent<AlertDialogPrimitive.AlertDialogTriggerProps & react.RefAttributes<HTMLButtonElement>>;
@@ -2410,4 +2491,4 @@ interface AddressComboboxProps {
  */
 declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onSelect, onStatusChange, fetchSuggestions, attribution, showStatus, disabled, onBlur, placeholder, className, variant, ariaLabel, required, autoComplete, }: AddressComboboxProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, type SegmentTracker, type SegmentTrackerOptions, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type VideoSegment, VideoViewer, type VideoViewerProps, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

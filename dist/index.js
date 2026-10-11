@@ -2840,6 +2840,219 @@ function FileViewer({
     )
   ] }) });
 }
+
+// src/components/ui/video-segments.ts
+var BACKWARD_TOLERANCE = 0.25;
+function round(t) {
+  return Math.round(t * 10) / 10;
+}
+function createSegmentTracker(options = {}) {
+  const everySeconds = options.everySeconds ?? 15;
+  const minSeconds = options.minSeconds ?? 0.5;
+  const jumpSeconds = options.jumpSeconds ?? 2;
+  let playing = false;
+  let start = null;
+  let last = null;
+  const close = (from, to) => {
+    if (from === null || to === null || !Number.isFinite(from) || !Number.isFinite(to)) return null;
+    if (to - from < minSeconds) return null;
+    return { start: round(from), end: round(to) };
+  };
+  const continues = (t, rate) => last !== null && t >= last - BACKWARD_TOLERANCE && t <= last + jumpSeconds * Math.max(rate, 1);
+  return {
+    play(t) {
+      const segment = playing ? close(start, last) : null;
+      playing = true;
+      start = t;
+      last = t;
+      return segment;
+    },
+    tick(t, rate = 1) {
+      if (!playing || start === null) {
+        last = t;
+        return null;
+      }
+      if (!continues(t, rate)) {
+        const segment = close(start, last);
+        start = t;
+        last = t;
+        return segment;
+      }
+      last = Math.max(last ?? t, t);
+      if (last - start >= everySeconds) {
+        const segment = close(start, last);
+        start = last;
+        return segment;
+      }
+      return null;
+    },
+    seek(to) {
+      const segment = playing ? close(start, last) : null;
+      start = playing ? to : null;
+      last = to;
+      return segment;
+    },
+    pause(t) {
+      if (!playing) {
+        last = t;
+        return null;
+      }
+      const end = continues(t, 1) ? Math.max(last ?? t, t) : last;
+      const segment = close(start, end);
+      playing = false;
+      start = null;
+      last = t;
+      return segment;
+    },
+    flush(t) {
+      if (!playing || start === null) return null;
+      const end = continues(t, 1) ? Math.max(last ?? t, t) : last;
+      const segment = close(start, end);
+      if (segment) start = end;
+      last = end;
+      return segment;
+    }
+  };
+}
+function both(mine, theirs) {
+  return (event) => {
+    mine(event);
+    theirs?.(event);
+  };
+}
+var VideoViewer = forwardRef(
+  ({
+    src,
+    poster,
+    title,
+    startAt,
+    onSegment,
+    segmentEverySeconds = 15,
+    onError,
+    onEnded,
+    className,
+    children,
+    onPlaying,
+    onTimeUpdate,
+    onSeeking,
+    onSeeked,
+    onPause,
+    onLoadedMetadata,
+    ...props
+  }, ref) => {
+    const videoRef = useRef(null);
+    useImperativeHandle(ref, () => videoRef.current);
+    const tracker = useRef(createSegmentTracker({ everySeconds: segmentEverySeconds }));
+    const callbacks = useRef({ onSegment, onError, onEnded });
+    callbacks.current = { onSegment, onError, onEnded };
+    const position = useRef(0);
+    const wasPlaying = useRef(false);
+    const resume = useRef(null);
+    const startApplied = useRef(false);
+    const previousSrc = useRef(src);
+    const emit2 = (segment) => {
+      if (segment) callbacks.current.onSegment?.(segment, position.current);
+    };
+    useLayoutEffect(() => {
+      if (previousSrc.current === src) return;
+      previousSrc.current = src;
+      emit2(tracker.current.pause(position.current));
+      resume.current = { time: position.current, playing: wasPlaying.current };
+    }, [src]);
+    useEffect(() => {
+      const flush = () => emit2(tracker.current.flush(videoRef.current?.currentTime ?? position.current));
+      const onVisibility = () => {
+        if (document.visibilityState === "hidden") flush();
+      };
+      document.addEventListener("visibilitychange", onVisibility);
+      window.addEventListener("pagehide", flush);
+      return () => {
+        document.removeEventListener("visibilitychange", onVisibility);
+        window.removeEventListener("pagehide", flush);
+        emit2(tracker.current.pause(position.current));
+      };
+    }, []);
+    const handleLoadedMetadata = (event) => {
+      const video = event.currentTarget;
+      const pending2 = resume.current;
+      if (pending2) {
+        resume.current = null;
+        video.currentTime = pending2.time;
+        position.current = pending2.time;
+        if (pending2.playing) video.play()?.catch(() => {
+        });
+        return;
+      }
+      if (!startApplied.current) {
+        startApplied.current = true;
+        const duration = video.duration;
+        if (startAt && startAt > 0 && (!Number.isFinite(duration) || startAt < duration - 1)) {
+          video.currentTime = startAt;
+          position.current = startAt;
+        }
+      }
+    };
+    const handlePlaying = (event) => {
+      wasPlaying.current = true;
+      position.current = event.currentTarget.currentTime;
+      emit2(tracker.current.play(position.current));
+    };
+    const handleTimeUpdate = (event) => {
+      const video = event.currentTarget;
+      if (video.seeking) return;
+      position.current = video.currentTime;
+      emit2(tracker.current.tick(video.currentTime, video.playbackRate));
+    };
+    const handleSeeking = (event) => {
+      emit2(tracker.current.seek(event.currentTarget.currentTime));
+      position.current = event.currentTarget.currentTime;
+    };
+    const handleSeeked = (event) => {
+      position.current = event.currentTarget.currentTime;
+    };
+    const handlePause = (event) => {
+      if (event.currentTarget.ended) return;
+      wasPlaying.current = false;
+      position.current = event.currentTarget.currentTime;
+      emit2(tracker.current.pause(position.current));
+    };
+    const handleEnded = (event) => {
+      wasPlaying.current = false;
+      const video = event.currentTarget;
+      position.current = Number.isFinite(video.duration) ? video.duration : video.currentTime;
+      emit2(tracker.current.pause(position.current));
+      callbacks.current.onEnded?.();
+    };
+    const handleError = () => {
+      callbacks.current.onError?.(videoRef.current?.error ?? null, position.current);
+    };
+    return /* @__PURE__ */ jsx("div", { className: cn("w-full overflow-hidden rounded-lg border border-border bg-surface-overlay", className), children: /* @__PURE__ */ jsx(
+      "video",
+      {
+        ref: videoRef,
+        src,
+        poster,
+        "aria-label": title,
+        controls: true,
+        playsInline: true,
+        preload: "metadata",
+        controlsList: "nodownload",
+        className: "block aspect-video h-auto w-full bg-surface-overlay",
+        ...props,
+        onLoadedMetadata: both(handleLoadedMetadata, onLoadedMetadata),
+        onPlaying: both(handlePlaying, onPlaying),
+        onTimeUpdate: both(handleTimeUpdate, onTimeUpdate),
+        onSeeking: both(handleSeeking, onSeeking),
+        onSeeked: both(handleSeeked, onSeeked),
+        onPause: both(handlePause, onPause),
+        onEnded: handleEnded,
+        onError: handleError,
+        children
+      }
+    ) });
+  }
+);
+VideoViewer.displayName = "VideoViewer";
 var DropdownMenu = DropdownMenuPrimitive.Root;
 var DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 var DropdownMenuGroup = DropdownMenuPrimitive.Group;
@@ -6880,4 +7093,4 @@ function StructuredAddressInput({
   ] });
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

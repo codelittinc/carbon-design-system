@@ -8,6 +8,24 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.34.0] - 2026-10-11
+
+### Added
+
+- `VideoViewer`: plays a video file (an MP4 from a URL, such as a presigned bucket URL) with
+  the browser's own controls, and reports the parts actually watched through
+  `onSegment(segment, positionSeconds)`. Seeking past a part is not watching it. Segments are
+  reported on pause, before a seek, on end, when the page is hidden, on unmount, and every
+  `segmentEverySeconds` (default 15) while playing.
+  - `startAt` resumes where somebody stopped, once, on the first source.
+  - Changing `src` keeps the position and whether it was playing, so an expired URL can be
+    swapped for a fresh one from `onError(error, positionSeconds)` without losing the place.
+  - No `crossOrigin`: a plain media URL plays without the server needing CORS. `<track>`
+    children pass through for captions.
+- `createSegmentTracker`, the framework-free bookkeeping behind `onSegment`, for anything that
+  drives a media element itself. Exported with `VideoSegment`, `SegmentTracker` and
+  `SegmentTrackerOptions`.
+
 ## [1.33.1] - 2026-10-10
 
 ### Changed
