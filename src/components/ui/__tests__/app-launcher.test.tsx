@@ -95,7 +95,7 @@ describe("AppLauncher", () => {
     });
     const names = within(panel)
       .getAllByRole("listitem")
-      .map((item) => item.textContent?.replace(/\(opens in a new tab\)|Current|Link unavailable/g, "").trim());
+      .map((item) => item.textContent?.replace(/\(opens in a new tab\)|\(Current\)|Link unavailable/g, "").trim());
     expect(names).toEqual(["Asana", "Backbone", "Gatekeeper", "Player Scoreboard", "Yardi"]);
     expect(within(panel).queryByRole("group")).not.toBeInTheDocument();
     for (const heading of ["CarbonOS", "Tools", "Reports"]) {
@@ -103,22 +103,16 @@ describe("AppLauncher", () => {
     }
   });
 
-  it("marks the current app, without a link", async () => {
+  it("highlights the current app, without a link or a visible label", async () => {
     const { panel } = await openLauncher();
     const item = within(panel).getByText("Player Scoreboard").closest("li")!;
     expect(within(item).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(item).getByText("Current")).toBeVisible();
-    expect(within(item).getByText("Player Scoreboard").parentElement).toHaveAttribute("aria-current", "true");
-  });
-
-  // jsdom does no layout, so this pins the mechanism: the name is sized by its text, so the
-  // wrapping row moves the badge down rather than squeezing the name until a word breaks.
-  it("lets the Current badge wrap below the name instead of breaking it", async () => {
-    const { panel } = await openLauncher({ icons: true });
-    const name = within(panel).getByText("Player Scoreboard");
-    expect(name).toHaveClass("flex-auto");
-    expect(name).not.toHaveClass("flex-1");
-    expect(name.parentElement).toHaveClass("flex-wrap");
+    const row = item.querySelector("[aria-current='true']")!;
+    expect(row).toHaveClass("bg-accent-muted", "font-medium");
+    expect(row).toHaveTextContent("Player Scoreboard (Current)");
+    expect(within(item).getByText("(Current)", { exact: false })).toHaveClass("sr-only", "select-none");
+    // The only "Current" in the row is that hidden suffix: no visible badge.
+    expect(within(item).queryByText("Current")).toBeNull();
   });
 
   it("shows an app with no href as text, with no link", async () => {

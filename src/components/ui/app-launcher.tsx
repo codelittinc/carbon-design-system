@@ -4,7 +4,6 @@ import { useRef, useState, type ReactElement, type ReactNode } from "react";
 import { Grip } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { headerIconButtonClass, optionRowClass } from "@/lib/ui-classes";
-import { Badge } from "./badge";
 import { Button } from "./button";
 import { EmptyState } from "./empty-state";
 import { Monogram } from "./monogram";
@@ -43,6 +42,10 @@ export interface AppLauncherProps {
   notice?: ReactNode;
   /** The trigger's accessible name and tooltip, and the panel's name. */
   label?: string;
+  /**
+   * Screen-reader text after the current app's name, wrapped in parentheses. Nothing
+   * visible: the row is marked by its highlight and a heavier weight.
+   */
   currentLabel?: string;
   unavailableLabel?: string;
   /** Screen-reader text after each link's name. Starts with a space. */
@@ -177,13 +180,14 @@ function AppItem({
   const tile = icon ? <Monogram name={app.name} src={app.iconSrc} size="xs" className="mt-px" /> : null;
   if (app.current) {
     return (
-      <div aria-current="true" className={cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text")}>
+      // font-medium as well as the fill, so the row is not marked by colour alone.
+      <div aria-current="true" className={cn(appRowClass, "cursor-default bg-accent-muted font-medium text-accent-text")}>
         {tile}
-        {/* flex-auto, not flex-1: sized by its text, so a row too narrow for the
-            name and the badge wraps the badge to the next line. A zero basis
-            never wraps — the name shrinks instead and breaks mid-word. */}
-        <span className="min-w-0 flex-auto">{app.name}</span>
-        <Badge>{currentLabel}</Badge>
+        <span className="min-w-0 flex-1">
+          {app.name}
+          {/* select-none: copying the name does not pick up the hidden label. */}
+          <span className="sr-only select-none"> ({currentLabel})</span>
+        </span>
       </div>
     );
   }
