@@ -8,6 +8,34 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.34.0] - 2026-10-11
+
+### Added
+
+- `VideoViewer`: plays a video file (an MP4 from a URL, such as a presigned bucket URL) with
+  the browser's own controls, and reports the parts actually watched through
+  `onSegment(segment, positionSeconds)`. Seeking past a part is not watching it. Segments are
+  reported on pause, on a seek (closing the stretch before the jump, with the new position), on
+  end, when the page is hidden, on unmount, and every `segmentEverySeconds` (default 15, and a
+  change takes effect at once) while playing.
+  - `startAt` resumes where somebody stopped: applied once, when the video first has metadata, or
+    when it arrives later but before playback starts.
+  - Changing `src` keeps the position and whether it was playing, so an expired URL can be
+    swapped for a fresh one from `onError(error, positionSeconds)` without losing the place —
+    also when the fresh one fails too, and `startAt` still applies when the first never loaded.
+    A `src` naming another video is a different video: nothing carries over, and its `startAt`
+    applies. `videoKey` says which video it is; without it, the URL minus its signing parameters
+    (`X-Amz-*`, `Signature`, `Expires`, …) does. The old video's last stretch is reported to the
+    old video's `onSegment`.
+  - A late `timeupdate` (a long task, a throttled tab) still counts as watched when the
+    wall-clock time explains it; only an unexplained jump is treated as a seek. A `playing` after
+    a buffering stall continues the open stretch.
+  - No `crossOrigin`: a plain media URL plays without the server needing CORS. `<track>`
+    children pass through for captions.
+- `createSegmentTracker`, the framework-free bookkeeping behind `onSegment`, for anything that
+  drives a media element itself. Exported with `VideoSegment`, `SegmentTracker` and
+  `SegmentTrackerOptions`.
+
 ## [1.33.1] - 2026-10-10
 
 ### Changed

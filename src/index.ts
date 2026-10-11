@@ -74,6 +74,7 @@ export * from "./components/ui/switch";
 export * from "./components/ui/select";
 export * from "./components/ui/dialog";
 export * from "./components/ui/file-viewer";
+export * from "./components/ui/video-viewer";
 export * from "./components/ui/alert-dialog";
 export * from "./components/ui/dropdown-menu";
 export * from "./components/ui/sheet";
