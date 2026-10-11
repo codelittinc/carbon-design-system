@@ -839,28 +839,29 @@ interface SegmentTracker {
     tick(t: number, rate?: number): VideoSegment | null;
     /** The playhead moved to `to` by a seek. Closes the open stretch where it was. */
     seek(to: number): VideoSegment | null;
-    /** Playback stopped at `t` (pause, end, the source changing). */
-    pause(t: number): VideoSegment | null;
+    /** Playback stopped at `t` (pause, end, the source changing), playing at `rate`. */
+    pause(t: number, rate?: number): VideoSegment | null;
     /** Report the open stretch up to `t` now, and keep playing (page hidden). */
-    flush(t: number): VideoSegment | null;
+    flush(t: number, rate?: number): VideoSegment | null;
 }
 declare function createSegmentTracker(options?: SegmentTrackerOptions): SegmentTracker;
 
-interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "src" | "poster" | "title" | "onError" | "onEnded"> {
+interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "src" | "poster" | "title" | "onError"> {
     src: string;
     poster?: string;
     /** The video's accessible name, such as the material's title. */
     title: string;
     /**
-     * Seek here once the first source's metadata has loaded: where somebody
-     * stopped last time. Ignored when it is within a second of the end.
+     * Where to start: where somebody stopped last time. Applied once, when the
+     * video first has metadata — or later, if it arrives after that but before
+     * playback starts. Ignored when it is within a second of the end.
      */
     startAt?: number;
     /**
      * A stretch actually played, with no seek inside it, and where the playhead
-     * is now. Called on pause, before a seek, on end, when the page is hidden,
-     * on unmount, and every `segmentEverySeconds` while playing. Stretches
-     * under half a second are not reported.
+     * is now. Called on pause, on a seek (after the jump), on end, when the page
+     * is hidden, on unmount, and every `segmentEverySeconds` while playing.
+     * Stretches under half a second are not reported.
      */
     onSegment?: (segment: VideoSegment, positionSeconds: number) => void;
     /** How often an open stretch is reported while playing. Default 15. */
@@ -869,10 +870,9 @@ interface VideoViewerProps extends Omit<VideoHTMLAttributes<HTMLVideoElement>, "
      * The video failed to load or to continue — for a presigned URL, usually
      * that it expired, which the bucket answers on the next range request.
      * Fetch a fresh URL and pass it as `src`: the viewer keeps the position, and
-     * whether it was playing, across a `src` change.
+     * whether it was playing, across a `src` change, however many it takes.
      */
     onError?: (error: MediaError | null, positionSeconds: number) => void;
-    onEnded?: () => void;
 }
 /**
  * Plays a video file — an MP4 from a URL, typically a presigned one on a

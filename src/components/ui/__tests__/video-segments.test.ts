@@ -92,4 +92,14 @@ describe("createSegmentTracker", () => {
     play(tracker, 0, 3);
     expect(tracker.play(3)).toEqual({ start: 0, end: 3 });
   });
+
+  it("pause and flush allow for the playback rate, like tick", () => {
+    const tracker = createSegmentTracker();
+    tracker.play(0);
+    tracker.tick(1, 2);
+    // A 3 s gap is a jump at 1x but ordinary playback at 2x (throttled timeupdates).
+    expect(tracker.flush(4, 2)).toEqual({ start: 0, end: 4 });
+    tracker.tick(5, 2);
+    expect(tracker.pause(8, 2)).toEqual({ start: 4, end: 8 });
+  });
 });

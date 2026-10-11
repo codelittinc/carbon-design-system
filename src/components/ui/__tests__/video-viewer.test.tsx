@@ -70,7 +70,8 @@ describe("VideoViewer", () => {
     media.playTo(12);
     expect(onSegment).toHaveBeenLastCalledWith({ start: 0, end: 10 }, 10);
     media.seek(60);
-    expect(onSegment).toHaveBeenLastCalledWith({ start: 10, end: 12 }, 12);
+    // The playhead is already at the new place when the stretch before it is reported.
+    expect(onSegment).toHaveBeenLastCalledWith({ start: 10, end: 12 }, 60);
     media.playTo(63);
     media.pause();
     expect(onSegment).toHaveBeenLastCalledWith({ start: 60, end: 63 }, 63);
@@ -121,6 +122,7 @@ describe("VideoViewer", () => {
     const onError = vi.fn();
     const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" onError={onError} />);
     const media = fakeMedia(video());
+    fireEvent.loadedMetadata(video());
     media.playTo(30);
 
     fireEvent.error(video());
@@ -136,8 +138,10 @@ describe("VideoViewer", () => {
   it("does not resume playing after a `src` change when it was paused", () => {
     const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" />);
     const media = fakeMedia(video());
+    fireEvent.loadedMetadata(video());
     media.playTo(8);
     media.pause();
+    media.state.currentTime = 0; // a new source starts from the top
     rerender(<VideoViewer src="b.mp4" title="Leasing basics" />);
     fireEvent.loadedMetadata(video());
     expect(media.state.currentTime).toBe(8);
@@ -157,6 +161,64 @@ describe("VideoViewer", () => {
     expect(onSegment).toHaveBeenCalledTimes(1);
     expect(onSegment).toHaveBeenLastCalledWith({ start: 0, end: 6 }, 6);
     expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(onEnded.mock.calls[0][0]).toHaveProperty("currentTarget");
+  });
+
+  it("does not lose the position to the new source's playhead at 0, even when it fails too", () => {
+    const onError = vi.fn();
+    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" onError={onError} />);
+    const media = fakeMedia(video());
+    fireEvent.loadedMetadata(video());
+    media.playTo(30);
+
+    rerender(<VideoViewer src="b.mp4" title="Leasing basics" onError={onError} />);
+    media.state.currentTime = 0;
+    fireEvent.timeUpdate(video());
+    fireEvent.error(video());
+    expect(onError).toHaveBeenLastCalledWith(null, 30);
+
+    rerender(<VideoViewer src="c.mp4" title="Leasing basics" onError={onError} />);
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(30);
+  });
+
+  it("still applies `startAt` when the first source failed before it loaded", () => {
+    const { rerender } = render(<VideoViewer src="expired.mp4" title="Leasing basics" startAt={300} />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.error(video());
+    rerender(<VideoViewer src="fresh.mp4" title="Leasing basics" startAt={300} />);
+    fireEvent.loadedMetadata(video());
+    expect(media.state.currentTime).toBe(300);
+  });
+
+  it("applies a `startAt` that arrives after the metadata, but not once playback started", () => {
+    const { rerender } = render(<VideoViewer src="a.mp4" title="Leasing basics" />);
+    const media = fakeMedia(video(), 600);
+    fireEvent.loadedMetadata(video());
+    rerender(<VideoViewer src="a.mp4" title="Leasing basics" startAt={240} />);
+    expect(media.state.currentTime).toBe(240);
+
+    const second = render(<VideoViewer src="z.mp4" title="Other" />);
+    const other = second.getByLabelText("Other") as HTMLVideoElement;
+    const otherMedia = fakeMedia(other, 600);
+    fireEvent.loadedMetadata(other);
+    fireEvent.playing(other);
+    second.rerender(<VideoViewer src="z.mp4" title="Other" startAt={240} />);
+    expect(otherMedia.state.currentTime).toBe(0);
+  });
+
+  it("reports at a new `segmentEverySeconds` from the moment it changes", () => {
+    const onSegment = vi.fn();
+    const { rerender } = render(
+      <VideoViewer src="a.mp4" title="Leasing basics" onSegment={onSegment} segmentEverySeconds={10} />,
+    );
+    const media = fakeMedia(video());
+    media.playTo(4);
+    expect(onSegment).not.toHaveBeenCalled();
+    rerender(<VideoViewer src="a.mp4" title="Leasing basics" onSegment={onSegment} segmentEverySeconds={2} />);
+    expect(onSegment).toHaveBeenLastCalledWith({ start: 0, end: 4 }, 4);
+    media.playTo(6);
+    expect(onSegment).toHaveBeenLastCalledWith({ start: 4, end: 6 }, 6);
   });
 
   it("still calls the consumer's own media handlers", () => {

@@ -33,10 +33,10 @@ export interface SegmentTracker {
   tick(t: number, rate?: number): VideoSegment | null;
   /** The playhead moved to `to` by a seek. Closes the open stretch where it was. */
   seek(to: number): VideoSegment | null;
-  /** Playback stopped at `t` (pause, end, the source changing). */
-  pause(t: number): VideoSegment | null;
+  /** Playback stopped at `t` (pause, end, the source changing), playing at `rate`. */
+  pause(t: number, rate?: number): VideoSegment | null;
   /** Report the open stretch up to `t` now, and keep playing (page hidden). */
-  flush(t: number): VideoSegment | null;
+  flush(t: number, rate?: number): VideoSegment | null;
 }
 
 const BACKWARD_TOLERANCE = 0.25;
@@ -100,12 +100,12 @@ export function createSegmentTracker(options: SegmentTrackerOptions = {}): Segme
       return segment;
     },
 
-    pause(t) {
+    pause(t, rate = 1) {
       if (!playing) {
         last = t;
         return null;
       }
-      const end = continues(t, 1) ? Math.max(last ?? t, t) : last;
+      const end = continues(t, rate) ? Math.max(last ?? t, t) : last;
       const segment = close(start, end);
       playing = false;
       start = null;
@@ -113,9 +113,9 @@ export function createSegmentTracker(options: SegmentTrackerOptions = {}): Segme
       return segment;
     },
 
-    flush(t) {
+    flush(t, rate = 1) {
       if (!playing || start === null) return null;
-      const end = continues(t, 1) ? Math.max(last ?? t, t) : last;
+      const end = continues(t, rate) ? Math.max(last ?? t, t) : last;
       const segment = close(start, end);
       if (segment) start = end;
       last = end;

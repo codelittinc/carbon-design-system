@@ -15,11 +15,14 @@ uses it as the GitHub Release notes.
 - `VideoViewer`: plays a video file (an MP4 from a URL, such as a presigned bucket URL) with
   the browser's own controls, and reports the parts actually watched through
   `onSegment(segment, positionSeconds)`. Seeking past a part is not watching it. Segments are
-  reported on pause, before a seek, on end, when the page is hidden, on unmount, and every
-  `segmentEverySeconds` (default 15) while playing.
-  - `startAt` resumes where somebody stopped, once, on the first source.
+  reported on pause, on a seek (closing the stretch before the jump, with the new position), on
+  end, when the page is hidden, on unmount, and every `segmentEverySeconds` (default 15, and a
+  change takes effect at once) while playing.
+  - `startAt` resumes where somebody stopped: applied once, when the video first has metadata, or
+    when it arrives later but before playback starts.
   - Changing `src` keeps the position and whether it was playing, so an expired URL can be
-    swapped for a fresh one from `onError(error, positionSeconds)` without losing the place.
+    swapped for a fresh one from `onError(error, positionSeconds)` without losing the place —
+    also when the fresh one fails too, and `startAt` still applies when the first never loaded.
   - No `crossOrigin`: a plain media URL plays without the server needing CORS. `<track>`
     children pass through for captions.
 - `createSegmentTracker`, the framework-free bookkeeping behind `onSegment`, for anything that
