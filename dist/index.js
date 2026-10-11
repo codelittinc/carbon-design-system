@@ -1575,10 +1575,16 @@ function AppItem({
 }) {
   const tile = icon ? /* @__PURE__ */ jsx(Monogram, { name: app.name, src: app.iconSrc, size: "xs", className: "mt-px" }) : null;
   if (app.current) {
-    return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default flex-wrap bg-accent-muted text-accent-text"), children: [
+    return /* @__PURE__ */ jsxs("div", { "aria-current": "true", className: cn(appRowClass, "cursor-default bg-accent-muted text-accent-text"), children: [
       tile,
-      /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-auto", children: app.name }),
-      /* @__PURE__ */ jsx(Badge, { children: currentLabel })
+      /* @__PURE__ */ jsxs("span", { className: "min-w-0 flex-1", children: [
+        app.name,
+        /* @__PURE__ */ jsxs("span", { className: "sr-only", children: [
+          " (",
+          currentLabel,
+          ")"
+        ] })
+      ] })
     ] });
   }
   if (!app.href) {

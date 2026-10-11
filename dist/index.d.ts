@@ -406,6 +406,7 @@ interface AppLauncherProps {
     notice?: ReactNode;
     /** The trigger's accessible name and tooltip, and the panel's name. */
     label?: string;
+    /** Screen-reader text after the current app's name; the row itself is only highlighted. */
     currentLabel?: string;
     unavailableLabel?: string;
     /** Screen-reader text after each link's name. Starts with a space. */

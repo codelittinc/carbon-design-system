@@ -8,6 +8,14 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.33.1] - 2026-10-10
+
+### Changed
+
+- `AppLauncher` no longer shows a "Current" badge on the app you are in: the row is only
+  highlighted. Screen readers still hear `currentLabel` after its name, and the row keeps
+  `aria-current`.
+
 ## [1.33.0] - 2026-10-10
 
 ### Changed
