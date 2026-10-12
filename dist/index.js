@@ -7181,7 +7181,8 @@ function SignInPage({
   copy,
   children,
   showThemeToggle = true,
-  className
+  className,
+  supportHref = "https://helpdesk.carbonresidential.com/support/tickets/new"
 }) {
   const id = useId();
   const text = {
@@ -7192,7 +7193,8 @@ function SignInPage({
     loading: "Preparing sign-in\u2026",
     pending: "Connecting to Google\u2026",
     unavailable: "Sign-in is unavailable. Please try again later.",
-    help: "Need access or a hand signing in? Contact your administrator.",
+    help: "Need access or a hand signing in?",
+    helpLink: "Contact your administrator",
     footnote: "Your work account. Your connected workspace.",
     footer: "Built around your people.",
     ...copy
@@ -7215,7 +7217,12 @@ function SignInPage({
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-help", children: [
           /* @__PURE__ */ jsx(LockKeyhole, { size: 15, className: "shrink-0 text-text-muted", "aria-hidden": "true" }),
-          /* @__PURE__ */ jsx("p", { children: text.help })
+          /* @__PURE__ */ jsxs("p", { children: [
+            text.help,
+            " ",
+            /* @__PURE__ */ jsx("a", { href: supportHref, className: "text-accent-text underline underline-offset-4", children: text.helpLink }),
+            "."
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-panelFootnote", children: text.footnote })

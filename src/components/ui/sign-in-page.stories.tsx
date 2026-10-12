@@ -12,7 +12,8 @@ const spanish: SignInPageCopy = {
   loading: "Preparando el inicio de sesión…",
   pending: "Conectando con Google…",
   unavailable: "El inicio de sesión no está disponible. Inténtalo más tarde.",
-  help: "¿Necesitas acceso o ayuda para iniciar sesión? Contacta a tu administrador.",
+  help: "¿Necesitas acceso o ayuda para iniciar sesión?",
+  helpLink: "Contacta a tu administrador",
   footnote: "Tu cuenta de trabajo. Tu espacio conectado.",
   footer: "Creado para tu equipo.",
 };

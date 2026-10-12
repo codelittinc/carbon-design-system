@@ -17,6 +17,7 @@ export interface SignInPageCopy {
   pending: string;
   unavailable: string;
   help: string;
+  helpLink: string;
   footnote: string;
   footer: string;
 }
@@ -24,6 +25,8 @@ export interface SignInPageCopy {
 export interface SignInPageProps {
   /** Destination app. The shared brand remains CarbonOS. */
   appName?: string;
+  /** Where users can request access or sign-in help. */
+  supportHref?: string;
   /** The app owns authentication, redirects, async errors, and status updates. */
   onSignIn: () => void;
   status?: "ready" | "loading" | "pending" | "unavailable";
@@ -45,6 +48,7 @@ export interface SignInPageProps {
 export function SignInPage({
   appName = "CarbonOS", onSignIn, status = "ready", error, copy,
   children, showThemeToggle = true, className,
+  supportHref = "https://helpdesk.carbonresidential.com/support/tickets/new",
 }: SignInPageProps) {
   const id = useId();
   const text: SignInPageCopy = {
@@ -55,7 +59,8 @@ export function SignInPage({
     loading: "Preparing sign-in…",
     pending: "Connecting to Google…",
     unavailable: "Sign-in is unavailable. Please try again later.",
-    help: "Need access or a hand signing in? Contact your administrator.",
+    help: "Need access or a hand signing in?",
+    helpLink: "Contact your administrator",
     footnote: "Your work account. Your connected workspace.",
     footer: "Built around your people.",
     ...copy,
@@ -84,7 +89,7 @@ export function SignInPage({
             </div>
             <div className="carbon-sign-in-help">
               <LockKeyhole size={15} className="shrink-0 text-text-muted" aria-hidden="true" />
-              <p>{text.help}</p>
+              <p>{text.help} <a href={supportHref} className="text-accent-text underline underline-offset-4">{text.helpLink}</a>.</p>
             </div>
           </div>
           <p className="carbon-sign-in-panelFootnote">{text.footnote}</p>
