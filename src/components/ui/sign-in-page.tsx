@@ -10,8 +10,6 @@ import { ThemeToggle } from "./theme";
 /** All visible copy can be translated without coupling the library to i18n. */
 export interface SignInPageCopy {
   eyebrow: string;
-  headline: string;
-  headlineAccent: string;
   introduction: string;
   illustrationCaption: string;
   firstBenefit: string;
@@ -81,8 +79,6 @@ export function SignInPage({
   const id = useId();
   const text: SignInPageCopy = {
     eyebrow: "ONE WORKSPACE. ALL YOUR POSSIBILITIES.",
-    headline: "Your work.",
-    headlineAccent: "Better connected.",
     introduction: "The people, tools, and ideas that move us forward. Together in CarbonOS.",
     illustrationCaption: "One account. A connected workspace.",
     firstBenefit: "One work account",
@@ -102,17 +98,10 @@ export function SignInPage({
   const busy = status === "loading" || status === "pending";
   return (
     <main className={cn("carbon-sign-in-page", className)}>
-      <header className="carbon-sign-in-header">
-        <ProductMark name="CarbonOS" initial="C" />
-        <div className="flex items-center gap-5">
-          {appName !== "CarbonOS" && <span className="hidden text-xs tracking-widest text-text-muted sm:block">{appName}</span>}
-          {showThemeToggle && <ThemeToggle />}
-        </div>
-      </header>
       <div className="carbon-sign-in-content">
-        <section className="carbon-sign-in-story" aria-labelledby={`${id}-intro`}>
+        <section className="carbon-sign-in-story" aria-label="CarbonOS">
+          <ProductMark name="CarbonOS" initial="C" />
           <div className="carbon-sign-in-eyebrow"><span className="h-px w-8 bg-accent" />{text.eyebrow}</div>
-          <h1 id={`${id}-intro`} className="carbon-sign-in-headline">{text.headline}<br /><span className="text-accent-text">{text.headlineAccent}</span></h1>
           <p className="carbon-sign-in-intro">{text.introduction}</p>
           <WorkspaceIllustration caption={text.illustrationCaption} />
           <div className="carbon-sign-in-capabilities">
@@ -124,7 +113,7 @@ export function SignInPage({
           <div className="carbon-sign-in-panel">
             <div className="carbon-sign-in-icon" aria-hidden="true"><ShieldCheck size={25} strokeWidth={1.5} /></div>
             <p className="carbon-sign-in-eyebrow">{text.welcome}</p>
-            <h2 id={`${id}-title`} className="carbon-sign-in-panelTitle">{text.title}</h2>
+            <h1 id={`${id}-title`} className="carbon-sign-in-panelTitle">{text.title}</h1>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-text-secondary">{text.description}</p>
             <div className="mt-9" aria-busy={busy}>
               {status === "unavailable" ? (
@@ -146,7 +135,7 @@ export function SignInPage({
           <p className="carbon-sign-in-panelFootnote">{text.footnote}</p>
         </section>
       </div>
-      <footer className="carbon-sign-in-footer"><span>Carbon Residential</span><span>{text.footer}</span></footer>
+      <footer className="carbon-sign-in-footer"><span>Carbon Residential</span><span>{text.footer}</span>{showThemeToggle && <ThemeToggle />}</footer>
     </main>
   );
 }

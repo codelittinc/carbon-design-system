@@ -7209,8 +7209,6 @@ function SignInPage({
   const id = useId();
   const text = {
     eyebrow: "ONE WORKSPACE. ALL YOUR POSSIBILITIES.",
-    headline: "Your work.",
-    headlineAccent: "Better connected.",
     introduction: "The people, tools, and ideas that move us forward. Together in CarbonOS.",
     illustrationCaption: "One account. A connected workspace.",
     firstBenefit: "One work account",
@@ -7229,23 +7227,12 @@ function SignInPage({
   };
   const busy = status === "loading" || status === "pending";
   return /* @__PURE__ */ jsxs("main", { className: cn("carbon-sign-in-page", className), children: [
-    /* @__PURE__ */ jsxs("header", { className: "carbon-sign-in-header", children: [
-      /* @__PURE__ */ jsx(ProductMark, { name: "CarbonOS", initial: "C" }),
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-5", children: [
-        appName !== "CarbonOS" && /* @__PURE__ */ jsx("span", { className: "hidden text-xs tracking-widest text-text-muted sm:block", children: appName }),
-        showThemeToggle && /* @__PURE__ */ jsx(ThemeToggle, {})
-      ] })
-    ] }),
     /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-content", children: [
-      /* @__PURE__ */ jsxs("section", { className: "carbon-sign-in-story", "aria-labelledby": `${id}-intro`, children: [
+      /* @__PURE__ */ jsxs("section", { className: "carbon-sign-in-story", "aria-label": "CarbonOS", children: [
+        /* @__PURE__ */ jsx(ProductMark, { name: "CarbonOS", initial: "C" }),
         /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-eyebrow", children: [
           /* @__PURE__ */ jsx("span", { className: "h-px w-8 bg-accent" }),
           text.eyebrow
-        ] }),
-        /* @__PURE__ */ jsxs("h1", { id: `${id}-intro`, className: "carbon-sign-in-headline", children: [
-          text.headline,
-          /* @__PURE__ */ jsx("br", {}),
-          /* @__PURE__ */ jsx("span", { className: "text-accent-text", children: text.headlineAccent })
         ] }),
         /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-intro", children: text.introduction }),
         /* @__PURE__ */ jsx(WorkspaceIllustration, { caption: text.illustrationCaption }),
@@ -7264,7 +7251,7 @@ function SignInPage({
         /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-panel", children: [
           /* @__PURE__ */ jsx("div", { className: "carbon-sign-in-icon", "aria-hidden": "true", children: /* @__PURE__ */ jsx(ShieldCheck, { size: 25, strokeWidth: 1.5 }) }),
           /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-eyebrow", children: text.welcome }),
-          /* @__PURE__ */ jsx("h2", { id: `${id}-title`, className: "carbon-sign-in-panelTitle", children: text.title }),
+          /* @__PURE__ */ jsx("h1", { id: `${id}-title`, className: "carbon-sign-in-panelTitle", children: text.title }),
           /* @__PURE__ */ jsx("p", { className: "mt-3 max-w-xs text-sm leading-relaxed text-text-secondary", children: text.description }),
           /* @__PURE__ */ jsxs("div", { className: "mt-9", "aria-busy": busy, children: [
             status === "unavailable" ? /* @__PURE__ */ jsx("p", { role: "status", className: "text-sm text-text-secondary", children: text.unavailable }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
@@ -7284,7 +7271,8 @@ function SignInPage({
     ] }),
     /* @__PURE__ */ jsxs("footer", { className: "carbon-sign-in-footer", children: [
       /* @__PURE__ */ jsx("span", { children: "Carbon Residential" }),
-      /* @__PURE__ */ jsx("span", { children: text.footer })
+      /* @__PURE__ */ jsx("span", { children: text.footer }),
+      showThemeToggle && /* @__PURE__ */ jsx(ThemeToggle, {})
     ] })
   ] });
 }

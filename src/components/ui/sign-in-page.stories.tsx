@@ -6,8 +6,6 @@ import { ThemeProvider } from "./theme";
 
 const spanish: SignInPageCopy = {
   eyebrow: "UN ESPACIO. TODAS TUS POSIBILIDADES.",
-  headline: "Tu trabajo.",
-  headlineAccent: "Mejor conectado.",
   introduction: "Las personas, herramientas e ideas que nos hacen avanzar. Juntas en CarbonOS.",
   illustrationCaption: "Una cuenta. Un espacio conectado.",
   firstBenefit: "Una cuenta de trabajo",

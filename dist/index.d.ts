@@ -2518,8 +2518,6 @@ declare function AddressAutocomplete({ id, value, onChange, onAddressSelect, onS
 /** All visible copy can be translated without coupling the library to i18n. */
 interface SignInPageCopy {
     eyebrow: string;
-    headline: string;
-    headlineAccent: string;
     introduction: string;
     illustrationCaption: string;
     firstBenefit: string;
