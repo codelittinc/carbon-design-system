@@ -294,3 +294,28 @@ Keep OAuth callbacks, MFA, session tasks, sign-up completion, and authorization 
 the app. This component changes no access policy and does not remove branding
 from any authentication provider's own hosted pages. Sharing the component does
 not create a central sign-in hostname: each project renders it on its own route.
+
+## A shared CarbonOS sign-out page
+
+`SignOutPage` uses the same presentation as `SignInPage`. It asks for explicit
+confirmation and never signs out on mount. Reuse your existing `ThemeProvider`,
+load `/styles`, and keep Tailwind scanning this package's `dist` directory.
+
+```tsx
+import { SignOutPage } from "@codelittinc/carbon-design-system";
+
+<SignOutPage
+  appName="Hirelitt"
+  onSignOut={endSession}
+  onCancel={returnToApp}
+  onSignIn={returnToSignIn}
+  status={signedOut ? "signed-out" : pending ? "pending" : "ready"}
+  error={signOutError}
+/>
+```
+
+The app reads the session, catches SDK failures and performs navigation. Only set
+`signed-out` after confirming that no session remains. `loading` and `pending`
+disable confirmation and cancellation; `unavailable` removes confirmation but
+allows cancellation. Use `copy` to translate visible strings (including
+`signedOutTitle`, `signedOutDescription`, `signIn` and `cancel`).
