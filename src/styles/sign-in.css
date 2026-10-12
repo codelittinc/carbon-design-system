@@ -1,0 +1,33 @@
+/* Shared sign-in layout; all colors resolve through the Carbon theme. */
+.carbon-sign-in-page { min-height: 100svh; display: flex; flex-direction: column; background: var(--color-bg); color: var(--color-text-primary); }
+.carbon-sign-in-header { display: flex; align-items: center; justify-content: space-between; padding: 28px clamp(24px, 5vw, 88px); border-bottom: 1px solid var(--color-border-subtle); }
+.carbon-sign-in-content { flex: 1; display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; width: 100%; max-width: 1440px; margin: auto; padding: 64px clamp(24px, 5vw, 88px); gap: clamp(40px, 6vw, 100px); }
+.carbon-sign-in-story { min-width: 0; }
+.carbon-sign-in-eyebrow { display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 600; letter-spacing: .18em; color: var(--color-text-muted); }
+.carbon-sign-in-headline { margin-top: 25px; font-family: var(--font-display); font-size: clamp(44px, 5.1vw, 76px); font-weight: 400; line-height: 1.06; letter-spacing: -.035em; }
+.carbon-sign-in-intro { margin-top: 24px; color: var(--color-text-secondary); font-size: 16px; line-height: 1.8; }
+.carbon-sign-in-illustration { margin: 26px -20px 0; position: relative; }
+.carbon-sign-in-network { width: 100%; max-height: 250px; }
+.carbon-sign-in-mapCaption { display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--color-text-muted); }
+.carbon-sign-in-capabilities { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 36px; color: var(--color-text-muted); font-size: 11px; }
+.carbon-sign-in-capabilities span { display: flex; align-items: center; gap: 8px; }
+.carbon-sign-in-capabilities svg { color: var(--color-accent-text); }
+.carbon-sign-in-signIn { width: 100%; max-width: 450px; justify-self: end; }
+.carbon-sign-in-panel { position: relative; padding: clamp(28px, 3vw, 44px); border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); box-shadow: 0 24px 80px -40px var(--color-border); overflow: hidden; }
+.carbon-sign-in-panel::before { content: ""; position: absolute; top: 0; left: 44px; right: 44px; height: 2px; background: linear-gradient(90deg, transparent, var(--color-accent), transparent); }
+.carbon-sign-in-icon { display: flex; align-items: center; justify-content: center; height: 52px; width: 52px; margin-bottom: 35px; background: var(--color-accent-muted); border: 1px solid var(--color-border); border-radius: 14px; color: var(--color-accent-text); }
+.carbon-sign-in-panelTitle { margin-top: 15px; font-family: var(--font-display); font-size: 36px; font-weight: 400; line-height: 1.15; letter-spacing: -.025em; }
+.carbon-sign-in-help { display: flex; gap: 11px; margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--color-border-subtle); font-size: 11px; line-height: 1.8; color: var(--color-text-muted); }
+.carbon-sign-in-panelFootnote { margin-top: 23px; text-align: center; font-size: 10px; color: var(--color-text-muted); }
+.carbon-sign-in-footer { display: flex; justify-content: space-between; gap: 20px; padding: 23px clamp(24px, 5vw, 88px); border-top: 1px solid var(--color-border-subtle); color: var(--color-text-muted); font-size: 10px; }
+@media (max-width: 800px) {
+  .carbon-sign-in-header { padding-top: 20px; padding-bottom: 20px; }
+  .carbon-sign-in-content { grid-template-columns: 1fr; gap: 32px; padding-top: 38px; padding-bottom: 40px; max-width: 560px; }
+  .carbon-sign-in-headline { font-size: clamp(42px, 9vw, 58px); margin-top: 18px; }
+  .carbon-sign-in-intro { font-size: 14px; margin-top: 18px; }
+  .carbon-sign-in-illustration, .carbon-sign-in-capabilities { display: none; }
+  .carbon-sign-in-signIn { max-width: none; }
+  .carbon-sign-in-icon { display: none; }
+  .carbon-sign-in-panelTitle { font-size: 32px; }
+  .carbon-sign-in-footer { font-size: 9px; }
+}
