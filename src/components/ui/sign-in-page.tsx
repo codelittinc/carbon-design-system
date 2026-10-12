@@ -74,7 +74,9 @@ export function SignInPage({
           <div className="carbon-sign-in-panel">
             <p className="carbon-sign-in-eyebrow">{text.welcome}</p>
             <h1 id={`${id}-title`} className="carbon-sign-in-panelTitle">{text.title}</h1>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-text-secondary">{text.description}</p>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-text-secondary">{appName ? text.description.split(appName).map((part, index) => (
+              <span key={index}>{index > 0 && <strong className="font-semibold text-text-primary">{appName}</strong>}{part}</span>
+            )) : text.description}</p>
             <div className="mt-9" aria-busy={busy}>
               {status === "unavailable" ? (
                 <p role="status" className="text-sm text-text-secondary">{text.unavailable}</p>

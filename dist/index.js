@@ -7206,7 +7206,10 @@ function SignInPage({
       /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-panel", children: [
         /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-eyebrow", children: text.welcome }),
         /* @__PURE__ */ jsx("h1", { id: `${id}-title`, className: "carbon-sign-in-panelTitle", children: text.title }),
-        /* @__PURE__ */ jsx("p", { className: "mt-3 max-w-xs text-sm leading-relaxed text-text-secondary", children: text.description }),
+        /* @__PURE__ */ jsx("p", { className: "mt-3 max-w-xs text-sm leading-relaxed text-text-secondary", children: appName ? text.description.split(appName).map((part, index) => /* @__PURE__ */ jsxs("span", { children: [
+          index > 0 && /* @__PURE__ */ jsx("strong", { className: "font-semibold text-text-primary", children: appName }),
+          part
+        ] }, index)) : text.description }),
         /* @__PURE__ */ jsxs("div", { className: "mt-9", "aria-busy": busy, children: [
           status === "unavailable" ? /* @__PURE__ */ jsx("p", { role: "status", className: "text-sm text-text-secondary", children: text.unavailable }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
             /* @__PURE__ */ jsx("span", { "aria-live": "polite", children: status === "loading" ? text.loading : status === "pending" ? text.pending : text.button }),
