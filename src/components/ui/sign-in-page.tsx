@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { ArrowRight, Check, KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
 import { ProductMark } from "./product-mark";
@@ -9,11 +9,6 @@ import { ThemeToggle } from "./theme";
 
 /** All visible copy can be translated without coupling the library to i18n. */
 export interface SignInPageCopy {
-  eyebrow: string;
-  introduction: string;
-  illustrationCaption: string;
-  firstBenefit: string;
-  secondBenefit: string;
   welcome: string;
   title: string;
   description: string;
@@ -42,31 +37,6 @@ export interface SignInPageProps {
   className?: string;
 }
 
-/** Decorative, fictional access map: never fetch staff data before sign-in. */
-function WorkspaceIllustration({ caption }: { caption: string }) {
-  return (
-    <div className="carbon-sign-in-illustration" aria-hidden="true">
-      <svg viewBox="0 0 600 280" fill="none" className="carbon-sign-in-network">
-        <path d="M0 140H600M300 0V280" stroke="var(--color-border-subtle)" strokeDasharray="3 7" />
-        <ellipse cx="300" cy="140" rx="238" ry="102" stroke="var(--color-border)" />
-        <ellipse cx="300" cy="140" rx="166" ry="70" stroke="var(--color-border-subtle)" />
-        <path d="M102 78L300 140L492 76M102 204L300 140L492 204" stroke="var(--color-accent)" strokeOpacity=".4" />
-        <path d="M300 104V48M300 176V235" stroke="var(--color-accent)" strokeOpacity=".4" />
-        {[ [102, 78], [102, 204], [492, 76], [492, 204], [300, 40], [300, 240] ].map(([x, y], i) => (
-          <g key={i}>
-            <rect x={x - 17} y={y - 17} width="34" height="34" rx="10" fill="var(--color-surface-raised)" stroke="var(--color-border)" />
-            <circle cx={x} cy={y} r="4" fill={i % 2 ? "var(--color-text-muted)" : "var(--color-accent)"} />
-          </g>
-        ))}
-        <rect x="262" y="102" width="76" height="76" rx="22" fill="var(--color-surface)" stroke="var(--color-accent)" />
-        <path d="M300 119L315 125V139C315 151 300 161 300 161S285 151 285 139V125L300 119Z" fill="var(--color-accent-muted)" stroke="var(--color-accent)" />
-        <path d="M294 139L299 144L308 134" stroke="var(--color-accent-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <div className="carbon-sign-in-mapCaption"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> {caption}</div>
-    </div>
-  );
-}
-
 /**
  * The shared CarbonOS front door. Presentational: no Clerk, Next.js, environment
  * variables, session reads, redirects, or app-specific access rules.
@@ -78,11 +48,6 @@ export function SignInPage({
 }: SignInPageProps) {
   const id = useId();
   const text: SignInPageCopy = {
-    eyebrow: "ONE WORKSPACE. ALL YOUR POSSIBILITIES.",
-    introduction: "The people, tools, and ideas that move us forward. Together in CarbonOS.",
-    illustrationCaption: "One account. A connected workspace.",
-    firstBenefit: "One work account",
-    secondBenefit: "Connected across Carbon",
     welcome: appName === "CarbonOS" ? "YOUR CARBON WORKSPACE" : `CONTINUE TO ${appName.toUpperCase()}`,
     title: "Welcome back.",
     description: `Sign in with your Carbon work account to continue to ${appName}.`,
@@ -99,19 +64,9 @@ export function SignInPage({
   return (
     <main className={cn("carbon-sign-in-page", className)}>
       <div className="carbon-sign-in-content">
-        <section className="carbon-sign-in-story" aria-label="CarbonOS">
-          <ProductMark name="CarbonOS" initial="C" />
-          <div className="carbon-sign-in-eyebrow"><span className="h-px w-8 bg-accent" />{text.eyebrow}</div>
-          <p className="carbon-sign-in-intro">{text.introduction}</p>
-          <WorkspaceIllustration caption={text.illustrationCaption} />
-          <div className="carbon-sign-in-capabilities">
-            <span><KeyRound size={15} aria-hidden="true" />{text.firstBenefit}</span>
-            <span><Check size={15} aria-hidden="true" />{text.secondBenefit}</span>
-          </div>
-        </section>
         <section className="carbon-sign-in-signIn" aria-labelledby={`${id}-title`}>
+          <div className="carbon-sign-in-brand"><ProductMark name="CarbonOS" initial="C" /></div>
           <div className="carbon-sign-in-panel">
-            <div className="carbon-sign-in-icon" aria-hidden="true"><ShieldCheck size={25} strokeWidth={1.5} /></div>
             <p className="carbon-sign-in-eyebrow">{text.welcome}</p>
             <h1 id={`${id}-title`} className="carbon-sign-in-panelTitle">{text.title}</h1>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-text-secondary">{text.description}</p>

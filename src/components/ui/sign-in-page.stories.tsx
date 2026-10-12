@@ -5,11 +5,6 @@ import { SignInPage, type SignInPageCopy } from "./sign-in-page";
 import { ThemeProvider } from "./theme";
 
 const spanish: SignInPageCopy = {
-  eyebrow: "UN ESPACIO. TODAS TUS POSIBILIDADES.",
-  introduction: "Las personas, herramientas e ideas que nos hacen avanzar. Juntas en CarbonOS.",
-  illustrationCaption: "Una cuenta. Un espacio conectado.",
-  firstBenefit: "Una cuenta de trabajo",
-  secondBenefit: "Todo Carbon conectado",
   welcome: "CONTINUAR A {{appName}}",
   title: "Te damos la bienvenida.",
   description: "Inicia sesión con tu cuenta de trabajo de Carbon para continuar a {{appName}}.",

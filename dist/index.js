@@ -7,7 +7,7 @@ import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, KeyRound, ShieldCheck, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, Grip as AppsIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
@@ -7173,29 +7173,6 @@ function StructuredAddressInput({
     /* @__PURE__ */ jsx("input", { type: "hidden", name: "country", value: value.country || "US" })
   ] });
 }
-function WorkspaceIllustration({ caption }) {
-  return /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-illustration", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 600 280", fill: "none", className: "carbon-sign-in-network", children: [
-      /* @__PURE__ */ jsx("path", { d: "M0 140H600M300 0V280", stroke: "var(--color-border-subtle)", strokeDasharray: "3 7" }),
-      /* @__PURE__ */ jsx("ellipse", { cx: "300", cy: "140", rx: "238", ry: "102", stroke: "var(--color-border)" }),
-      /* @__PURE__ */ jsx("ellipse", { cx: "300", cy: "140", rx: "166", ry: "70", stroke: "var(--color-border-subtle)" }),
-      /* @__PURE__ */ jsx("path", { d: "M102 78L300 140L492 76M102 204L300 140L492 204", stroke: "var(--color-accent)", strokeOpacity: ".4" }),
-      /* @__PURE__ */ jsx("path", { d: "M300 104V48M300 176V235", stroke: "var(--color-accent)", strokeOpacity: ".4" }),
-      [[102, 78], [102, 204], [492, 76], [492, 204], [300, 40], [300, 240]].map(([x, y], i) => /* @__PURE__ */ jsxs("g", { children: [
-        /* @__PURE__ */ jsx("rect", { x: x - 17, y: y - 17, width: "34", height: "34", rx: "10", fill: "var(--color-surface-raised)", stroke: "var(--color-border)" }),
-        /* @__PURE__ */ jsx("circle", { cx: x, cy: y, r: "4", fill: i % 2 ? "var(--color-text-muted)" : "var(--color-accent)" })
-      ] }, i)),
-      /* @__PURE__ */ jsx("rect", { x: "262", y: "102", width: "76", height: "76", rx: "22", fill: "var(--color-surface)", stroke: "var(--color-accent)" }),
-      /* @__PURE__ */ jsx("path", { d: "M300 119L315 125V139C315 151 300 161 300 161S285 151 285 139V125L300 119Z", fill: "var(--color-accent-muted)", stroke: "var(--color-accent)" }),
-      /* @__PURE__ */ jsx("path", { d: "M294 139L299 144L308 134", stroke: "var(--color-accent-text)", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-mapCaption", children: [
-      /* @__PURE__ */ jsx("span", { className: "h-1.5 w-1.5 rounded-full bg-accent" }),
-      " ",
-      caption
-    ] })
-  ] });
-}
 function SignInPage({
   appName = "CarbonOS",
   onSignIn,
@@ -7208,11 +7185,6 @@ function SignInPage({
 }) {
   const id = useId();
   const text = {
-    eyebrow: "ONE WORKSPACE. ALL YOUR POSSIBILITIES.",
-    introduction: "The people, tools, and ideas that move us forward. Together in CarbonOS.",
-    illustrationCaption: "One account. A connected workspace.",
-    firstBenefit: "One work account",
-    secondBenefit: "Connected across Carbon",
     welcome: appName === "CarbonOS" ? "YOUR CARBON WORKSPACE" : `CONTINUE TO ${appName.toUpperCase()}`,
     title: "Welcome back.",
     description: `Sign in with your Carbon work account to continue to ${appName}.`,
@@ -7227,48 +7199,27 @@ function SignInPage({
   };
   const busy = status === "loading" || status === "pending";
   return /* @__PURE__ */ jsxs("main", { className: cn("carbon-sign-in-page", className), children: [
-    /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-content", children: [
-      /* @__PURE__ */ jsxs("section", { className: "carbon-sign-in-story", "aria-label": "CarbonOS", children: [
-        /* @__PURE__ */ jsx(ProductMark, { name: "CarbonOS", initial: "C" }),
-        /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-eyebrow", children: [
-          /* @__PURE__ */ jsx("span", { className: "h-px w-8 bg-accent" }),
-          text.eyebrow
-        ] }),
-        /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-intro", children: text.introduction }),
-        /* @__PURE__ */ jsx(WorkspaceIllustration, { caption: text.illustrationCaption }),
-        /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-capabilities", children: [
-          /* @__PURE__ */ jsxs("span", { children: [
-            /* @__PURE__ */ jsx(KeyRound, { size: 15, "aria-hidden": "true" }),
-            text.firstBenefit
+    /* @__PURE__ */ jsx("div", { className: "carbon-sign-in-content", children: /* @__PURE__ */ jsxs("section", { className: "carbon-sign-in-signIn", "aria-labelledby": `${id}-title`, children: [
+      /* @__PURE__ */ jsx("div", { className: "carbon-sign-in-brand", children: /* @__PURE__ */ jsx(ProductMark, { name: "CarbonOS", initial: "C" }) }),
+      /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-panel", children: [
+        /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-eyebrow", children: text.welcome }),
+        /* @__PURE__ */ jsx("h1", { id: `${id}-title`, className: "carbon-sign-in-panelTitle", children: text.title }),
+        /* @__PURE__ */ jsx("p", { className: "mt-3 max-w-xs text-sm leading-relaxed text-text-secondary", children: text.description }),
+        /* @__PURE__ */ jsxs("div", { className: "mt-9", "aria-busy": busy, children: [
+          status === "unavailable" ? /* @__PURE__ */ jsx("p", { role: "status", className: "text-sm text-text-secondary", children: text.unavailable }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
+            /* @__PURE__ */ jsx("span", { "aria-live": "polite", children: status === "loading" ? text.loading : status === "pending" ? text.pending : text.button }),
+            /* @__PURE__ */ jsx(ArrowRight, { size: 18, "aria-hidden": "true" })
           ] }),
-          /* @__PURE__ */ jsxs("span", { children: [
-            /* @__PURE__ */ jsx(Check, { size: 15, "aria-hidden": "true" }),
-            text.secondBenefit
-          ] })
+          error && /* @__PURE__ */ jsx("p", { id: `${id}-error`, className: "mt-3 text-sm text-error-text", role: "alert", children: error }),
+          children
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-help", children: [
+          /* @__PURE__ */ jsx(LockKeyhole, { size: 15, className: "shrink-0 text-text-muted", "aria-hidden": "true" }),
+          /* @__PURE__ */ jsx("p", { children: text.help })
         ] })
       ] }),
-      /* @__PURE__ */ jsxs("section", { className: "carbon-sign-in-signIn", "aria-labelledby": `${id}-title`, children: [
-        /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-panel", children: [
-          /* @__PURE__ */ jsx("div", { className: "carbon-sign-in-icon", "aria-hidden": "true", children: /* @__PURE__ */ jsx(ShieldCheck, { size: 25, strokeWidth: 1.5 }) }),
-          /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-eyebrow", children: text.welcome }),
-          /* @__PURE__ */ jsx("h1", { id: `${id}-title`, className: "carbon-sign-in-panelTitle", children: text.title }),
-          /* @__PURE__ */ jsx("p", { className: "mt-3 max-w-xs text-sm leading-relaxed text-text-secondary", children: text.description }),
-          /* @__PURE__ */ jsxs("div", { className: "mt-9", "aria-busy": busy, children: [
-            status === "unavailable" ? /* @__PURE__ */ jsx("p", { role: "status", className: "text-sm text-text-secondary", children: text.unavailable }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
-              /* @__PURE__ */ jsx("span", { "aria-live": "polite", children: status === "loading" ? text.loading : status === "pending" ? text.pending : text.button }),
-              /* @__PURE__ */ jsx(ArrowRight, { size: 18, "aria-hidden": "true" })
-            ] }),
-            error && /* @__PURE__ */ jsx("p", { id: `${id}-error`, className: "mt-3 text-sm text-error-text", role: "alert", children: error }),
-            children
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "carbon-sign-in-help", children: [
-            /* @__PURE__ */ jsx(LockKeyhole, { size: 15, className: "shrink-0 text-text-muted", "aria-hidden": "true" }),
-            /* @__PURE__ */ jsx("p", { children: text.help })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-panelFootnote", children: text.footnote })
-      ] })
-    ] }),
+      /* @__PURE__ */ jsx("p", { className: "carbon-sign-in-panelFootnote", children: text.footnote })
+    ] }) }),
     /* @__PURE__ */ jsxs("footer", { className: "carbon-sign-in-footer", children: [
       /* @__PURE__ */ jsx("span", { children: "Carbon Residential" }),
       /* @__PURE__ */ jsx("span", { children: text.footer }),
