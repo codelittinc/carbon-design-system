@@ -147,3 +147,5 @@ export * from "./components/ui/structured-address-input";
 // coexists with the simpler string-only `address-autocomplete` above.
 export { type AddressComboboxProps, type AddressSuggestion, type AddressSuggestionProvider, type AddressComboboxStatus, AddressAutocomplete as AddressCombobox } from "./components/ui/address-combobox";
 export * from "./components/ui/postal-address";
+
+export * from "./components/ui/sign-in-page";

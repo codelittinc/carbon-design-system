@@ -248,3 +248,49 @@ characters, debounce for 250 ms, and time out after ten seconds. Superseded requ
 manual entry and Retry remain available. `showStatus={false}` lets the host present one shared
 status message; `attribution` supplies a custom provider's attribution footer. Provider results
 are formatted strings; `onAddressSelect` remains specific to the default Google mode.
+
+## A shared CarbonOS sign-in page
+
+`SignInPage` is the front door for any CarbonOS app. The CarbonOS brand, responsive
+single-column layout, theme tokens, and sign-in states live in this library. An
+app supplies its name and connects `onSignIn` to its authentication SDK. There is
+no Clerk or Next.js dependency, no environment configuration, and no session or
+redirect logic in the component.
+
+```tsx
+import {
+  SignInPage,
+  ThemeProvider,
+} from "@codelittinc/carbon-design-system";
+import "@codelittinc/carbon-design-system/styles";
+
+// Inside your client-side auth adapter:
+<ThemeProvider>
+  <SignInPage
+    appName="Gatekeeper"
+    onSignIn={startGoogleSignIn}
+    status={pending ? "pending" : "ready"}
+    error={signInError}
+  >
+    <div id="clerk-captcha" />
+  </SignInPage>
+</ThemeProvider>
+```
+
+Reuse an existing `ThemeProvider` instead of nesting another. `showThemeToggle={false}`
+lets a host such as Storybook own the theme without a provider. Load the normal
+`/styles` entry and ensure your Tailwind source configuration scans the package's
+`dist` directory, as for every other component in this library.
+
+`status` is `ready`, `loading` (SDK initialization), `pending` (authentication in
+progress), or `unavailable` (no action). The app owns that state, catches SDK
+errors, and supplies a safe user-facing `error`. Pending/loading disable the
+button; errors are announced and allow retry when ready. `copy` overrides visible
+strings for localization or another provider. `children` is the provider challenge
+or continuation slot. Storybook includes CarbonOS, Gatekeeper, Reimbursements,
+mobile, retry, unavailable, loading, and theme-control examples, in English and Spanish.
+
+Keep OAuth callbacks, MFA, session tasks, sign-up completion, and authorization in
+the app. This component changes no access policy and does not remove branding
+from any authentication provider's own hosted pages. Sharing the component does
+not create a central sign-in hostname: each project renders it on its own route.
