@@ -149,3 +149,4 @@ export { type AddressComboboxProps, type AddressSuggestion, type AddressSuggesti
 export * from "./components/ui/postal-address";
 
 export * from "./components/ui/sign-in-page";
+export * from "./components/ui/sign-out-page";
