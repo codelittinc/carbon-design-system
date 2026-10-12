@@ -252,7 +252,7 @@ are formatted strings; `onAddressSelect` remains specific to the default Google 
 ## A shared CarbonOS sign-in page
 
 `SignInPage` is the front door for any CarbonOS app. The CarbonOS brand, responsive
-layout, illustration, theme tokens, and sign-in states live in this library. An
+single-column layout, theme tokens, and sign-in states live in this library. An
 app supplies its name and connects `onSignIn` to its authentication SDK. There is
 no Clerk or Next.js dependency, no environment configuration, and no session or
 redirect logic in the component.
