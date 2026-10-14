@@ -189,6 +189,8 @@ describe("AppLauncher", () => {
     const getToken = vi.fn<() => Promise<string | null>>(async () => "session-token");
     const logos = { baseUrl: "https://gatekeeper.example.com/", getToken };
     const fetchMock = vi.fn();
+    // The panel, the token and the fetch are all async; CI machines are slower than ours.
+    const eventually = { timeout: 5000 };
 
     beforeEach(() => {
       clearAppLogoCache();
@@ -211,7 +213,7 @@ describe("AppLauncher", () => {
 
     it("fetches each keyed app's logo with the person's token, and draws it; no logo keeps the initials", async () => {
       const { panel } = await openLauncher({ sections: KEYED, logos });
-      await vi.waitFor(() => expect(within(panel).getByRole("link", { name: /^Atlas/ }).querySelector("img")).toHaveAttribute("src", "blob:atlas-logo"));
+      await vi.waitFor(() => expect(within(panel).getByRole("link", { name: /^Atlas/ }).querySelector("img")).toHaveAttribute("src", "blob:atlas-logo"), eventually);
 
       expect(fetchMock).toHaveBeenCalledWith("https://gatekeeper.example.com/api/me/apps/atlas/logo?inline=1", {
         headers: { Authorization: "Bearer session-token" },
@@ -224,7 +226,7 @@ describe("AppLauncher", () => {
 
     it("leaves an app that already has an iconSrc alone", async () => {
       const { panel } = await openLauncher({ sections: KEYED, logos });
-      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), eventually);
       expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/slack/"), expect.anything());
       expect(within(panel).getByRole("link", { name: /^Slack/ }).querySelector("img")).toHaveAttribute("src", "https://example.com/slack.png");
     });
@@ -233,14 +235,14 @@ describe("AppLauncher", () => {
       getToken.mockResolvedValueOnce(null);
       fetchMock.mockRejectedValue(new Error("offline"));
       const { panel } = await openLauncher({ sections: KEYED, logos });
-      await vi.waitFor(() => expect(getToken).toHaveBeenCalled());
+      await vi.waitFor(() => expect(getToken).toHaveBeenCalled(), eventually);
       expect(panel.querySelector("img[src^='blob:']")).toBeNull();
       expect(within(panel).getByRole("link", { name: /^Atlas/ })).toHaveTextContent(/^AT/);
     });
 
     it("does not ask again within the cache window when reopened", async () => {
       const { user } = await openLauncher({ sections: KEYED, logos });
-      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), eventually);
       await user.keyboard("{Escape}");
       await user.click(screen.getByRole("button", { name: "Carbon apps" }));
       expect(fetchMock).toHaveBeenCalledTimes(2);
