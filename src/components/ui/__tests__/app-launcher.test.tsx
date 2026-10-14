@@ -1,7 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent, { PointerEventsCheckLevel } from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLauncher, type AppLauncherSection } from "../app-launcher";
+import { clearAppLogoCache } from "../app-logos";
 
 const SECTIONS: AppLauncherSection[] = [
   {
@@ -91,6 +92,7 @@ describe("AppLauncher", () => {
 
   it("merges every section into one list sorted by name, with no headings", async () => {
     const { panel } = await openLauncher({
+      icons: false,
       sections: [...SECTIONS, { heading: "Reports", apps: [{ name: "Asana", href: "https://asana.com" }] }],
     });
     const names = within(panel)
@@ -142,14 +144,18 @@ describe("AppLauncher", () => {
     expect(more).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("draws no tiles unless asked", async () => {
+  it("puts a tile before every app by default", async () => {
     const { panel } = await openLauncher();
+    expect(panel.querySelectorAll("li [aria-hidden='true'].rounded-md")).toHaveLength(4);
+  });
+
+  it("draws no tiles when icons is false", async () => {
+    const { panel } = await openLauncher({ icons: false });
     expect(panel.querySelector("[aria-hidden='true'].rounded-md")).toBeNull();
   });
 
-  it("with icons, puts a tile before every app: its logo, or its initials", async () => {
+  it("puts a tile before every app: its logo, or its initials", async () => {
     const { panel } = await openLauncher({
-      icons: true,
       sections: [
         {
           heading: "Tools",
@@ -167,5 +173,79 @@ describe("AppLauncher", () => {
     expect(yardi).toHaveTextContent(/^YA/);
     const current = within(panel).getByText("Gatekeeper").closest("li")!;
     expect(current).toHaveTextContent(/^GA/);
+  });
+
+  describe("logos", () => {
+    const KEYED: AppLauncherSection[] = [
+      {
+        heading: "Tools",
+        apps: [
+          { key: "atlas", name: "Atlas", href: "https://atlas.example.com" },
+          { key: "yardi", name: "Yardi", href: "https://yardi.example.com" },
+          { key: "slack", name: "Slack", href: "https://slack.com", iconSrc: "https://example.com/slack.png" },
+        ],
+      },
+    ];
+    const getToken = vi.fn<() => Promise<string | null>>(async () => "session-token");
+    const logos = { baseUrl: "https://gatekeeper.example.com/", getToken };
+    const fetchMock = vi.fn();
+    // The panel, the token and the fetch are all async; CI machines are slower than ours.
+    const eventually = { timeout: 5000 };
+
+    beforeEach(() => {
+      clearAppLogoCache();
+      getToken.mockClear();
+      fetchMock.mockReset();
+      fetchMock.mockImplementation(async (url: string) =>
+        url.includes("/atlas/")
+          ? new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } })
+          : new Response(JSON.stringify({ code: "no_logo" }), { status: 404, headers: { "content-type": "application/json" } }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      URL.createObjectURL = vi.fn(() => "blob:atlas-logo");
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("asks nothing until the panel opens", () => {
+      render(<AppLauncher sections={KEYED} logos={logos} />);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("fetches each keyed app's logo with the person's token, and draws it; no logo keeps the initials", async () => {
+      const { panel } = await openLauncher({ sections: KEYED, logos });
+      await vi.waitFor(() => expect(within(panel).getByRole("link", { name: /^Atlas/ }).querySelector("img")).toHaveAttribute("src", "blob:atlas-logo"), eventually);
+
+      expect(fetchMock).toHaveBeenCalledWith("https://gatekeeper.example.com/api/me/apps/atlas/logo?inline=1", {
+        headers: { Authorization: "Bearer session-token" },
+        credentials: "omit",
+      });
+      expect(fetchMock).toHaveBeenCalledWith("https://gatekeeper.example.com/api/me/apps/yardi/logo?inline=1", expect.anything());
+      expect(within(panel).getByRole("link", { name: /^Yardi/ }).querySelector("img")).toBeNull();
+      expect(within(panel).getByRole("link", { name: /^Yardi/ })).toHaveTextContent(/^YA/);
+    });
+
+    it("leaves an app that already has an iconSrc alone", async () => {
+      const { panel } = await openLauncher({ sections: KEYED, logos });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), eventually);
+      expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/slack/"), expect.anything());
+      expect(within(panel).getByRole("link", { name: /^Slack/ }).querySelector("img")).toHaveAttribute("src", "https://example.com/slack.png");
+    });
+
+    it("keeps the initials when nobody is signed in or the request fails", async () => {
+      getToken.mockResolvedValueOnce(null);
+      fetchMock.mockRejectedValue(new Error("offline"));
+      const { panel } = await openLauncher({ sections: KEYED, logos });
+      await vi.waitFor(() => expect(getToken).toHaveBeenCalled(), eventually);
+      expect(panel.querySelector("img[src^='blob:']")).toBeNull();
+      expect(within(panel).getByRole("link", { name: /^Atlas/ })).toHaveTextContent(/^AT/);
+    });
+
+    it("does not ask again within the cache window when reopened", async () => {
+      const { user } = await openLauncher({ sections: KEYED, logos });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), eventually);
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Carbon apps" }));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

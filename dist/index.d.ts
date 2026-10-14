@@ -377,13 +377,34 @@ interface TextLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
  */
 declare const TextLink: react.ForwardRefExoticComponent<TextLinkProps & react.RefAttributes<HTMLAnchorElement>>;
 
+/**
+ * Where the launcher gets each app's logo, so an app does not have to: the
+ * CarbonOS apps' Gatekeeper (`GET /api/me/apps/<key>/logo`) answers with the
+ * logo of an app the signed-in person holds, to that person's own session
+ * token. The launcher asks for it, caches it, and draws initials for anything
+ * that is missing or fails.
+ */
+interface AppLauncherLogos {
+    /** Gatekeeper's origin, e.g. `https://gatekeeper.carbonresidential.com`. */
+    baseUrl: string;
+    /** The signed-in person's session token, e.g. Clerk's `getToken`. Null: nobody is signed in. */
+    getToken: () => Promise<string | null | undefined>;
+}
+
 interface AppLauncherApp {
     name: string;
+    /**
+     * Its access key in Gatekeeper (`apps[].key` from `GET /api/me`). With `logos`, the
+     * launcher fetches this app's logo by it.
+     */
+    key?: string;
     /** Where the app lives. `null` when its link is unknown: shown, not linked. */
     href: string | null;
     /** The app this launcher sits in: highlighted, not linked. */
     current?: boolean;
-    /** Its logo, drawn when the launcher has `icons`. Missing or broken: its initials. */
+    /**
+     * Its logo, when the app already has one. Wins over `logos`. Missing or broken: its initials.
+     */
     iconSrc?: string | null;
 }
 interface AppLauncherSection {
@@ -398,8 +419,14 @@ interface AppLauncherProps {
     moreHref?: string;
     moreLabel?: string;
     /**
-     * A tile before each app's name: its `iconSrc`, or its initials (`Monogram`).
-     * All apps or none, so the names stay aligned.
+     * Where to get each app's logo, so the launcher owns it: given Gatekeeper's origin and the
+     * person's session token, it fetches the logo of every app with a `key` when the panel opens.
+     * No `logos`, or an app with none: its `iconSrc`, else its initials.
+     */
+    logos?: AppLauncherLogos;
+    /**
+     * A tile before each app's name: its logo, or its initials (`Monogram`). On unless
+     * `false`; all apps or none, so the names stay aligned.
      */
     icons?: boolean;
     /** One line over the list, e.g. when the app links could not load. */
@@ -425,7 +452,7 @@ interface AppLauncherProps {
  * is all links, so a per-row icon is noise. Purely presentational: the app fetches
  * the list and passes it in.
  */
-declare function AppLauncher({ sections, moreHref, moreLabel, icons, notice, label, currentLabel, unavailableLabel, newTabLabel, emptyTitle, emptyDescription, className, }: AppLauncherProps): ReactElement;
+declare function AppLauncher({ sections, moreHref, moreLabel, icons, logos, notice, label, currentLabel, unavailableLabel, newTabLabel, emptyTitle, emptyDescription, className, }: AppLauncherProps): ReactElement;
 
 interface ConfirmOptions {
     title: ReactNode;
@@ -2578,4 +2605,4 @@ interface SignOutPageProps {
 /** Shared authentication presentation; never ends a session on render or mount. */
 declare function SignOutPage({ appName, onSignOut, onSignIn, onCancel, status, error, copy, supportHref, showThemeToggle, children, className, }: SignOutPageProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, type SegmentTracker, type SegmentTrackerOptions, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, type SignInPageCopy, type SignInPageProps, SignOutPage, type SignOutPageCopy, type SignOutPageProps, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type VideoSegment, VideoViewer, type VideoViewerProps, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherLogos, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, type SegmentTracker, type SegmentTrackerOptions, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, type SignInPageCopy, type SignInPageProps, SignOutPage, type SignOutPageCopy, type SignOutPageProps, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type VideoSegment, VideoViewer, type VideoViewerProps, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

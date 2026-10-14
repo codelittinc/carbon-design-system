@@ -5,7 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Each entry corresponds to a published version. When you bump the version in
-`package.json`, add a matching `## [1.36.0] - 2026-10-12
+`package.json`, add a matching `## [1.37.0] - 2026-10-14
+
+### Added
+
+- `AppLauncher` owns its logos. New `logos` prop (`{ baseUrl, getToken }`: Gatekeeper's origin and the
+  signed-in person's session token) and a `key` on each `AppLauncherApp` (`apps[].key` from
+  `GET /api/me`). When the panel opens the launcher fetches the logo of every keyed app that has no
+  `iconSrc` from `GET /api/me/apps/<key>/logo?inline=1`, caches it per tab for five minutes, and draws
+  the initials for anything missing or failed. An app only passes the two values; it needs no logo
+  route of its own. Exports `AppLauncherLogos`.
+
+### Changed
+
+- `AppLauncher` draws a tile before every app by default: `icons` now defaults to `true`. Pass
+  `icons={false}` for the old list of names only.
+
+## [1.36.0] - 2026-10-12
 
 ### Added
 

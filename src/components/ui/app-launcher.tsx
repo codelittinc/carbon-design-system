@@ -6,18 +6,28 @@ import { cn } from "@/lib/cn";
 import { headerIconButtonClass, optionRowClass } from "@/lib/ui-classes";
 import { Button } from "./button";
 import { EmptyState } from "./empty-state";
+import { useAppLogos, type AppLauncherLogos } from "./app-logos";
 import { Monogram } from "./monogram";
 import { NewTabHint, newTabRel } from "./new-tab";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Separator } from "./separator";
 
+export type { AppLauncherLogos } from "./app-logos";
+
 export interface AppLauncherApp {
   name: string;
+  /**
+   * Its access key in Gatekeeper (`apps[].key` from `GET /api/me`). With `logos`, the
+   * launcher fetches this app's logo by it.
+   */
+  key?: string;
   /** Where the app lives. `null` when its link is unknown: shown, not linked. */
   href: string | null;
   /** The app this launcher sits in: highlighted, not linked. */
   current?: boolean;
-  /** Its logo, drawn when the launcher has `icons`. Missing or broken: its initials. */
+  /**
+   * Its logo, when the app already has one. Wins over `logos`. Missing or broken: its initials.
+   */
   iconSrc?: string | null;
 }
 
@@ -34,8 +44,14 @@ export interface AppLauncherProps {
   moreHref?: string;
   moreLabel?: string;
   /**
-   * A tile before each app's name: its `iconSrc`, or its initials (`Monogram`).
-   * All apps or none, so the names stay aligned.
+   * Where to get each app's logo, so the launcher owns it: given Gatekeeper's origin and the
+   * person's session token, it fetches the logo of every app with a `key` when the panel opens.
+   * No `logos`, or an app with none: its `iconSrc`, else its initials.
+   */
+  logos?: AppLauncherLogos;
+  /**
+   * A tile before each app's name: its logo, or its initials (`Monogram`). On unless
+   * `false`; all apps or none, so the names stay aligned.
    */
   icons?: boolean;
   /** One line over the list, e.g. when the app links could not load. */
@@ -72,7 +88,8 @@ export function AppLauncher({
   sections,
   moreHref,
   moreLabel = "All your tools",
-  icons = false,
+  icons = true,
+  logos,
   notice,
   label = "Carbon apps",
   currentLabel = "Current",
@@ -87,6 +104,11 @@ export function AppLauncher({
 
   const apps = sections.flatMap((section) => section.apps).sort((a, b) => a.name.localeCompare(b.name));
   const hasLinks = apps.some((app) => app.href && !app.current);
+  const fetched = useAppLogos(
+    logos,
+    apps.flatMap((app) => (app.key && !app.iconSrc ? [app.key] : [])),
+    icons && open,
+  );
 
   return (
     // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
@@ -129,6 +151,7 @@ export function AppLauncher({
                 <li key={`${i}-${app.name}`}>
                   <AppItem
                     app={app}
+                    iconSrc={app.iconSrc ?? (app.key ? fetched.get(app.key) : undefined)}
                     icon={icons}
                     currentLabel={currentLabel}
                     unavailableLabel={unavailableLabel}
@@ -164,6 +187,7 @@ export function AppLauncher({
 
 function AppItem({
   app,
+  iconSrc,
   icon,
   currentLabel,
   unavailableLabel,
@@ -171,13 +195,14 @@ function AppItem({
   onOpen,
 }: {
   app: AppLauncherApp;
+  iconSrc: string | null | undefined;
   icon: boolean;
   currentLabel: string;
   unavailableLabel: string;
   newTabLabel: string;
   onOpen: () => void;
 }): ReactElement {
-  const tile = icon ? <Monogram name={app.name} src={app.iconSrc} size="xs" className="mt-px" /> : null;
+  const tile = icon ? <Monogram name={app.name} src={iconSrc} size="xs" className="mt-px" /> : null;
   if (app.current) {
     return (
       // font-medium as well as the fill, so the row is not marked by colour alone.
