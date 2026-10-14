@@ -115,11 +115,13 @@ export const Default: Story = {
 const LOGO =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' fill='%234A154B'/><circle cx='20' cy='20' r='9' fill='%23ECB22E'/></svg>";
 
-/** `icons`: a logo tile before each app, or its initials when it has none. */
+/**
+ * Every app gets a tile: its logo, or its initials when it has none. An app with no `iconSrc`
+ * and a `key` has its logo fetched through `logos` (Gatekeeper's origin and the person's token).
+ */
 export const WithIcons: Story = {
   render: () => (
     <Launcher
-      icons
       sections={(t) => [
         { heading: t("carbonOS"), apps: CARBON_OS },
         { heading: t("tools"), apps: TOOLS.map((app, i) => (i === 0 ? { ...app, iconSrc: LOGO } : app)) },

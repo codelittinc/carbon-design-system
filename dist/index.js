@@ -1403,6 +1403,54 @@ function EmptyState({
     action && /* @__PURE__ */ jsx("div", { className: "mt-4", children: action })
   ] });
 }
+var TTL_MS = 5 * 60 * 1e3;
+var cache = /* @__PURE__ */ new Map();
+function logoUrl(baseUrl, key) {
+  return `${baseUrl.replace(/\/+$/, "")}/api/me/apps/${encodeURIComponent(key)}/logo?inline=1`;
+}
+async function fetchLogo(logos, key) {
+  try {
+    const token = await logos.getToken();
+    if (!token) return null;
+    const response = await fetch(logoUrl(logos.baseUrl, key), {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "omit"
+    });
+    if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) return null;
+    return URL.createObjectURL(await response.blob());
+  } catch {
+    return null;
+  }
+}
+function logoFor(logos, key) {
+  const id = `${logos.baseUrl}
+${key}`;
+  const hit = cache.get(id);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.url;
+  const entry = { at: Date.now(), url: fetchLogo(logos, key) };
+  cache.set(id, entry);
+  return entry.url;
+}
+function useAppLogos(logos, keys, enabled) {
+  const [found, setFound] = useState(/* @__PURE__ */ new Map());
+  const wanted = useMemo(() => [...new Set(keys)].sort().join("\n"), [keys]);
+  const baseUrl = logos?.baseUrl;
+  const getToken = logos?.getToken;
+  useEffect(() => {
+    if (!enabled || !baseUrl || !getToken || wanted === "") return;
+    let live = true;
+    for (const key of wanted.split("\n")) {
+      void logoFor({ baseUrl, getToken }, key).then((url) => {
+        if (!live || !url) return;
+        setFound((previous) => previous.get(key) === url ? previous : new Map(previous).set(key, url));
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [enabled, baseUrl, getToken, wanted]);
+  return found;
+}
 var sizeClasses4 = {
   xs: "size-5 text-[0.625rem]",
   sm: "size-8 text-xs",
@@ -1482,7 +1530,8 @@ function AppLauncher({
   sections,
   moreHref,
   moreLabel = "All your tools",
-  icons: icons2 = false,
+  icons: icons2 = true,
+  logos,
   notice,
   label = "Carbon apps",
   currentLabel = "Current",
@@ -1496,6 +1545,11 @@ function AppLauncher({
   const listRef = useRef(null);
   const apps = sections.flatMap((section) => section.apps).sort((a, b) => a.name.localeCompare(b.name));
   const hasLinks = apps.some((app) => app.href && !app.current);
+  const fetched = useAppLogos(
+    logos,
+    apps.flatMap((app) => app.key && !app.iconSrc ? [app.key] : []),
+    icons2 && open
+  );
   return (
     // Modal: Tab stays in the panel, and closing it any way returns focus to the trigger.
     /* @__PURE__ */ jsxs(Popover, { modal: true, open, onOpenChange: setOpen, children: [
@@ -1533,6 +1587,7 @@ function AppLauncher({
                   AppItem,
                   {
                     app,
+                    iconSrc: app.iconSrc ?? (app.key ? fetched.get(app.key) : void 0),
                     icon: icons2,
                     currentLabel,
                     unavailableLabel,
@@ -1567,13 +1622,14 @@ function AppLauncher({
 }
 function AppItem({
   app,
+  iconSrc,
   icon,
   currentLabel,
   unavailableLabel,
   newTabLabel,
   onOpen
 }) {
-  const tile = icon ? /* @__PURE__ */ jsx(Monogram, { name: app.name, src: app.iconSrc, size: "xs", className: "mt-px" }) : null;
+  const tile = icon ? /* @__PURE__ */ jsx(Monogram, { name: app.name, src: iconSrc, size: "xs", className: "mt-px" }) : null;
   if (app.current) {
     return (
       // font-medium as well as the fill, so the row is not marked by colour alone.
