@@ -198,7 +198,7 @@ describe("AppLauncher", () => {
       fetchMock.mockReset();
       fetchMock.mockImplementation(async (url: string) =>
         url.includes("/atlas/")
-          ? new Response(new Blob(["png"], { type: "image/png" }), { status: 200, headers: { "content-type": "image/png" } })
+          ? new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } })
           : new Response(JSON.stringify({ code: "no_logo" }), { status: 404, headers: { "content-type": "application/json" } }),
       );
       vi.stubGlobal("fetch", fetchMock);
