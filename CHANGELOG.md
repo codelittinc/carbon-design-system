@@ -5,11 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Each entry corresponds to a published version. When you bump the version in
-`package.json`, add a matching `## [1.38.0] - 2026-10-15
+`package.json`, add a matching `## [x.y.z]` section here — the publish workflow
+uses it as the GitHub Release notes.
+
+## [1.38.0] - 2026-10-15
 
 ### Added
 
-- `RichTextEditor` with `uploadImage`: images are resizable. Selecting or hovering an image shows four
+- `RichTextEditor` with `uploadImage`: images are resizable (by its own node view, not TipTap's
+  `ResizableNodeView`). Selecting or hovering an image shows four
   corner handles; dragging one resizes it with its aspect ratio kept, never wider than the text
   column. The size is stored as `<img width="N">` (whole CSS pixels) and no height. Handles are
   hidden while the editor is disabled.
@@ -43,9 +47,6 @@ Each entry corresponds to a published version. When you bump the version in
   component never ends a session. Reuses SignInPage's branding, responsive styles,
   theme control and default administrator help link; includes localized copy
   overrides and Storybook examples.
-
-## [x.y.z]` section here — the publish workflow
-uses it as the GitHub Release notes.
 
 ## [1.34.0] - 2026-10-11
 
