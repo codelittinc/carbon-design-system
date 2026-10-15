@@ -5,7 +5,7 @@ import { Link } from "@tiptap/extension-link";
 import { ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { StarterKit } from "@tiptap/starter-kit";
 import { isAllowedEditorHref } from "@/lib/link-href";
-import { safeImageSrc, type RichTextFormatting } from "@/lib/rich-text";
+import { safeImageSrc, safeImageWidth, type RichTextFormatting } from "@/lib/rich-text";
 
 /**
  * The editor's schema, derived from its props.
@@ -89,9 +89,11 @@ export function editorImageSrc(raw: string): string | null {
 }
 
 /**
- * Only `src` and `alt`; width, height and title are dropped as every sanitizer
+ * Only `src`, `alt` and `width`; height and title are dropped as every sanitizer
  * drops them. `src` goes through `editorImageSrc`, and an image whose `src` it
- * refuses is not parsed at all.
+ * refuses is not parsed at all. `width` is whatever `safeImageWidth` keeps, so a
+ * resize survives the save exactly; with no `height` attribute the resize
+ * commit's height is discarded and the image keeps its aspect ratio.
  * No `![alt](src)` typing rule: images come in through the button only.
  */
 const CarbonImage = Image.extend({
@@ -102,6 +104,14 @@ const CarbonImage = Image.extend({
         parseHTML: (element: HTMLElement) => editorImageSrc(element.getAttribute("src") ?? ""),
       },
       alt: { default: null },
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => safeImageWidth(element.getAttribute("width")),
+        renderHTML: (attributes: { width?: unknown }) => {
+          const width = safeImageWidth(attributes.width);
+          return width === null ? {} : { width };
+        },
+      },
     };
   },
   addInputRules() {
@@ -117,6 +127,19 @@ const CarbonImage = Image.extend({
     ];
   },
 });
+
+/**
+ * Corner handles only, aspect ratio always kept. The committed width is the
+ * image's rendered width, and the surface caps that at `max-width: 100%`, so an
+ * image can never be stored wider than the text it sits in.
+ */
+const IMAGE_RESIZE = {
+  enabled: true,
+  directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+  minWidth: 48,
+  minHeight: 16,
+  alwaysPreserveAspectRatio: true,
+} as const;
 
 export function buildExtensions(config: EditorSchemaConfig): AnyExtension[] {
   const extended = config.formatting === "extended";
@@ -168,7 +191,9 @@ export function buildExtensions(config: EditorSchemaConfig): AnyExtension[] {
 
   if (extended) extensions.push(CarbonCodeBlock);
   if (config.images) {
-    extensions.push(CarbonImage.configure({ inline: false, allowBase64: false, resize: false }));
+    extensions.push(
+      CarbonImage.configure({ inline: false, allowBase64: false, resize: { ...IMAGE_RESIZE, directions: [...IMAGE_RESIZE.directions] } }),
+    );
   }
   return extensions;
 }

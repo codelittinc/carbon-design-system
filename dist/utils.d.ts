@@ -57,7 +57,8 @@ declare function formatPeriodLabel(month: number, year: number): string;
  * attributes it composes itself. No attribute from the input is ever copied to
  * the output: the exceptions are `<a href>`, whose value must survive
  * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
- * same check, http and https only) and `alt`. Every text run is escaped. The output tree
+ * same check, http and https only), `alt`, and a `width` that is a whole number
+ * of pixels (`safeImageWidth`). Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,
@@ -85,7 +86,7 @@ type RichTextFormatting = "basic" | "extended";
 interface RichTextSanitizeOptions {
     /** `extended` also keeps h1–h3, blockquote, code and pre. Default `basic`. */
     formatting?: RichTextFormatting;
-    /** Keeps `<img>`, with an http(s) `src` and an `alt` and nothing else. */
+    /** Keeps `<img>`, with an http(s) `src`, an `alt` and a pixel `width`, and nothing else. */
     images?: boolean;
 }
 /**

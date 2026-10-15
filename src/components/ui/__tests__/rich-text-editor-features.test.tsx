@@ -240,6 +240,40 @@ describe("RichTextEditor — image upload", () => {
     expect(editor().querySelector("img")?.getAttribute("src")).toBe(new URL("/api/files/9", window.location.href).href);
   });
 
+  it("draws four corner resize handles on an image", () => {
+    render(<Harness uploadImage={async () => null} initial='<p>a</p><img src="https://cdn.example.com/1.png" alt="">' />);
+    const handles = Array.from(editor().querySelectorAll("[data-resize-handle]"), (h) => h.getAttribute("data-resize-handle"));
+    expect(handles.sort()).toEqual(["bottom-left", "bottom-right", "top-left", "top-right"]);
+  });
+
+  it("keeps a stored width, and a resize stores the new width without a height", () => {
+    const onChange = vi.fn();
+    render(
+      <Harness
+        uploadImage={async () => null}
+        onChange={onChange}
+        initial='<p>a</p><img src="https://cdn.example.com/1.png" alt="" width="320" height="200">'
+      />,
+    );
+    expect(editor().querySelector("img")?.style.width).toBe("320px");
+    const tiptap = editorOf(editor());
+    // What the resize node view commits when a handle is released.
+    edit(() => {
+      tiptap.chain().setNodeSelection(3).updateAttributes("image", { width: 180, height: 112 }).run();
+    });
+    const out = onChange.mock.lastCall?.[0] as string;
+    expect(out).toContain('width="180"');
+    expect(out).not.toContain("height");
+    expect(sanitizeRichText(out, { images: true })).toContain('<img src="https://cdn.example.com/1.png" alt="" width="180" />');
+  });
+
+  it("drops a stored width the sanitizer would drop", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial='<p>a</p><img src="https://cdn.example.com/1.png" alt="" width="50%">' />);
+    edit(() => editorOf(editor()).commands.insertContent("x"));
+    expect(onChange.mock.lastCall?.[0]).not.toContain("width");
+  });
+
   it("drops images from pasted HTML, so a pasted page cannot fetch from its servers", () => {
     const onChange = vi.fn();
     render(<Harness formatting="extended" uploadImage={async () => null} onChange={onChange} />);

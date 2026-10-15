@@ -141,6 +141,13 @@ function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
+var MAX_IMAGE_WIDTH = 4096;
+function safeImageWidth(raw) {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const width = Number(text);
+  return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -259,7 +266,8 @@ function sanitizeRichText(html, options) {
       const src = safeImageSrc(attrs.src ?? "");
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
       continue;
     }
     if (VOID_TAGS.has(canonical)) {
@@ -406,7 +414,15 @@ var CarbonImage = Image.extend({
         default: null,
         parseHTML: (element) => editorImageSrc(element.getAttribute("src") ?? "")
       },
-      alt: { default: null }
+      alt: { default: null },
+      width: {
+        default: null,
+        parseHTML: (element) => safeImageWidth(element.getAttribute("width")),
+        renderHTML: (attributes) => {
+          const width = safeImageWidth(attributes.width);
+          return width === null ? {} : { width };
+        }
+      }
     };
   },
   addInputRules() {
@@ -421,6 +437,13 @@ var CarbonImage = Image.extend({
     ];
   }
 });
+var IMAGE_RESIZE = {
+  enabled: true,
+  directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+  minWidth: 48,
+  minHeight: 16,
+  alwaysPreserveAspectRatio: true
+};
 function buildExtensions(config) {
   const extended = config.formatting === "extended";
   const keymap = Extension.create({
@@ -466,7 +489,9 @@ function buildExtensions(config) {
   ];
   if (extended) extensions.push(CarbonCodeBlock);
   if (config.images) {
-    extensions.push(CarbonImage.configure({ inline: false, allowBase64: false, resize: false }));
+    extensions.push(
+      CarbonImage.configure({ inline: false, allowBase64: false, resize: { ...IMAGE_RESIZE, directions: [...IMAGE_RESIZE.directions] } })
+    );
   }
   return extensions;
 }
@@ -1485,8 +1510,22 @@ var SURFACE = cn(
   "[&_code]:rounded-sm [&_code]:bg-surface-overlay [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.8125rem] [&_code]:text-text-primary",
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
-  "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg",
-  "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-offset-2 [&_img.ProseMirror-selectednode]:outline-accent"
+  // `h-auto!` beats the inline height the resize handles set while dragging, so
+  // the image keeps its aspect ratio and is stored with a width alone.
+  "[&_img]:my-2 [&_img]:block [&_img]:h-auto! [&_img]:max-w-full [&_img]:rounded-lg",
+  "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-offset-2 [&_img.ProseMirror-selectednode]:outline-accent",
+  "[&_.ProseMirror-selectednode_img]:outline [&_.ProseMirror-selectednode_img]:outline-2 [&_.ProseMirror-selectednode_img]:outline-offset-2 [&_.ProseMirror-selectednode_img]:outline-accent",
+  // A resizable image: TipTap wraps it in a flex container and a wrapper that
+  // holds the corner handles. The wrapper may not grow past the text column.
+  "[&_[data-resize-container]]:my-2 [&_[data-resize-wrapper]]:min-w-0 [&_[data-resize-wrapper]]:max-w-full [&_[data-resize-wrapper]_img]:my-0",
+  "[&_[data-resize-handle]]:z-10 [&_[data-resize-handle]]:size-3 [&_[data-resize-handle]]:rounded-sm [&_[data-resize-handle]]:border-2 [&_[data-resize-handle]]:border-surface [&_[data-resize-handle]]:bg-accent [&_[data-resize-handle]]:opacity-0 [&_[data-resize-handle]]:transition-opacity",
+  "[&_[data-resize-handle=top-left]]:-translate-x-1/2 [&_[data-resize-handle=top-left]]:-translate-y-1/2 [&_[data-resize-handle=top-left]]:cursor-nwse-resize",
+  "[&_[data-resize-handle=top-right]]:translate-x-1/2 [&_[data-resize-handle=top-right]]:-translate-y-1/2 [&_[data-resize-handle=top-right]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-left]]:-translate-x-1/2 [&_[data-resize-handle=bottom-left]]:translate-y-1/2 [&_[data-resize-handle=bottom-left]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-right]]:translate-x-1/2 [&_[data-resize-handle=bottom-right]]:translate-y-1/2 [&_[data-resize-handle=bottom-right]]:cursor-nwse-resize",
+  "[&_[data-resize-container]:hover_[data-resize-handle]]:opacity-100 [&_.ProseMirror-selectednode_[data-resize-handle]]:opacity-100 [&_[data-resize-state=true]_[data-resize-handle]]:opacity-100",
+  // TipTap leaves the handles in place when an editor starts disabled.
+  "[&[contenteditable=false]_[data-resize-handle]]:hidden"
 );
 function onlyFiles(data) {
   if (!data || data.files.length === 0) return false;
