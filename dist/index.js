@@ -275,6 +275,13 @@ function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
+var MAX_IMAGE_WIDTH = 4096;
+function safeImageWidth(raw) {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const width = Number(text);
+  return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -393,7 +400,8 @@ function sanitizeRichText(html, options) {
       const src = safeImageSrc(attrs.src ?? "");
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
       continue;
     }
     if (VOID_TAGS.has(canonical)) {

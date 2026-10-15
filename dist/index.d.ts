@@ -650,6 +650,11 @@ interface RichTextEditorProps {
      * nothing, and the app shows its own error. A relative URL is made absolute
      * against the page; one `sanitizeRichText` would drop (`data:`, `blob:`)
      * inserts nothing. Sanitize with `images: true`.
+     *
+     * An image in the editor can be resized from its corner handles. The aspect
+     * ratio is kept and the size is stored as a pixel `width` alone, which
+     * `sanitizeRichText` keeps; render stored images with `max-width: 100%` and
+     * `height: auto` so they look as they did in the editor.
      */
     uploadImage?: (file: File) => Promise<string | null>;
     /**

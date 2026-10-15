@@ -91,6 +91,11 @@ export interface RichTextEditorProps {
    * nothing, and the app shows its own error. A relative URL is made absolute
    * against the page; one `sanitizeRichText` would drop (`data:`, `blob:`)
    * inserts nothing. Sanitize with `images: true`.
+   *
+   * An image in the editor can be resized from its corner handles. The aspect
+   * ratio is kept and the size is stored as a pixel `width` alone, which
+   * `sanitizeRichText` keeps; render stored images with `max-width: 100%` and
+   * `height: auto` so they look as they did in the editor.
    */
   uploadImage?: (file: File) => Promise<string | null>;
   /**
@@ -125,7 +130,18 @@ const SURFACE = cn(
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
   "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg",
-  "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-offset-2 [&_img.ProseMirror-selectednode]:outline-accent",
+  "[&_.ProseMirror-selectednode_img]:outline [&_.ProseMirror-selectednode_img]:outline-2 [&_.ProseMirror-selectednode_img]:outline-offset-2 [&_.ProseMirror-selectednode_img]:outline-accent",
+  // A resizable image (`imageNodeView`): a flex container and a wrapper that
+  // holds the corner handles. The wrapper may not grow past the text column.
+  "[&_[data-resize-container]]:my-2 [&_[data-resize-container]]:flex [&_[data-resize-wrapper]]:min-w-0 [&_[data-resize-wrapper]]:max-w-full [&_[data-resize-wrapper]_img]:my-0",
+  "[&_[data-resize-handle]]:z-10 [&_[data-resize-handle]]:size-3 [&_[data-resize-handle]]:rounded-sm [&_[data-resize-handle]]:border-2 [&_[data-resize-handle]]:border-surface [&_[data-resize-handle]]:bg-accent [&_[data-resize-handle]]:touch-none [&_[data-resize-handle]]:opacity-0 [&_[data-resize-handle]]:transition-opacity",
+  "[&_[data-resize-handle=top-left]]:-translate-x-1/2 [&_[data-resize-handle=top-left]]:-translate-y-1/2 [&_[data-resize-handle=top-left]]:cursor-nwse-resize",
+  "[&_[data-resize-handle=top-right]]:translate-x-1/2 [&_[data-resize-handle=top-right]]:-translate-y-1/2 [&_[data-resize-handle=top-right]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-left]]:-translate-x-1/2 [&_[data-resize-handle=bottom-left]]:translate-y-1/2 [&_[data-resize-handle=bottom-left]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-right]]:translate-x-1/2 [&_[data-resize-handle=bottom-right]]:translate-y-1/2 [&_[data-resize-handle=bottom-right]]:cursor-nwse-resize",
+  "[&_[data-resize-container]:hover_[data-resize-handle]]:opacity-100 [&_.ProseMirror-selectednode_[data-resize-handle]]:opacity-100 [&_[data-resize-state=true]_[data-resize-handle]]:opacity-100",
+  // The handles stay in the DOM; a surface that is not editable hides them.
+  "[&[contenteditable=false]_[data-resize-handle]]:hidden",
 );
 
 /** Has the clipboard or drop got files and nothing to read as text? */

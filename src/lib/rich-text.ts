@@ -38,7 +38,8 @@
  * attributes it composes itself. No attribute from the input is ever copied to
  * the output: the exceptions are `<a href>`, whose value must survive
  * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
- * same check, http and https only) and `alt`. Every text run is escaped. The output tree
+ * same check, http and https only), `alt`, and a `width` that is a whole number
+ * of pixels (`safeImageWidth`). Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,
@@ -109,7 +110,7 @@ export type RichTextFormatting = "basic" | "extended";
 export interface RichTextSanitizeOptions {
   /** `extended` also keeps h1–h3, blockquote, code and pre. Default `basic`. */
   formatting?: RichTextFormatting;
-  /** Keeps `<img>`, with an http(s) `src` and an `alt` and nothing else. */
+  /** Keeps `<img>`, with an http(s) `src`, an `alt` and a pixel `width`, and nothing else. */
   images?: boolean;
 }
 
@@ -304,6 +305,23 @@ export function safeHref(raw: string): string | null {
 export function safeImageSrc(raw: string): string | null {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
+}
+
+/** The widest image `safeImageWidth` keeps, in CSS pixels. */
+export const MAX_IMAGE_WIDTH = 4096;
+
+/**
+ * The `width` a resized image keeps: a whole number of CSS pixels from 1 to
+ * `MAX_IMAGE_WIDTH`, or `null` to drop it. Digits only, so it can carry no unit,
+ * expression or second attribute. There is no `height`: rendered with
+ * `height: auto` the image keeps its aspect ratio, and with `max-width: 100%`
+ * it never grows past the text it sits in.
+ */
+export function safeImageWidth(raw: unknown): number | null {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const width = Number(text);
+  return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
 
 interface OpenTag {
@@ -503,12 +521,13 @@ export function sanitizeRichText(
 
     if (canonical === "img") {
       // Without a usable src there is no image, and an `<img>` with nothing to
-      // load is not worth keeping. `alt` is the only other attribute, and like
-      // href it is re-escaped rather than copied.
+      // load is not worth keeping. `alt` is re-escaped rather than copied, and
+      // `width` is re-written from the number `safeImageWidth` parsed.
       const src = safeImageSrc(attrs.src ?? "");
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
       continue;
     }
 

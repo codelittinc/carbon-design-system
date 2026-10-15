@@ -141,6 +141,13 @@ function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
+var MAX_IMAGE_WIDTH = 4096;
+function safeImageWidth(raw) {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const width = Number(text);
+  return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -259,7 +266,8 @@ function sanitizeRichText(html, options) {
       const src = safeImageSrc(attrs.src ?? "");
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}" />`);
+      const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
       continue;
     }
     if (VOID_TAGS.has(canonical)) {
@@ -406,11 +414,22 @@ var CarbonImage = Image.extend({
         default: null,
         parseHTML: (element) => editorImageSrc(element.getAttribute("src") ?? "")
       },
-      alt: { default: null }
+      alt: { default: null },
+      width: {
+        default: null,
+        parseHTML: (element) => safeImageWidth(element.getAttribute("width")),
+        renderHTML: (attributes) => {
+          const width = safeImageWidth(attributes.width);
+          return width === null ? {} : { width };
+        }
+      }
     };
   },
   addInputRules() {
     return [];
+  },
+  addNodeView() {
+    return imageNodeView;
   },
   parseHTML() {
     return [
@@ -421,6 +440,80 @@ var CarbonImage = Image.extend({
     ];
   }
 });
+var MIN_IMAGE_RESIZE_WIDTH = 48;
+var HANDLES = ["top-left", "top-right", "bottom-left", "bottom-right"];
+var imageNodeView = ({ node: initial, getPos, editor }) => {
+  let node = initial;
+  const dom = document.createElement("div");
+  dom.dataset.resizeContainer = "";
+  const wrapper = document.createElement("div");
+  wrapper.dataset.resizeWrapper = "";
+  wrapper.style.position = "relative";
+  const img = document.createElement("img");
+  img.draggable = false;
+  wrapper.append(img);
+  dom.append(wrapper);
+  const draw = () => {
+    const src = node.attrs.src;
+    if (src && img.getAttribute("src") !== src) img.setAttribute("src", src);
+    img.setAttribute("alt", node.attrs.alt ?? "");
+    const width = safeImageWidth(node.attrs.width);
+    img.style.width = width === null ? "" : `${width}px`;
+  };
+  draw();
+  for (const corner of HANDLES) {
+    const handle = document.createElement("div");
+    handle.dataset.resizeHandle = corner;
+    handle.style.position = "absolute";
+    if (corner.startsWith("top")) handle.style.top = "0";
+    else handle.style.bottom = "0";
+    if (corner.endsWith("left")) handle.style.left = "0";
+    else handle.style.right = "0";
+    const direction = corner.endsWith("left") ? -1 : 1;
+    handle.addEventListener("pointerdown", (start) => {
+      if (!editor.isEditable || start.button !== 0) return;
+      start.preventDefault();
+      start.stopPropagation();
+      const startWidth = img.offsetWidth;
+      const column = dom.clientWidth;
+      const max = Math.min(MAX_IMAGE_WIDTH, column > 0 ? column : MAX_IMAGE_WIDTH);
+      let width = startWidth;
+      handle.setPointerCapture?.(start.pointerId);
+      dom.dataset.resizeState = "true";
+      const move = (event) => {
+        width = Math.round(Math.min(max, Math.max(MIN_IMAGE_RESIZE_WIDTH, startWidth + direction * (event.clientX - start.clientX))));
+        img.style.width = `${width}px`;
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        dom.dataset.resizeState = "false";
+        const pos = typeof getPos === "function" ? getPos() : void 0;
+        if (width === startWidth || pos === void 0 || !editor.isEditable) {
+          draw();
+          return;
+        }
+        editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, void 0, { ...node.attrs, width }));
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    });
+    wrapper.append(handle);
+  }
+  return {
+    dom,
+    update(next) {
+      if (next.type !== node.type) return false;
+      node = next;
+      draw();
+      return true;
+    },
+    stopEvent: (event) => event.target instanceof HTMLElement && event.target.dataset.resizeHandle !== void 0,
+    ignoreMutation: () => true
+  };
+};
 function buildExtensions(config) {
   const extended = config.formatting === "extended";
   const keymap = Extension.create({
@@ -1486,7 +1579,18 @@ var SURFACE = cn(
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
   "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg",
-  "[&_img.ProseMirror-selectednode]:outline [&_img.ProseMirror-selectednode]:outline-2 [&_img.ProseMirror-selectednode]:outline-offset-2 [&_img.ProseMirror-selectednode]:outline-accent"
+  "[&_.ProseMirror-selectednode_img]:outline [&_.ProseMirror-selectednode_img]:outline-2 [&_.ProseMirror-selectednode_img]:outline-offset-2 [&_.ProseMirror-selectednode_img]:outline-accent",
+  // A resizable image (`imageNodeView`): a flex container and a wrapper that
+  // holds the corner handles. The wrapper may not grow past the text column.
+  "[&_[data-resize-container]]:my-2 [&_[data-resize-container]]:flex [&_[data-resize-wrapper]]:min-w-0 [&_[data-resize-wrapper]]:max-w-full [&_[data-resize-wrapper]_img]:my-0",
+  "[&_[data-resize-handle]]:z-10 [&_[data-resize-handle]]:size-3 [&_[data-resize-handle]]:rounded-sm [&_[data-resize-handle]]:border-2 [&_[data-resize-handle]]:border-surface [&_[data-resize-handle]]:bg-accent [&_[data-resize-handle]]:touch-none [&_[data-resize-handle]]:opacity-0 [&_[data-resize-handle]]:transition-opacity",
+  "[&_[data-resize-handle=top-left]]:-translate-x-1/2 [&_[data-resize-handle=top-left]]:-translate-y-1/2 [&_[data-resize-handle=top-left]]:cursor-nwse-resize",
+  "[&_[data-resize-handle=top-right]]:translate-x-1/2 [&_[data-resize-handle=top-right]]:-translate-y-1/2 [&_[data-resize-handle=top-right]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-left]]:-translate-x-1/2 [&_[data-resize-handle=bottom-left]]:translate-y-1/2 [&_[data-resize-handle=bottom-left]]:cursor-nesw-resize",
+  "[&_[data-resize-handle=bottom-right]]:translate-x-1/2 [&_[data-resize-handle=bottom-right]]:translate-y-1/2 [&_[data-resize-handle=bottom-right]]:cursor-nwse-resize",
+  "[&_[data-resize-container]:hover_[data-resize-handle]]:opacity-100 [&_.ProseMirror-selectednode_[data-resize-handle]]:opacity-100 [&_[data-resize-state=true]_[data-resize-handle]]:opacity-100",
+  // The handles stay in the DOM; a surface that is not editable hides them.
+  "[&[contenteditable=false]_[data-resize-handle]]:hidden"
 );
 function onlyFiles(data) {
   if (!data || data.files.length === 0) return false;

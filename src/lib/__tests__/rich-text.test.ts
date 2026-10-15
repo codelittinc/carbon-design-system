@@ -503,10 +503,29 @@ describe("sanitizeRichText options", () => {
     expect(sanitizeRichText("<p>a</p><hr><p>b</p>", { ...EXTENDED, ...IMAGES })).not.toContain("<hr");
   });
 
-  it("images keeps an http(s) src and alt, and nothing else on the tag", () => {
-    expect(sanitizeRichText('<img src="https://x.com/a.png" alt="A" width="10" onerror="alert(1)">', IMAGES)).toBe(
-      '<img src="https://x.com/a.png" alt="A" />',
-    );
+  it("images keeps an http(s) src, alt and a pixel width, and nothing else on the tag", () => {
+    expect(
+      sanitizeRichText(
+        '<img src="https://x.com/a.png" alt="A" width="10" height="99" style="width: 900px" class="x" onerror="alert(1)">',
+        IMAGES,
+      ),
+    ).toBe('<img src="https://x.com/a.png" alt="A" width="10" />');
+  });
+
+  it.each(["", "0", "-5", "10px", "50%", "1.5", "4097", "12345", "10 onerror=alert(1)", "calc(100%)", "1e3"])(
+    "images drops a width that is not a whole number of pixels from 1 to 4096: %j",
+    (width) => {
+      expect(sanitizeRichText(`<img src="https://x.com/a.png" alt="" width="${width}">`, IMAGES)).toBe(
+        '<img src="https://x.com/a.png" alt="" />',
+      );
+    },
+  );
+
+  it("images keeps a width at the bounds, trimmed, and is idempotent", () => {
+    const once = sanitizeRichText('<img src="https://x.com/a.png" alt="" width=" 4096 ">', IMAGES);
+    expect(once).toBe('<img src="https://x.com/a.png" alt="" width="4096" />');
+    expect(sanitizeRichText(once, IMAGES)).toBe(once);
+    expect(sanitizeRichText('<img src="https://x.com/a.png" alt="" width="1">', IMAGES)).toContain('width="1"');
   });
 
   it.each(["javascript:alert(1)", "data:image/png;base64,AAAA", "/relative/a.png", "mailto:a@b.c", ""])(

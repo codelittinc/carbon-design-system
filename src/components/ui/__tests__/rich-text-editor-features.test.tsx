@@ -240,6 +240,86 @@ describe("RichTextEditor — image upload", () => {
     expect(editor().querySelector("img")?.getAttribute("src")).toBe(new URL("/api/files/9", window.location.href).href);
   });
 
+  it("draws four corner resize handles on an image", () => {
+    render(<Harness uploadImage={async () => null} initial='<p>a</p><img src="https://cdn.example.com/1.png" alt="">' />);
+    const handles = Array.from(editor().querySelectorAll("[data-resize-handle]"), (h) => h.getAttribute("data-resize-handle"));
+    expect(handles.sort()).toEqual(["bottom-left", "bottom-right", "top-left", "top-right"]);
+  });
+
+  /** jsdom lays nothing out: give the image a width to drag from. */
+  const sized = (width: number) => {
+    const img = editor().querySelector("img") as HTMLImageElement;
+    Object.defineProperty(img, "offsetWidth", { configurable: true, get: () => width });
+    return img;
+  };
+  const drag = (corner: string, from: number, to: number) => {
+    const handle = editor().querySelector(`[data-resize-handle="${corner}"]`) as HTMLElement;
+    act(() => {
+      fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: from });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: to });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: to });
+    });
+  };
+  const IMG = '<p>a</p><img src="https://cdn.example.com/1.png" alt="">';
+
+  it("keeps a stored width, and dragging a handle stores the new width without a height", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG.replace('alt=""', 'alt="" width="320" height="200"')} />);
+    const img = sized(320);
+    expect(img.style.width).toBe("320px");
+    drag("bottom-right", 100, 40);
+    const out = onChange.mock.lastCall?.[0] as string;
+    expect(out).toContain('width="260"');
+    expect(out).not.toContain("height");
+    expect(img.style.width).toBe("260px");
+    expect(sanitizeRichText(out, { images: true })).toContain('<img src="https://cdn.example.com/1.png" alt="" width="260" />');
+  });
+
+  it("grows the image when a left handle is dragged left, and never below the minimum", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG} />);
+    sized(200);
+    drag("top-left", 100, 50);
+    expect(onChange.mock.lastCall?.[0]).toContain('width="250"');
+    sized(250);
+    drag("top-right", 500, 0);
+    expect(onChange.mock.lastCall?.[0]).toContain('width="48"');
+  });
+
+  it("stores nothing for a press on a handle with no drag", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG} />);
+    sized(300);
+    drag("bottom-right", 100, 100);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(editor().querySelector("img")?.style.width).toBe("");
+  });
+
+  it("shows the stored width again after an undo", () => {
+    render(<Harness uploadImage={async () => null} initial={IMG.replace('alt=""', 'alt="" width="300"')} />);
+    sized(300);
+    drag("bottom-right", 0, -100);
+    expect(editor().querySelector("img")?.style.width).toBe("200px");
+    edit(() => editorOf(editor()).commands.undo());
+    expect(editor().querySelector("img")?.style.width).toBe("300px");
+  });
+
+  it("does not resize while disabled", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG} disabled />);
+    sized(300);
+    drag("bottom-right", 0, -100);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(editor().querySelector("img")?.style.width).toBe("");
+  });
+
+  it("drops a stored width the sanitizer would drop", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial='<p>a</p><img src="https://cdn.example.com/1.png" alt="" width="50%">' />);
+    edit(() => editorOf(editor()).commands.insertContent("x"));
+    expect(onChange.mock.lastCall?.[0]).not.toContain("width");
+  });
+
   it("drops images from pasted HTML, so a pasted page cannot fetch from its servers", () => {
     const onChange = vi.fn();
     render(<Harness formatting="extended" uploadImage={async () => null} onChange={onChange} />);
