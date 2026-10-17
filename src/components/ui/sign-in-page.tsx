@@ -16,6 +16,8 @@ export interface SignInPageCopy {
   loading: string;
   pending: string;
   unavailable: string;
+  unavailableHelp: string;
+  unavailableLink: string;
   help: string;
   helpLink: string;
   footnote: string;
@@ -58,7 +60,9 @@ export function SignInPage({
     button: "Continue to sign in",
     loading: "Preparing sign-in…",
     pending: "Opening sign-in…",
-    unavailable: "Sign-in is unavailable. Please try again later.",
+    unavailable: "Sign-in is unavailable. Refresh the page to try again.",
+    unavailableHelp: "If it keeps happening,",
+    unavailableLink: "create a support ticket",
     help: "Need access or a hand signing in?",
     helpLink: "Contact your administrator",
     footnote: "Your work account. Your connected workspace.",
@@ -79,7 +83,7 @@ export function SignInPage({
             )) : text.description}</p>
             <div className="mt-9" aria-busy={busy}>
               {status === "unavailable" ? (
-                <p role="status" className="text-sm text-text-secondary">{text.unavailable}</p>
+                <p role="status" className="text-sm text-text-secondary">{text.unavailable} {text.unavailableHelp} <a href={supportHref} className="text-accent-text underline underline-offset-4">{text.unavailableLink}</a>.</p>
               ) : (
                 <Button type="button" size="lg" className="h-12 w-full justify-between" disabled={status !== "ready"} onClick={onSignIn} aria-describedby={error ? `${id}-error` : undefined}>
                   <span aria-live="polite">{status === "loading" ? text.loading : status === "pending" ? text.pending : text.button}</span>

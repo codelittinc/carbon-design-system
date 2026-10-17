@@ -2556,6 +2556,8 @@ interface SignInPageCopy {
     loading: string;
     pending: string;
     unavailable: string;
+    unavailableHelp: string;
+    unavailableLink: string;
     help: string;
     helpLink: string;
     footnote: string;

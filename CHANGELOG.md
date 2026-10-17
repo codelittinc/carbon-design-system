@@ -8,6 +8,19 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.39.0] - 2026-10-17
+
+### Added
+
+- `SignInPageCopy.unavailableHelp` and `unavailableLink`. When `SignInPage` or `SignOutPage` is
+  `unavailable`, the message now ends with "If it keeps happening, create a support ticket." and
+  the link opens `supportHref` (the Carbon helpdesk's new-ticket form by default).
+
+### Changed
+
+- `SignInPage`'s unavailable text defaults to "Sign-in is unavailable. Refresh the page to try
+  again." (was "…Please try again later."), so it suits a load failure and a setup problem alike.
+
 ## [1.38.2] - 2026-10-17
 
 ### Changed

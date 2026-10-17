@@ -283,7 +283,8 @@ lets a host such as Storybook own the theme without a provider. Load the normal
 `dist` directory, as for every other component in this library.
 
 `status` is `ready`, `loading` (SDK initialization), `pending` (authentication in
-progress), or `unavailable` (no action). The app owns that state, catches SDK
+progress), or `unavailable` (no action; the page asks the person to refresh and links
+`supportHref` to create a support ticket). The app owns that state, catches SDK
 errors, and supplies a safe user-facing `error`. Pending/loading disable the
 button; errors are announced and allow retry when ready. Every CarbonOS app shows
 the same words: the only app-specific text is `appName`, so leave `copy` unset.
