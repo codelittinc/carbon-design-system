@@ -9,6 +9,7 @@ describe("SignInPage", () => {
   it("keeps CarbonOS branding while naming the destination app", () => {
     const { rerender } = render(<SignInPage {...common} appName="Gatekeeper" onSignIn={() => {}} />);
     expect(screen.getByText("CarbonOS")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Welcome" })).toBeVisible();
     expect(screen.getByText("CONTINUE TO GATEKEEPER")).toBeVisible();
     rerender(<SignInPage {...common} appName="Reimbursements" onSignIn={() => {}} />);
     expect(screen.getByText("CONTINUE TO REIMBURSEMENTS")).toBeVisible();

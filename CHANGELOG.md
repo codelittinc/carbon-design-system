@@ -8,6 +8,13 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.38.1] - 2026-10-17
+
+### Changed
+
+- `SignInPage`'s heading now defaults to "Welcome" instead of "Welcome back.", so apps need to
+  pass only `appName`.
+
 ## [1.38.0] - 2026-10-15
 
 ### Added

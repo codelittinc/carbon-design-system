@@ -53,7 +53,7 @@ export function SignInPage({
   const id = useId();
   const text: SignInPageCopy = {
     welcome: appName === "CarbonOS" ? "YOUR CARBON WORKSPACE" : `CONTINUE TO ${appName.toUpperCase()}`,
-    title: "Welcome back.",
+    title: "Welcome",
     description: `Sign in with your Carbon work account to continue to ${appName}.`,
     button: "Continue with Google",
     loading: "Preparing sign-in…",
