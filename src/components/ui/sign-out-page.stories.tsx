@@ -24,7 +24,7 @@ export const Spanish: Story = { args: { copy: {
   welcome: "TU ESPACIO HIRELITT", title: "¿Cerrar sesión en Hirelitt?",
   description: "Tendrás que iniciar sesión de nuevo para acceder a tu espacio.",
   button: "Cerrar sesión", cancel: "Cancelar", loading: "Comprobando tu sesión…",
-  pending: "Cerrando sesión…", unavailable: "No se puede cerrar sesión. Actualiza la página.",
+  pending: "Cerrando sesión…", unavailable: "No se puede cerrar sesión. Actualiza la página.", unavailableHelp: "Si sigue ocurriendo,", unavailableLink: "crea un ticket de soporte",
   signedOutTitle: "Has cerrado sesión.", signedOutDescription: "Vuelve cuando quieras.",
   signIn: "Iniciar sesión", help: "¿Necesitas ayuda?", helpLink: "Contacta a tu administrador",
   footnote: "Tu cuenta de trabajo. Tu espacio conectado.", footer: "Creado para tu equipo.",

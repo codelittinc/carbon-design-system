@@ -7256,7 +7256,9 @@ function SignInPage({
     button: "Continue to sign in",
     loading: "Preparing sign-in\u2026",
     pending: "Opening sign-in\u2026",
-    unavailable: "Sign-in is unavailable. Please try again later.",
+    unavailable: "Sign-in is unavailable. Refresh the page to try again.",
+    unavailableHelp: "If it keeps happening,",
+    unavailableLink: "create a support ticket",
     help: "Need access or a hand signing in?",
     helpLink: "Contact your administrator",
     footnote: "Your work account. Your connected workspace.",
@@ -7275,7 +7277,14 @@ function SignInPage({
           part
         ] }, index)) : text.description }),
         /* @__PURE__ */ jsxs("div", { className: "mt-9", "aria-busy": busy, children: [
-          status === "unavailable" ? /* @__PURE__ */ jsx("p", { role: "status", className: "text-sm text-text-secondary", children: text.unavailable }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
+          status === "unavailable" ? /* @__PURE__ */ jsxs("p", { role: "status", className: "text-sm text-text-secondary", children: [
+            text.unavailable,
+            " ",
+            text.unavailableHelp,
+            " ",
+            /* @__PURE__ */ jsx("a", { href: supportHref, className: "text-accent-text underline underline-offset-4", children: text.unavailableLink }),
+            "."
+          ] }) : /* @__PURE__ */ jsxs(Button, { type: "button", size: "lg", className: "h-12 w-full justify-between", disabled: status !== "ready", onClick: onSignIn, "aria-describedby": error ? `${id}-error` : void 0, children: [
             /* @__PURE__ */ jsx("span", { "aria-live": "polite", children: status === "loading" ? text.loading : status === "pending" ? text.pending : text.button }),
             /* @__PURE__ */ jsx(ArrowRight, { size: 18, "aria-hidden": "true" })
           ] }),

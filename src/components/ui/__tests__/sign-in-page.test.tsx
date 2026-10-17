@@ -48,7 +48,8 @@ describe("SignInPage", () => {
   it("offers no sign-in action when the app is unavailable", () => {
     render(<SignInPage {...common} status="unavailable" onSignIn={() => {}} />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Sign-in is unavailable");
+    expect(screen.getByRole("status")).toHaveTextContent("Sign-in is unavailable. Refresh the page to try again. If it keeps happening, create a support ticket.");
+    expect(screen.getByRole("link", { name: "create a support ticket" })).toHaveAttribute("href", "https://helpdesk.carbonresidential.com/support/tickets/new");
   });
 
   it("accepts localized copy and leaves provider challenge UI with the app", () => {

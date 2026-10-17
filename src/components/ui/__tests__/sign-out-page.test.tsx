@@ -61,7 +61,8 @@ describe("SignOutPage", () => {
   it("removes the destructive action when unavailable", () => {
     render(<SignOutPage {...common} status="unavailable" />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Sign-out is unavailable");
+    expect(screen.getByRole("status")).toHaveTextContent("Sign-out is unavailable. Refresh the page to try again. If it keeps happening, create a support ticket.");
+    expect(screen.getByRole("link", { name: "create a support ticket" })).toHaveAttribute("href", "https://helpdesk.carbonresidential.com/support/tickets/new");
   });
 
   it("supports localized copy, help destinations and host content", () => {
