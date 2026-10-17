@@ -21,7 +21,7 @@ describe("SignInPage", () => {
     render(<SignInPage {...common} onSignIn={onSignIn} />);
     const user = userEvent.setup();
     await user.tab();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Continue to sign in" })).toHaveFocus();
     await user.keyboard("{Enter}");
     expect(onSignIn).toHaveBeenCalledTimes(1);
   });

@@ -285,8 +285,9 @@ lets a host such as Storybook own the theme without a provider. Load the normal
 `status` is `ready`, `loading` (SDK initialization), `pending` (authentication in
 progress), or `unavailable` (no action). The app owns that state, catches SDK
 errors, and supplies a safe user-facing `error`. Pending/loading disable the
-button; errors are announced and allow retry when ready. `copy` overrides visible
-strings for localization or another provider. `children` is the provider challenge
+button; errors are announced and allow retry when ready. Every CarbonOS app shows
+the same words: the only app-specific text is `appName`, so leave `copy` unset.
+`copy` exists for localization, not for per-app wording. `children` is the provider challenge
 or continuation slot. Storybook includes CarbonOS, Gatekeeper, Reimbursements,
 mobile, retry, unavailable, loading, and theme-control examples, in English and Spanish.
 
