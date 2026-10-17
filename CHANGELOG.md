@@ -8,6 +8,14 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.38.2] - 2026-10-17
+
+### Changed
+
+- `SignInPage`'s button now defaults to "Continue to sign in" (was "Continue with Google") and its
+  pending text to "Opening sign-in…" (was "Connecting to Google…"), so it fits any sign-in
+  provider. Apps should pass only `appName` and leave `copy` unset.
+
 ## [1.38.1] - 2026-10-17
 
 ### Changed
