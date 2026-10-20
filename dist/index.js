@@ -2863,6 +2863,18 @@ function ImageView({
 function stopClick(event) {
   event.stopPropagation();
 }
+function fileKey(url, filename, contentType) {
+  return JSON.stringify([url, filename, contentType ?? null]);
+}
+function FileViewerActions({ url, filename }) {
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", className: "shrink-0", children: /* @__PURE__ */ jsx("a", { href: url, download: filename, children: "Download" }) }),
+    /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", variant: "outline", className: "shrink-0", children: /* @__PURE__ */ jsxs("a", { href: url, target: "_blank", rel: "noopener noreferrer", children: [
+      /* @__PURE__ */ jsx("span", { className: "hidden @md:inline", children: "Open in new tab" }),
+      /* @__PURE__ */ jsx("span", { className: "@md:hidden", children: "Open" })
+    ] }) })
+  ] });
+}
 function FileViewer({
   url,
   filename,
@@ -2880,14 +2892,10 @@ function FileViewer({
         "aria-describedby": void 0,
         className: "h-[92dvh] max-h-[92dvh] w-[calc(100%-2rem)] max-w-5xl overflow-hidden p-0",
         children: [
-          /* @__PURE__ */ jsxs(DialogHeader, { className: "mb-0 flex items-center gap-3 space-y-0 border-b border-border px-4 py-3 pr-12", children: [
+          /* @__PURE__ */ jsxs(DialogHeader, { className: "@container mb-0 flex items-center gap-3 space-y-0 border-b border-border px-4 py-3 pr-12", children: [
             /* @__PURE__ */ jsx(File, { className: "h-4 w-4 shrink-0 text-text-faint", "aria-hidden": "true" }),
             /* @__PURE__ */ jsx(DialogTitle, { title: filename, className: "min-w-0 flex-1 truncate text-sm font-semibold", children: filename }),
-            /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", className: "shrink-0", children: /* @__PURE__ */ jsx("a", { href: url, download: filename, children: "Download" }) }),
-            /* @__PURE__ */ jsx(Button, { asChild: true, size: "sm", variant: "outline", className: "shrink-0", children: /* @__PURE__ */ jsxs("a", { href: url, target: "_blank", rel: "noopener noreferrer", children: [
-              /* @__PURE__ */ jsx("span", { className: "hidden sm:inline", children: "Open in new tab" }),
-              /* @__PURE__ */ jsx("span", { className: "sm:hidden", children: "Open" })
-            ] }) })
+            /* @__PURE__ */ jsx(FileViewerActions, { url, filename })
           ] }),
           /* @__PURE__ */ jsx(DialogBody, { className: "bg-surface-overlay", children: /* @__PURE__ */ jsx(
             FileViewerBody,
@@ -2897,12 +2905,49 @@ function FileViewer({
               contentType,
               loadFallback
             },
-            url
+            fileKey(url, filename, contentType)
           ) })
         ]
       }
     )
   ] }) });
+}
+function FileViewerPanel({
+  url,
+  filename,
+  contentType,
+  loadFallback,
+  headingLevel = 2,
+  className,
+  ...rest
+}) {
+  const headingId = useId();
+  const Heading = `h${headingLevel}`;
+  return /* @__PURE__ */ jsxs(
+    "section",
+    {
+      "aria-labelledby": headingId,
+      ...rest,
+      className: cn("flex h-[70dvh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface", className),
+      children: [
+        /* @__PURE__ */ jsxs("div", { className: "@container flex shrink-0 items-center gap-3 border-b border-border px-4 py-3", children: [
+          /* @__PURE__ */ jsx(File, { className: "h-4 w-4 shrink-0 text-text-faint", "aria-hidden": "true" }),
+          /* @__PURE__ */ jsx(Heading, { id: headingId, title: filename, className: "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary", children: filename }),
+          /* @__PURE__ */ jsx(FileViewerActions, { url, filename })
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "min-h-0 flex-1 overflow-y-auto bg-surface-overlay", children: /* @__PURE__ */ jsx(
+          FileViewerBody,
+          {
+            url,
+            filename,
+            contentType,
+            loadFallback
+          },
+          fileKey(url, filename, contentType)
+        ) })
+      ]
+    }
+  );
 }
 
 // src/components/ui/video-segments.ts
@@ -7359,4 +7404,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
