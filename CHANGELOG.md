@@ -8,6 +8,17 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.40.0] - 2026-10-20
+
+### Added
+
+- **`FileViewerPanel`**: `FileViewer` in place rather than in a dialog, for a page that shows a file beside something else (a course step with the steps listed next to it). Same renderers, `loadFallback`, and Download / Open in new tab. It is `h-[70dvh]` unless `className` gives another height, and its filename is a heading (`headingLevel`, `h2` by default) that names the panel. Other props (`id`, `data-*`, `aria-*`) go on its `<section>`. It loads when it mounts and starts over for another file, name or declared type, aborting the earlier request, so a late answer never renders.
+
+### Changed
+
+- `FileViewer`'s dialog and the new panel share one Download / Open in new tab pair. Its short "Open" now follows the header's own width (a container query) rather than the window's, so a narrow panel keeps room for the filename. The dialog looks the same.
+- The dialog's body is keyed on the file's URL, name and declared type, so a new name or type while open also starts fresh.
+
 ## [1.39.0] - 2026-10-17
 
 ### Added

@@ -20,8 +20,9 @@ import { sanitizePreviewHtml } from "./file-viewer-html";
 import type { FileViewerFallback, FileViewerFallbackContent, FileViewerFallbackReason } from "./file-viewer";
 
 /**
- * What the open `FileViewer` shows, worked out once per mount. Radix unmounts
- * the dialog's content on close, so every open is a fresh mount: its requests
+ * What the open `FileViewer` or `FileViewerPanel` shows, worked out once per
+ * mount. Radix unmounts the dialog's content on close, and both key the body on
+ * the file, so every open, and every other file, is a fresh mount: its requests
  * and the fallback share one `AbortController`, aborted on unmount, and every
  * state change is dropped once it is aborted, so nothing from an earlier open
  * renders into a later one. Internal, not exported.

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderAsync } from "docx-preview";
 import { Button } from "../button";
-import { FileViewer, type FileViewerFallback, type FileViewerProps } from "../file-viewer";
+import { FileViewer, FileViewerPanel, type FileViewerFallback, type FileViewerProps } from "../file-viewer";
 
 // docx-preview needs a real layout engine; what it does with a document is
 // checked in Storybook. Here it stands in for the library's two outputs: the
@@ -111,7 +111,7 @@ describe("FileViewer chrome", () => {
     expect(open).toHaveAttribute("href", "/files/msa.pdf");
     expect(open).toHaveAttribute("rel", "noopener noreferrer");
     expect(open).toHaveTextContent("Open in new tab");
-    expect(within(open!).getByText("Open")).toHaveClass("sm:hidden");
+    expect(within(open!).getByText("Open")).toHaveClass("@md:hidden");
 
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
     await frame("Master Services Agreement.pdf");
@@ -745,3 +745,73 @@ describe("plain text", () => {
     await message("This file is empty.");
   });
 });
+
+describe("FileViewerPanel", () => {
+  it("shows the file in place, named after it, with Download and Open in new tab and no dialog", async () => {
+    fetchMock.mockResolvedValue(file("%PDF", "application/pdf"));
+    render(<FileViewerPanel url="/files/msa.pdf" filename="Master Services Agreement.pdf" className="h-96" />);
+
+    const panel = screen.getByRole("region", { name: "Master Services Agreement.pdf" });
+    expect(panel).toHaveClass("h-96");
+    expect(panel).not.toHaveClass("h-[70dvh]");
+    expect(within(panel).getByRole("heading", { level: 2, name: "Master Services Agreement.pdf" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const download = within(panel).getByRole("link", { name: "Download" });
+    expect(download).toHaveAttribute("href", "/files/msa.pdf");
+    expect(download).toHaveAttribute("download", "Master Services Agreement.pdf");
+    const open = within(panel)
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("target") === "_blank");
+    expect(open).toHaveAttribute("rel", "noopener noreferrer");
+    await frame("Master Services Agreement.pdf");
+  });
+
+  it("loads the new file when the url changes, and never shows the old one's late answer", async () => {
+    const late = deferred<Response>();
+    fetchMock.mockImplementation((input) => (input === "/files/old.txt" ? late.promise : Promise.resolve(file("new body", "text/plain"))));
+    const { rerender } = render(<FileViewerPanel url="/files/old.txt" filename="old.txt" />);
+    rerender(<FileViewerPanel url="/files/new.txt" filename="new.txt" />);
+
+    expect(await screen.findByText("new body")).toBeInTheDocument();
+    late.resolve(file("old body", "text/plain"));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(screen.queryByText("old body")).toBeNull();
+  });
+
+  it("has a height of its own, and takes the section's other props", () => {
+    fetchMock.mockReturnValue(new Promise<Response>(() => undefined));
+    render(<FileViewerPanel url="/files/a.pdf" filename="a.pdf" id="step-file" data-tour="file" headingLevel={3} />);
+    const panel = screen.getByRole("region", { name: "a.pdf" });
+    expect(panel).toHaveClass("h-[70dvh]");
+    expect(panel).toHaveAttribute("id", "step-file");
+    expect(panel).toHaveAttribute("data-tour", "file");
+    expect(within(panel).getByRole("heading", { level: 3, name: "a.pdf" })).toBeInTheDocument();
+  });
+
+  it("aborts the earlier file's request when it is given another, and when it unmounts", async () => {
+    const signals: AbortSignal[] = [];
+    fetchMock.mockImplementation((_input, init) => {
+      signals.push(init!.signal!);
+      return new Promise<Response>(() => undefined);
+    });
+    const { rerender, unmount } = render(<FileViewerPanel url="/files/one.pdf" filename="one.pdf" />);
+    await waitFor(() => expect(signals).toHaveLength(1));
+    rerender(<FileViewerPanel url="/files/two.pdf" filename="two.pdf" />);
+    await waitFor(() => expect(signals).toHaveLength(2));
+    expect(signals[0]!.aborted).toBe(true);
+    unmount();
+    expect(signals[1]!.aborted).toBe(true);
+  });
+
+  it("starts over for a new name or type on the same url, never showing the last one's content", async () => {
+    fetchMock.mockResolvedValueOnce(file("first body", "text/plain"));
+    const { rerender } = render(<FileViewerPanel url="/files/same" filename="first.txt" contentType="text/plain" />);
+    expect(await screen.findByText("first body")).toBeInTheDocument();
+
+    fetchMock.mockReturnValue(new Promise<Response>(() => undefined));
+    rerender(<FileViewerPanel url="/files/same" filename="second.txt" contentType="text/plain" />);
+    expect(screen.queryByText("first body")).toBeNull();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+});
+
