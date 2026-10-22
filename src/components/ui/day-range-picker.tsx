@@ -2,19 +2,9 @@
 
 import { useState, type ReactElement } from "react";
 import { cn } from "@/lib/cn";
-import { eyebrowClass } from "@/lib/ui-classes";
 import { Button } from "./button";
-import { PeriodNav } from "./calendar-chrome";
-import {
-  WEEKDAY_LABELS,
-  compareMonths,
-  dateKey,
-  isWeekend,
-  monthLabel,
-  monthWeeks,
-  shiftMonth,
-  type YearMonth,
-} from "@/lib/calendar";
+import { CompactMonth } from "./calendar-chrome";
+import { isWeekend, monthLabel, type YearMonth } from "@/lib/calendar";
 
 /** A range of days as ISO keys. `end` is null while only the first day is picked. */
 export interface DayRange {
@@ -74,8 +64,8 @@ export interface DayRangePickerProps {
  * A month grid for picking a range of DAYS: click the first day, then the last.
  *
  * Not `DateRangePicker`, which selects a range of MONTHS for a report period.
- * This is `MonthCalendar` for a range: the same compact grid, Monday first, the
- * same `PeriodNav`, and every cell a `Button` with `type="button"` — inside a
+ * This is `MonthCalendar` for a range, drawn into the same `CompactMonth` frame,
+ * and every cell a `Button` with `type="button"` — inside a
  * form an unmarked button submits it, and paging a month must never do that.
  *
  * Controlled in both dimensions. Paging to the next month keeps the first day
@@ -102,49 +92,33 @@ export function DayRangePicker({
   "aria-label": ariaLabel = "Choose the first and last day",
 }: DayRangePickerProps): ReactElement {
   const [hovered, setHovered] = useState<string | null>(null);
-  const cells = monthWeeks(month).flat();
 
   // While only the first day is picked, a later hovered day previews the end.
   const previewEnd = value.start && !value.end && hovered && hovered >= value.start ? hovered : null;
   const end = value.end ?? previewEnd;
 
   return (
-    <div role="group" aria-label={ariaLabel} className={cn("w-[17.5rem] shrink-0", className)}>
-      <PeriodNav
-        layout="compact"
-        className="mb-2"
-        label={monthLabel(month)}
-        onPrevious={() => onMonthChange(shiftMonth(month, -1))}
-        onNext={() => onMonthChange(shiftMonth(month, 1))}
-        previousLabel="Previous month"
-        nextLabel="Next month"
-        previousDisabled={compareMonths(month, min) <= 0}
-        nextDisabled={compareMonths(month, max) >= 0}
-      />
+    <CompactMonth
+      month={month}
+      onMonthChange={onMonthChange}
+      min={min}
+      max={max}
+      ariaLabel={ariaLabel}
+      className={className}
+      // No column gap: the days of a range read as one band.
+      gridClassName="gap-y-1"
+      onGridMouseLeave={() => setHovered(null)}
+      renderDay={(cell, key) => {
+        const open = (!firstDay || key >= firstDay) && (!lastDay || key <= lastDay);
+        const isStart = key === value.start;
+        const isEnd = key === value.end;
+        // The days from the first to the last (or the previewed last), drawn as one band.
+        const inBand = Boolean(value.start && end && key >= value.start && key <= end);
+        const inside = inBand && !isStart && !isEnd;
+        const reason = muted?.[key] ?? (muteWeekends && isWeekend(cell) ? "weekend" : null);
 
-      <div className="grid grid-cols-7 gap-y-1" onMouseLeave={() => setHovered(null)}>
-        {WEEKDAY_LABELS.map((label) => (
-          <span
-            key={label}
-            aria-hidden="true"
-            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal")}
-          >
-            {label[0]}
-          </span>
-        ))}
-
-        {cells.map((cell, i) => {
-          if (!cell) return <span key={`blank-${i}`} aria-hidden="true" />;
-          const key = dateKey(cell);
-          const open = (!firstDay || key >= firstDay) && (!lastDay || key <= lastDay);
-          const isStart = key === value.start;
-          const isEnd = key === value.end;
-          // The days from the first to the last (or the previewed last), drawn as one band.
-          const inBand = Boolean(value.start && end && key >= value.start && key <= end);
-          const inside = inBand && !isStart && !isEnd;
-          const reason = muted?.[key] ?? (muteWeekends && isWeekend(cell) ? "weekend" : null);
-
-          const position = isStart && isEnd
+        const position =
+          isStart && isEnd
             ? ", first and last day"
             : isStart
               ? ", first day"
@@ -154,33 +128,32 @@ export function DayRangePicker({
                   ? ", in range"
                   : "";
 
-          return (
-            <Button
-              key={key}
-              type="button"
-              variant={isStart || isEnd ? "default" : open && !inBand && !reason ? "outline" : "ghost"}
-              size="icon"
-              className={cn(
-                "h-9 w-full",
-                inBand ? "rounded-none" : "rounded-md",
-                inBand && key === value.start && "rounded-l-md",
-                inBand && key === end && "rounded-r-md",
-                inside && "bg-accent-muted text-accent-text hover:bg-accent-muted",
-                reason && !(isStart || isEnd) && "text-text-faint",
-              )}
-              disabled={!open}
-              title={reason ?? undefined}
-              aria-label={`${cell.day} ${monthLabel(month)}${reason ? `, ${reason}` : ""}${position}${open ? "" : `, ${unavailableLabel}`}`}
-              aria-pressed={isStart || isEnd}
-              onMouseEnter={() => setHovered(key)}
-              onFocus={() => setHovered(key)}
-              onClick={() => onChange(nextDayRange(value, key))}
-            >
-              {cell.day}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+        return (
+          <Button
+            type="button"
+            variant={isStart || isEnd ? "default" : open && !inBand && !reason ? "outline" : "ghost"}
+            size="icon"
+            className={cn(
+              "h-9 w-full",
+              inBand ? "rounded-none" : "rounded-md",
+              inBand && key === value.start && "rounded-l-md",
+              inBand && key === end && "rounded-r-md",
+              inside && "bg-accent-muted text-accent-text hover:bg-accent-muted",
+              reason && !(isStart || isEnd) && "text-text-faint",
+            )}
+            disabled={!open}
+            title={reason ?? undefined}
+            aria-label={`${cell.day} ${monthLabel(month)}${reason ? `, ${reason}` : ""}${position}${open ? "" : `, ${unavailableLabel}`}`}
+            aria-pressed={isStart || isEnd}
+            onMouseEnter={() => setHovered(key)}
+            onFocus={() => setHovered(key)}
+            onBlur={() => setHovered(null)}
+            onClick={() => onChange(nextDayRange(value, key))}
+          >
+            {cell.day}
+          </Button>
+        );
+      }}
+    />
   );
 }

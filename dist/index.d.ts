@@ -2279,8 +2279,8 @@ interface DayRangePickerProps {
  * A month grid for picking a range of DAYS: click the first day, then the last.
  *
  * Not `DateRangePicker`, which selects a range of MONTHS for a report period.
- * This is `MonthCalendar` for a range: the same compact grid, Monday first, the
- * same `PeriodNav`, and every cell a `Button` with `type="button"` — inside a
+ * This is `MonthCalendar` for a range, drawn into the same `CompactMonth` frame,
+ * and every cell a `Button` with `type="button"` — inside a
  * form an unmarked button submits it, and paging a month must never do that.
  *
  * Controlled in both dimensions. Paging to the next month keeps the first day

@@ -5409,6 +5409,48 @@ function MonthGrid({
     }) }, w)) })
   ] });
 }
+function CompactMonth({
+  month,
+  onMonthChange,
+  min,
+  max,
+  ariaLabel,
+  renderDay,
+  gridClassName = "gap-1",
+  onGridMouseLeave,
+  className
+}) {
+  return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
+    /* @__PURE__ */ jsx(
+      PeriodNav,
+      {
+        layout: "compact",
+        className: "mb-2",
+        label: monthLabel(month),
+        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
+        onNext: () => onMonthChange(shiftMonth(month, 1)),
+        previousLabel: "Previous month",
+        nextLabel: "Next month",
+        previousDisabled: compareMonths(month, min) <= 0,
+        nextDisabled: compareMonths(month, max) >= 0
+      }
+    ),
+    /* @__PURE__ */ jsxs("div", { className: cn("grid grid-cols-7", gridClassName), onMouseLeave: onGridMouseLeave, children: [
+      WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
+        "span",
+        {
+          "aria-hidden": "true",
+          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal"),
+          children: label[0]
+        },
+        label
+      )),
+      monthWeeks(month).flat().map(
+        (date, i) => date ? /* @__PURE__ */ jsx(Fragment$1, { children: renderDay(date, dateKey(date)) }, dateKey(date)) : /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`)
+      )
+    ] })
+  ] });
+}
 function MonthCalendar({
   month,
   onMonthChange,
@@ -5421,38 +5463,16 @@ function MonthCalendar({
   className,
   "aria-label": ariaLabel = "Choose a day"
 }) {
-  const cells = monthWeeks(month).flat();
-  const canGoBack = compareMonths(month, min) > 0;
-  const canGoForward = compareMonths(month, max) < 0;
-  return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
-    /* @__PURE__ */ jsx(
-      PeriodNav,
-      {
-        layout: "compact",
-        className: "mb-2",
-        label: monthLabel(month),
-        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
-        onNext: () => onMonthChange(shiftMonth(month, 1)),
-        previousLabel: "Previous month",
-        nextLabel: "Next month",
-        previousDisabled: !canGoBack,
-        nextDisabled: !canGoForward
-      }
-    ),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-1", children: [
-      WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
-        "span",
-        {
-          "aria-hidden": "true",
-          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal"),
-          children: label[0]
-        },
-        label
-      )),
-      cells.map((cell, i) => {
-        if (!cell) return /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`);
-        const { day } = cell;
-        const key = dateKey(cell);
+  return /* @__PURE__ */ jsx(
+    CompactMonth,
+    {
+      month,
+      onMonthChange,
+      min,
+      max,
+      ariaLabel,
+      className,
+      renderDay: (cell, key) => {
         const open = available ? available.has(key) : true;
         const isSelected = key === selected;
         return /* @__PURE__ */ jsx(
@@ -5463,16 +5483,15 @@ function MonthCalendar({
             size: "icon",
             className: "h-9 w-9",
             disabled: !open,
-            "aria-label": `${day} ${monthLabel(month)}${open ? "" : `, ${unavailableLabel}`}`,
+            "aria-label": `${cell.day} ${monthLabel(month)}${open ? "" : `, ${unavailableLabel}`}`,
             "aria-pressed": isSelected,
             onClick: () => onSelect(key),
-            children: day
-          },
-          key
+            children: cell.day
+          }
         );
-      })
-    ] })
-  ] });
+      }
+    }
+  );
 }
 function nextDayRange(value, key) {
   if (!value.start || value.end) return { start: key, end: null };
@@ -5495,37 +5514,20 @@ function DayRangePicker({
   "aria-label": ariaLabel = "Choose the first and last day"
 }) {
   const [hovered, setHovered] = useState(null);
-  const cells = monthWeeks(month).flat();
   const previewEnd = value.start && !value.end && hovered && hovered >= value.start ? hovered : null;
   const end = value.end ?? previewEnd;
-  return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
-    /* @__PURE__ */ jsx(
-      PeriodNav,
-      {
-        layout: "compact",
-        className: "mb-2",
-        label: monthLabel(month),
-        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
-        onNext: () => onMonthChange(shiftMonth(month, 1)),
-        previousLabel: "Previous month",
-        nextLabel: "Next month",
-        previousDisabled: compareMonths(month, min) <= 0,
-        nextDisabled: compareMonths(month, max) >= 0
-      }
-    ),
-    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-y-1", onMouseLeave: () => setHovered(null), children: [
-      WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
-        "span",
-        {
-          "aria-hidden": "true",
-          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal"),
-          children: label[0]
-        },
-        label
-      )),
-      cells.map((cell, i) => {
-        if (!cell) return /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`);
-        const key = dateKey(cell);
+  return /* @__PURE__ */ jsx(
+    CompactMonth,
+    {
+      month,
+      onMonthChange,
+      min,
+      max,
+      ariaLabel,
+      className,
+      gridClassName: "gap-y-1",
+      onGridMouseLeave: () => setHovered(null),
+      renderDay: (cell, key) => {
         const open = (!firstDay || key >= firstDay) && (!lastDay || key <= lastDay);
         const isStart = key === value.start;
         const isEnd = key === value.end;
@@ -5553,14 +5555,14 @@ function DayRangePicker({
             "aria-pressed": isStart || isEnd,
             onMouseEnter: () => setHovered(key),
             onFocus: () => setHovered(key),
+            onBlur: () => setHovered(null),
             onClick: () => onChange(nextDayRange(value, key)),
             children: cell.day
-          },
-          key
+          }
         );
-      })
-    ] })
-  ] });
+      }
+    }
+  );
 }
 function EventCalendar({
   month,

@@ -112,6 +112,14 @@ describe("DayRangePicker", () => {
     expect(day("5 November 2026")).toHaveAccessibleName("5 November 2026");
   });
 
+  it("the preview follows keyboard focus, and goes when focus leaves", () => {
+    setup({ value: { start: "2026-11-04", end: null } });
+    fireEvent.focus(day("6 November 2026"));
+    expect(day("5 November 2026")).toHaveClass("bg-accent-muted");
+    fireEvent.blur(day("6 November 2026"));
+    expect(day("5 November 2026")).not.toHaveClass("bg-accent-muted");
+  });
+
   it("pages within min and max, and every button is type=button so a form never submits", () => {
     const { onMonthChange } = setup({ month: BOUNDS.max });
     expect(screen.getByRole("button", { name: "Next month" })).toBeDisabled();

@@ -15,6 +15,10 @@ uses it as the GitHub Release notes.
 - **`DayRangePicker`**: `MonthCalendar` for a range of days — click the first day, then the last. Not `DateRangePicker`, which selects a range of months. Controlled month and value (`{ start, end }` as ISO keys); paging keeps the first day so a range can cross months, and hovering previews the range while only the first day is picked. `firstDay` / `lastDay` disable days outside them (named with `unavailableLabel`). `muted` (`{ "2026-11-26": "Thanksgiving" }`) and `muteWeekends` draw days faint with the reason read after the date and shown on hover; they stay pickable, for a range whose cost skips them (time off). Every button is `type="button"`.
 - **`nextDayRange(value, key)`**: the range after a click, for a consumer driving its own grid.
 
+### Changed
+
+- `MonthCalendar` and `DayRangePicker` draw into one internal compact-month frame (header, paging limits, weekday letters), so the two pickers can't drift apart. `MonthCalendar` looks and behaves the same.
+
 ## [1.40.0] - 2026-10-20
 
 ### Added

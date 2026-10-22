@@ -3,19 +3,22 @@
 /**
  * The parts every calendar in the package draws the same way: the
  * previous / next / today header, and the bordered month of big day cells.
- * Internal: `MonthCalendar`, `EventCalendar` and `TimesheetTable` compose
- * these; the package does not export them.
+ * Internal: `MonthCalendar`, `DayRangePicker`, `EventCalendar` and
+ * `TimesheetTable` compose these; the package does not export them.
  */
 
-import type { ReactElement, ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   WEEKDAY_LABELS,
+  compareMonths,
   dateKey,
   formatCalendarDate,
   isWeekend,
+  monthLabel,
   monthWeeks,
+  shiftMonth,
   type CalendarDate,
   type YearMonth,
 } from "@/lib/calendar";
@@ -192,6 +195,81 @@ export function MonthGrid({
             })}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+interface CompactMonthProps {
+  month: YearMonth;
+  onMonthChange: (next: YearMonth) => void;
+  /** The furthest back and forward the arrows go. */
+  min: YearMonth;
+  max: YearMonth;
+  /** Names the group for a screen reader. */
+  ariaLabel: string;
+  /** One day's control. Blank cells outside the month are drawn here. */
+  renderDay: (date: CalendarDate, key: string) => ReactNode;
+  /** Spacing between the days: a picker of separate days wants a gap, a range a continuous band. */
+  gridClassName?: string;
+  onGridMouseLeave?: () => void;
+  className?: string;
+}
+
+/**
+ * A narrow month for picking days: the compact previous / next header, the
+ * weekday letters, and one control per day, Monday first. `MonthCalendar` and
+ * `DayRangePicker` draw their days into it, so the two pickers can't drift
+ * apart in size, paging or header.
+ *
+ * The weekday letters are the muted text, which clears AA; the faint text does
+ * not.
+ */
+export function CompactMonth({
+  month,
+  onMonthChange,
+  min,
+  max,
+  ariaLabel,
+  renderDay,
+  gridClassName = "gap-1",
+  onGridMouseLeave,
+  className,
+}: CompactMonthProps): ReactElement {
+  return (
+    <div role="group" aria-label={ariaLabel} className={cn("w-[17.5rem] shrink-0", className)}>
+      <PeriodNav
+        layout="compact"
+        className="mb-2"
+        label={monthLabel(month)}
+        onPrevious={() => onMonthChange(shiftMonth(month, -1))}
+        onNext={() => onMonthChange(shiftMonth(month, 1))}
+        previousLabel="Previous month"
+        nextLabel="Next month"
+        previousDisabled={compareMonths(month, min) <= 0}
+        nextDisabled={compareMonths(month, max) >= 0}
+      />
+
+      <div className={cn("grid grid-cols-7", gridClassName)} onMouseLeave={onGridMouseLeave}>
+        {WEEKDAY_LABELS.map((label) => (
+          <span
+            key={label}
+            aria-hidden="true"
+            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal")}
+          >
+            {label[0]}
+          </span>
+        ))}
+
+        {monthWeeks(month)
+          .flat()
+          .map((date, i) =>
+            date ? (
+              <Fragment key={dateKey(date)}>{renderDay(date, dateKey(date))}</Fragment>
+            ) : (
+              <span key={`blank-${i}`} aria-hidden="true" />
+            ),
+          )}
       </div>
     </div>
   );
