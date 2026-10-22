@@ -8,6 +8,13 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.41.0] - 2026-10-22
+
+### Added
+
+- **`DayRangePicker`**: `MonthCalendar` for a range of days — click the first day, then the last. Not `DateRangePicker`, which selects a range of months. Controlled month and value (`{ start, end }` as ISO keys); paging keeps the first day so a range can cross months, and hovering previews the range while only the first day is picked. `firstDay` / `lastDay` disable days outside them (named with `unavailableLabel`). `muted` (`{ "2026-11-26": "Thanksgiving" }`) and `muteWeekends` draw days faint with the reason read after the date and shown on hover; they stay pickable, for a range whose cost skips them (time off). Every button is `type="button"`.
+- **`nextDayRange(value, key)`**: the range after a click, for a consumer driving its own grid.
+
 ## [1.40.0] - 2026-10-20
 
 ### Added

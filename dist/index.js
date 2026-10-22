@@ -5474,6 +5474,94 @@ function MonthCalendar({
     ] })
   ] });
 }
+function nextDayRange(value, key) {
+  if (!value.start || value.end) return { start: key, end: null };
+  if (key < value.start) return { start: key, end: null };
+  return { start: value.start, end: key };
+}
+function DayRangePicker({
+  month,
+  onMonthChange,
+  value,
+  onChange,
+  min,
+  max,
+  firstDay,
+  lastDay,
+  unavailableLabel = "unavailable",
+  muted,
+  muteWeekends = false,
+  className,
+  "aria-label": ariaLabel = "Choose the first and last day"
+}) {
+  const [hovered, setHovered] = useState(null);
+  const cells = monthWeeks(month).flat();
+  const previewEnd = value.start && !value.end && hovered && hovered >= value.start ? hovered : null;
+  const end = value.end ?? previewEnd;
+  return /* @__PURE__ */ jsxs("div", { role: "group", "aria-label": ariaLabel, className: cn("w-[17.5rem] shrink-0", className), children: [
+    /* @__PURE__ */ jsx(
+      PeriodNav,
+      {
+        layout: "compact",
+        className: "mb-2",
+        label: monthLabel(month),
+        onPrevious: () => onMonthChange(shiftMonth(month, -1)),
+        onNext: () => onMonthChange(shiftMonth(month, 1)),
+        previousLabel: "Previous month",
+        nextLabel: "Next month",
+        previousDisabled: compareMonths(month, min) <= 0,
+        nextDisabled: compareMonths(month, max) >= 0
+      }
+    ),
+    /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-7 gap-y-1", onMouseLeave: () => setHovered(null), children: [
+      WEEKDAY_LABELS.map((label) => /* @__PURE__ */ jsx(
+        "span",
+        {
+          "aria-hidden": "true",
+          className: cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal"),
+          children: label[0]
+        },
+        label
+      )),
+      cells.map((cell, i) => {
+        if (!cell) return /* @__PURE__ */ jsx("span", { "aria-hidden": "true" }, `blank-${i}`);
+        const key = dateKey(cell);
+        const open = (!firstDay || key >= firstDay) && (!lastDay || key <= lastDay);
+        const isStart = key === value.start;
+        const isEnd = key === value.end;
+        const inBand = Boolean(value.start && end && key >= value.start && key <= end);
+        const inside = inBand && !isStart && !isEnd;
+        const reason = muted?.[key] ?? (muteWeekends && isWeekend(cell) ? "weekend" : null);
+        const position = isStart && isEnd ? ", first and last day" : isStart ? ", first day" : isEnd ? ", last day" : inside && value.end ? ", in range" : "";
+        return /* @__PURE__ */ jsx(
+          Button,
+          {
+            type: "button",
+            variant: isStart || isEnd ? "default" : open && !inBand && !reason ? "outline" : "ghost",
+            size: "icon",
+            className: cn(
+              "h-9 w-full",
+              inBand ? "rounded-none" : "rounded-md",
+              inBand && key === value.start && "rounded-l-md",
+              inBand && key === end && "rounded-r-md",
+              inside && "bg-accent-muted text-accent-text hover:bg-accent-muted",
+              reason && !(isStart || isEnd) && "text-text-faint"
+            ),
+            disabled: !open,
+            title: reason ?? void 0,
+            "aria-label": `${cell.day} ${monthLabel(month)}${reason ? `, ${reason}` : ""}${position}${open ? "" : `, ${unavailableLabel}`}`,
+            "aria-pressed": isStart || isEnd,
+            onMouseEnter: () => setHovered(key),
+            onFocus: () => setHovered(key),
+            onClick: () => onChange(nextDayRange(value, key)),
+            children: cell.day
+          },
+          key
+        );
+      })
+    ] })
+  ] });
+}
 function EventCalendar({
   month,
   onMonthChange,
@@ -7404,4 +7492,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

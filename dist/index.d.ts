@@ -2228,6 +2228,71 @@ interface MonthCalendarProps {
  */
 declare function MonthCalendar({ month, onMonthChange, selected, onSelect, available, unavailableLabel, min, max, className, "aria-label": ariaLabel, }: MonthCalendarProps): ReactElement;
 
+/** A range of days as ISO keys. `end` is null while only the first day is picked. */
+interface DayRange {
+    start: string | null;
+    end: string | null;
+}
+/**
+ * The range after somebody clicks `key`.
+ *
+ * - Nothing picked, or a whole range already picked: `key` starts a new one.
+ * - Only the first day picked: a later day (or the same one) ends the range; an
+ *   earlier day starts it over from there, rather than silently swapping the
+ *   ends — the person clicked the day they want to start on.
+ *
+ * ISO keys compare as dates, so string order is calendar order.
+ */
+declare function nextDayRange(value: DayRange, key: string): DayRange;
+interface DayRangePickerProps {
+    /** The month on screen. Controlled, like the range. */
+    month: YearMonth;
+    onMonthChange: (next: YearMonth) => void;
+    value: DayRange;
+    onChange: (next: DayRange) => void;
+    /** The furthest back and forward the arrows go. */
+    min: YearMonth;
+    max: YearMonth;
+    /**
+     * The first and last days that may be picked, as ISO keys. Days outside render
+     * disabled rather than absent, so the month keeps its shape — past days on a
+     * request form, days before somebody can book.
+     */
+    firstDay?: string;
+    lastDay?: string;
+    /** Why a day outside `firstDay`/`lastDay` is closed, for a screen reader. */
+    unavailableLabel?: string;
+    /**
+     * Days drawn faint, with the reason read after the date and shown on hover:
+     * `{ "2026-11-26": "Thanksgiving" }`. They can still sit inside a range, and
+     * still be clicked — a request can run over a holiday — but the reader sees at
+     * a glance which days the range does not really cover.
+     */
+    muted?: Record<string, string>;
+    /** Draws Saturdays and Sundays faint too, labelled "weekend". */
+    muteWeekends?: boolean;
+    className?: string;
+    /** Names the grid for a screen reader; it is a group, not one control. */
+    "aria-label"?: string;
+}
+/**
+ * A month grid for picking a range of DAYS: click the first day, then the last.
+ *
+ * Not `DateRangePicker`, which selects a range of MONTHS for a report period.
+ * This is `MonthCalendar` for a range: the same compact grid, Monday first, the
+ * same `PeriodNav`, and every cell a `Button` with `type="button"` — inside a
+ * form an unmarked button submits it, and paging a month must never do that.
+ *
+ * Controlled in both dimensions. Paging to the next month keeps the first day
+ * picked, so a range can cross a month: pick the 28th, page, pick the 3rd. While
+ * only the first day is picked, hovering a later day previews the range.
+ *
+ * Muted days (`muted`, `muteWeekends`) are for a range whose cost skips some of
+ * its days — time off, where weekends and holidays are free. They stay
+ * pickable; what they cost is the consumer's business.
+ */
+declare function DayRangePicker({ month, onMonthChange, value, onChange, min, max, firstDay, lastDay, unavailableLabel, muted, muteWeekends, className, "aria-label": ariaLabel, }: DayRangePickerProps): ReactElement;
+
 interface EventCalendarProps<T> {
     /** The month shown. Controlled, like `MonthCalendar`'s. */
     month: YearMonth;
@@ -2638,4 +2703,4 @@ interface SignOutPageProps {
 /** Shared authentication presentation; never ends a session on render or mount. */
 declare function SignOutPage({ appName, onSignOut, onSignIn, onCancel, status, error, copy, supportHref, showThemeToggle, children, className, }: SignOutPageProps): react.JSX.Element;
 
-export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherLogos, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, FileViewerPanel, type FileViewerPanelProps, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, type SegmentTracker, type SegmentTrackerOptions, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, type SignInPageCopy, type SignInPageProps, SignOutPage, type SignOutPageCopy, type SignOutPageProps, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type VideoSegment, VideoViewer, type VideoViewerProps, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, type AccountOption, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, type AddressComboboxProps, type AddressComboboxStatus, type AddressSuggestion, type AddressSuggestionProvider, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, type AppLauncherApp, type AppLauncherLogos, type AppLauncherProps, type AppLauncherSection, Badge, BarChart, type BarChartProps, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, type CalendarDate, Card, CardHeader, type CardHeaderProps, CategoryChip, type CategoryChipProps, type CategoryChipSegment, ChartCard, type ChartCardProps, ChartDataTable, type ChartDataTableProps, type ChartDatum, ChartEmpty, ChartLegend, type ChartLegendItem, type ChartLegendProps, type ChartSeries, ChartSkeleton, ChartSliceTooltipContent, type ChartStateProps, ChartTooltipContent, type ChartTooltipContentProps, type ChartTooltipContext, type ChartTooltipEntry, type ChartTooltipRenderer, type ChartValueFormatter, Checkbox, CheckboxGroup, type CheckboxGroupOption, type CheckboxGroupProps, type CommandFilter, CommandGroup, CommandItem, CommandPalette, type ConfirmOptions, ConfirmProvider, DataTable, DateRangePicker, type DayRange, DayRangePicker, type DayRangePickerProps, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, type DonutChartDatum, type DonutChartProps, type DonutTooltipContext, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, type EventCalendarProps, type ExpectedHoursResponse, FileViewer, type FileViewerFallback, type FileViewerFallbackContent, type FileViewerFallbackReason, type FileViewerFallbackRequest, FileViewerPanel, type FileViewerPanelProps, type FileViewerProps, FilterBar, FormField, HoverCard, HoverCardContent, type HoverCardProps, HoverCardTrigger, Input, Label, LineChart, type LineChartProps, Money, MoneyInput, Monogram, MonthCalendar, type MonthCalendarProps, type MonthYearRange, MultiSelect, type MultiSelectOption, MultiStatusFilter, PageHeader, type PageHeaderBack, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, type PostalAddress, type PostalAddressDraft, ProductMark, Progress, type ProgressTone, RadioGroup, RadioGroupItem, type RadioGroupOption, type RadioGroupProps, RichTextEditor, type RichTextEditorHandle, type RichTextEditorProps, RichTextFormatting, type RichTextInsertAction, type RichTextLinkPanelOptions, type RichTextLinkTarget, type SaveResponse, ScrollArea, SearchSelect, type SearchSelectOption, type SegmentTracker, type SegmentTrackerOptions, SegmentedControl, type SegmentedControlOption, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, type SignInPageCopy, type SignInPageProps, SignOutPage, type SignOutPageCopy, type SignOutPageProps, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, type StatusIndicatorProps, type StatusOption, StructuredAddressInput, Swatch, type SwatchProps, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, type ThemeProviderProps, ThemeToggle, type TimeEntryResponse, type TimesheetApi, type TimesheetContract, type TimesheetEntry, type TimesheetGridData, TimesheetTable, type TimesheetTableProps, type TimesheetTimeOff, type TimesheetViewMode, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, type VideoSegment, VideoViewer, type VideoViewerProps, WEEKDAY_LABELS, type YearMonth, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, nextDayRange, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
