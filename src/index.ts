@@ -110,6 +110,8 @@ export * from "./components/ui/donut-chart";
 export * from "./components/ui/date-range-picker";
 // The day-level counterpart to DateRangePicker, which picks a range of MONTHS.
 export * from "./components/ui/month-calendar";
+// MonthCalendar for a range: first day, then last, with days a range skips drawn faint.
+export * from "./components/ui/day-range-picker";
 // A month of days with items in them (who is off, what is due), for showing
 // rather than picking.
 export * from "./components/ui/event-calendar";

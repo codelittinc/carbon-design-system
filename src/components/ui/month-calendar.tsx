@@ -1,19 +1,9 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { cn } from "@/lib/cn";
-import { eyebrowClass } from "@/lib/ui-classes";
 import { Button } from "./button";
-import { PeriodNav } from "./calendar-chrome";
-import {
-  WEEKDAY_LABELS,
-  compareMonths,
-  dateKey,
-  monthLabel,
-  monthWeeks,
-  shiftMonth,
-  type YearMonth,
-} from "@/lib/calendar";
+import { CompactMonth } from "./calendar-chrome";
+import { monthLabel, type YearMonth } from "@/lib/calendar";
 
 export interface MonthCalendarProps {
   /** The month on screen. Controlled, like the selection. */
@@ -77,60 +67,32 @@ export function MonthCalendar({
   className,
   "aria-label": ariaLabel = "Choose a day",
 }: MonthCalendarProps): ReactElement {
-  const cells = monthWeeks(month).flat();
-
-  const canGoBack = compareMonths(month, min) > 0;
-  const canGoForward = compareMonths(month, max) < 0;
-
   return (
-    <div role="group" aria-label={ariaLabel} className={cn("w-[17.5rem] shrink-0", className)}>
-      <PeriodNav
-        layout="compact"
-        className="mb-2"
-        label={monthLabel(month)}
-        onPrevious={() => onMonthChange(shiftMonth(month, -1))}
-        onNext={() => onMonthChange(shiftMonth(month, 1))}
-        previousLabel="Previous month"
-        nextLabel="Next month"
-        previousDisabled={!canGoBack}
-        nextDisabled={!canGoForward}
-      />
-
-      <div className="grid grid-cols-7 gap-1">
-        {WEEKDAY_LABELS.map((label) => (
-          <span
-            key={label}
-            aria-hidden="true"
-            className={cn(eyebrowClass, "pb-1 text-center text-[10px] tracking-normal")}
+    <CompactMonth
+      month={month}
+      onMonthChange={onMonthChange}
+      min={min}
+      max={max}
+      ariaLabel={ariaLabel}
+      className={className}
+      renderDay={(cell, key) => {
+        const open = available ? available.has(key) : true;
+        const isSelected = key === selected;
+        return (
+          <Button
+            type="button"
+            variant={isSelected ? "default" : open ? "outline" : "ghost"}
+            size="icon"
+            className="h-9 w-9"
+            disabled={!open}
+            aria-label={`${cell.day} ${monthLabel(month)}${open ? "" : `, ${unavailableLabel}`}`}
+            aria-pressed={isSelected}
+            onClick={() => onSelect(key)}
           >
-            {label[0]}
-          </span>
-        ))}
-
-        {cells.map((cell, i) => {
-          if (!cell) return <span key={`blank-${i}`} aria-hidden="true" />;
-          const { day } = cell;
-          const key = dateKey(cell);
-          const open = available ? available.has(key) : true;
-          const isSelected = key === selected;
-
-          return (
-            <Button
-              key={key}
-              type="button"
-              variant={isSelected ? "default" : open ? "outline" : "ghost"}
-              size="icon"
-              className="h-9 w-9"
-              disabled={!open}
-              aria-label={`${day} ${monthLabel(month)}${open ? "" : `, ${unavailableLabel}`}`}
-              aria-pressed={isSelected}
-              onClick={() => onSelect(key)}
-            >
-              {day}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+            {cell.day}
+          </Button>
+        );
+      }}
+    />
   );
 }
