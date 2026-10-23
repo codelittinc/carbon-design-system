@@ -12,7 +12,7 @@ uses it as the GitHub Release notes.
 
 ### Changed
 
-- **`BarChart`**: vertical bars name every category. Up to 12 bars, each name wraps onto up to three lines under its own bar (an ellipsis past that, the full name on hover) instead of one line where neighbours overlapped and Recharts dropped some. The axis grows to fit the longest name. More than 12 bars thin the labels out as before, for a long run of dates. Horizontal bars are unchanged.
+- **`BarChart`**: vertical bars name every category. Up to 12 bars, when each bar's slot holds at least 8 characters a line, each name wraps onto up to four lines under its own bar (a word longer than the slot splits across lines; an ellipsis past four lines; the full name on hover) instead of one line where neighbours overlapped and Recharts dropped some. The axis reserves the lines the longest name actually takes. More bars, or a chart too narrow for them, thin the labels out as before. Horizontal bars are unchanged.
 
 ## [1.41.0] - 2026-10-22
 

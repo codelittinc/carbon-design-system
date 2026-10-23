@@ -1877,8 +1877,9 @@ interface BarChartProps extends ChartStateProps {
      * bottom baseline; `"horizontal"` lays them out from the left, which is the
      * right choice when category names are long — they get a real label column
      * instead of being rotated. Up to 12 vertical bars each get their name,
-     * wrapped onto up to three lines under the bar (full name on hover); more
-     * than that thins the labels out, as for a long run of dates.
+     * wrapped onto up to four lines under the bar (full name on hover), when a
+     * bar's slot holds 8 characters a line; otherwise the labels thin out, as
+     * for a long run of dates.
      */
     orientation?: "vertical" | "horizontal";
     /** Stacks multiple series into one bar per category instead of grouping them. */

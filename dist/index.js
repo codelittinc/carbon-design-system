@@ -1,7 +1,7 @@
 "use client";
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import * as React from 'react';
+import * as React2 from 'react';
 import { forwardRef, isValidElement, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, cloneElement, useMemo } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
@@ -4758,31 +4758,38 @@ var CHART_LABEL_STYLE = {
 // src/lib/wrap-label.ts
 function wrapLabel(text, maxChars, maxLines) {
   const width = Math.max(1, Math.floor(maxChars));
-  const fit = (word) => word.length > width ? `${word.slice(0, Math.max(1, width - 1))}\u2026` : word;
   const lines = [];
   let current = "";
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
-    if (!current) current = word;
-    else if (current.length + 1 + word.length <= width) current = `${current} ${word}`;
-    else {
-      lines.push(current);
-      current = word;
+    if (current && current.length + 1 + word.length <= width) {
+      current = `${current} ${word}`;
+      continue;
     }
+    if (current) lines.push(current);
+    let rest = word;
+    while (rest.length > width) {
+      lines.push(rest.slice(0, width));
+      rest = rest.slice(width);
+    }
+    current = rest;
   }
   if (current) lines.push(current);
   if (!lines.length) return [""];
-  const kept = lines.slice(0, Math.max(1, maxLines)).map(fit);
-  if (lines.length > kept.length) {
-    const last = kept[kept.length - 1];
-    kept[kept.length - 1] = last.endsWith("\u2026") ? last : `${last.length >= width ? last.slice(0, Math.max(1, width - 1)) : last}\u2026`;
-  }
+  const limit = Math.max(1, maxLines);
+  if (lines.length <= limit) return lines;
+  const kept = lines.slice(0, limit);
+  const last = kept[limit - 1];
+  kept[limit - 1] = `${last.length >= width ? last.slice(0, width - 1) : last}\u2026`;
   return kept;
+}
+function wrappedLineCount(labels, maxChars, maxLines) {
+  return labels.reduce((max, label) => Math.max(max, wrapLabel(label, maxChars, maxLines).length), 1);
 }
 function useChartSeries(series, data, context) {
   const allSeries = capSeries(series, context);
-  const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
-  const plotData = React.useMemo(() => data.map((row) => ({ ...row })), [data]);
-  const visibleSeries = React.useMemo(
+  const [hidden, setHidden] = React2.useState(() => /* @__PURE__ */ new Set());
+  const plotData = React2.useMemo(() => data.map((row) => ({ ...row })), [data]);
+  const visibleSeries = React2.useMemo(
     () => allSeries.filter((s) => !hidden.has(s.key)),
     [allSeries, hidden]
   );
@@ -4835,14 +4842,18 @@ function ChartFooter({
     )
   ] });
 }
-var CATEGORY_CHAR_WIDTH = 6;
+var CATEGORY_CHAR_WIDTH = 6.5;
 var CATEGORY_LINE_HEIGHT = 13;
-var CATEGORY_MAX_LINES = 3;
+var CATEGORY_MAX_LINES = 4;
 var WRAPPED_CATEGORY_LIMIT = 12;
+var WRAPPED_CATEGORY_MIN_CHARS = 8;
+var VERTICAL_VALUE_AXIS_WIDTH = 48;
+var VERTICAL_RIGHT_MARGIN = 8;
+var charsInSlot = (slot) => (slot - 6) / CATEGORY_CHAR_WIDTH;
 function WrappedCategoryTick({ x = 0, y = 0, width, visibleTicksCount, payload }) {
   const text = String(payload?.value ?? "");
   const slot = width && visibleTicksCount ? width / visibleTicksCount : 80;
-  const lines = wrapLabel(text, (slot - 6) / CATEGORY_CHAR_WIDTH, CATEGORY_MAX_LINES);
+  const lines = wrapLabel(text, charsInSlot(slot), CATEGORY_MAX_LINES);
   return /* @__PURE__ */ jsxs("text", { x, y, textAnchor: "middle", ...CHART_TICK_CATEGORY, children: [
     /* @__PURE__ */ jsx("title", { children: text }),
     lines.map((line, i) => /* @__PURE__ */ jsx("tspan", { x, dy: i === 0 ? "0.9em" : CATEGORY_LINE_HEIGHT, children: line }, i))
@@ -4876,7 +4887,7 @@ function BarChart({
   const { allSeries, visibleSeries, colors: allColors, plotData } = seriesState;
   const isHorizontal = orientation === "horizontal";
   const perCategory = colorBy === "category" && allSeries.length === 1;
-  const categoryColors = React.useMemo(() => {
+  const categoryColors = React2.useMemo(() => {
     if (!perCategory) return null;
     if (data.length > CHART_SERIES_LIMIT) {
       console.warn(
@@ -4888,17 +4899,16 @@ function BarChart({
   const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
   const showLegend = legend ?? allSeries.length > 1;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
-  const wrapCategories = data.length <= WRAPPED_CATEGORY_LIMIT;
-  const categoryAxisHeight = React.useMemo(() => {
+  const [chartWidth, setChartWidth] = React2.useState(0);
+  const slotChars = chartWidth > 0 ? charsInSlot((chartWidth - VERTICAL_VALUE_AXIS_WIDTH - VERTICAL_RIGHT_MARGIN) / data.length) : 0;
+  const wrapCategories = !isHorizontal && data.length <= WRAPPED_CATEGORY_LIMIT && slotChars >= WRAPPED_CATEGORY_MIN_CHARS;
+  const categoryAxisHeight = React2.useMemo(() => {
     if (!wrapCategories) return void 0;
-    const words = data.reduce(
-      (max, row) => Math.max(max, String(row[categoryKey] ?? "").trim().split(/\s+/).length),
-      1
-    );
-    return 10 + Math.min(CATEGORY_MAX_LINES, words) * CATEGORY_LINE_HEIGHT;
-  }, [wrapCategories, data, categoryKey]);
-  const rightGutter = React.useMemo(() => {
-    if (!isHorizontal) return 8;
+    const labels = data.map((row) => String(row[categoryKey] ?? ""));
+    return 10 + wrappedLineCount(labels, slotChars, CATEGORY_MAX_LINES) * CATEGORY_LINE_HEIGHT;
+  }, [wrapCategories, data, categoryKey, slotChars]);
+  const rightGutter = React2.useMemo(() => {
+    if (!isHorizontal) return VERTICAL_RIGHT_MARGIN;
     const widest = showLabels ? data.reduce((max, row) => {
       const rowMax = allSeries.reduce((m, s) => {
         const value = row[s.key];
@@ -4938,105 +4948,113 @@ function BarChart({
     }
   );
   return /* @__PURE__ */ jsxs("div", { className: cn("w-full", className), children: [
-    /* @__PURE__ */ jsx("div", { style: { height }, children: /* @__PURE__ */ jsx(ResponsiveContainer, { width: "100%", height: "100%", children: /* @__PURE__ */ jsxs(
-      BarChart$1,
+    /* @__PURE__ */ jsx("div", { style: { height }, children: /* @__PURE__ */ jsx(
+      ResponsiveContainer,
       {
-        accessibilityLayer: true,
-        data: plotData,
-        layout: isHorizontal ? "vertical" : "horizontal",
-        barGap: 2,
-        barCategoryGap: "28%",
-        margin: {
-          top: !isHorizontal && showLabels ? 18 : 8,
-          right: rightGutter,
-          bottom: 0,
-          left: 0
-        },
-        children: [
-          /* @__PURE__ */ jsx(
-            CartesianGrid,
-            {
-              stroke: CHART_GRID_COLOR,
-              horizontal: !isHorizontal,
-              vertical: isHorizontal
-            }
-          ),
-          isHorizontal ? /* @__PURE__ */ jsxs(Fragment, { children: [
-            valueAxis,
-            categoryAxis
-          ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-            /* @__PURE__ */ jsx(
-              XAxis,
-              {
-                dataKey: categoryKey,
-                tick: wrapCategories ? /* @__PURE__ */ jsx(WrappedCategoryTick, {}) : CHART_TICK_CATEGORY,
-                axisLine: false,
-                tickLine: false,
-                interval: wrapCategories ? 0 : "preserveStartEnd",
-                height: categoryAxisHeight
-              }
-            ),
-            /* @__PURE__ */ jsx(
-              YAxis,
-              {
-                tick: CHART_TICK_VALUE,
-                tickFormatter: axisTickFormatter,
-                axisLine: false,
-                tickLine: false,
-                width: 48
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsx(
-            Tooltip$1,
-            {
-              cursor: { fill: "var(--color-surface-overlay)", fillOpacity: 0.45 },
-              content: /* @__PURE__ */ jsx(
-                ChartTooltipContent,
+        width: "100%",
+        height: "100%",
+        onResize: isHorizontal ? void 0 : (width) => setChartWidth(width),
+        children: /* @__PURE__ */ jsxs(
+          BarChart$1,
+          {
+            accessibilityLayer: true,
+            data: plotData,
+            layout: isHorizontal ? "vertical" : "horizontal",
+            barGap: 2,
+            barCategoryGap: "28%",
+            margin: {
+              top: !isHorizontal && showLabels ? 18 : 8,
+              right: rightGutter,
+              bottom: 0,
+              left: 0
+            },
+            children: [
+              /* @__PURE__ */ jsx(
+                CartesianGrid,
                 {
-                  valueFormatter,
-                  labelFormatter,
-                  render: tooltipContent
+                  stroke: CHART_GRID_COLOR,
+                  horizontal: !isHorizontal,
+                  vertical: isHorizontal
                 }
-              )
-            }
-          ),
-          visibleSeries.map((s) => {
-            const seriesIndex = allSeries.indexOf(s);
-            const isLastInStack = s === visibleSeries[visibleSeries.length - 1];
-            return /* @__PURE__ */ jsxs(
-              Bar,
-              {
-                dataKey: s.key,
-                name: s.label,
-                fill: allColors[seriesIndex],
-                radius: capFor(isLastInStack),
-                maxBarSize,
-                stackId: stacked ? "stack" : void 0,
-                stroke: stacked ? "var(--color-surface)" : void 0,
-                strokeWidth: stacked ? 2 : 0,
-                isAnimationActive: false,
-                cursor: onBarClick ? "pointer" : void 0,
-                onClick: onBarClick ? (_entry, index) => onBarClick(data[index], index, s.key) : void 0,
-                children: [
-                  categoryColors?.map((fill, i) => /* @__PURE__ */ jsx(Cell, { fill }, i)),
-                  showLabels && /* @__PURE__ */ jsx(
-                    LabelList,
+              ),
+              isHorizontal ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                valueAxis,
+                categoryAxis
+              ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+                /* @__PURE__ */ jsx(
+                  XAxis,
+                  {
+                    dataKey: categoryKey,
+                    tick: wrapCategories ? /* @__PURE__ */ jsx(WrappedCategoryTick, {}) : CHART_TICK_CATEGORY,
+                    axisLine: false,
+                    tickLine: false,
+                    interval: wrapCategories ? 0 : "preserveStartEnd",
+                    height: categoryAxisHeight
+                  }
+                ),
+                /* @__PURE__ */ jsx(
+                  YAxis,
+                  {
+                    tick: CHART_TICK_VALUE,
+                    tickFormatter: axisTickFormatter,
+                    axisLine: false,
+                    tickLine: false,
+                    width: VERTICAL_VALUE_AXIS_WIDTH
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsx(
+                Tooltip$1,
+                {
+                  cursor: { fill: "var(--color-surface-overlay)", fillOpacity: 0.45 },
+                  content: /* @__PURE__ */ jsx(
+                    ChartTooltipContent,
                     {
-                      dataKey: s.key,
-                      position: isHorizontal ? "right" : "top",
-                      formatter: (value) => typeof value === "number" && value !== 0 ? valueFormatter(value) : "",
-                      ...CHART_LABEL_STYLE
+                      valueFormatter,
+                      labelFormatter,
+                      render: tooltipContent
                     }
                   )
-                ]
-              },
-              s.key
-            );
-          })
-        ]
+                }
+              ),
+              visibleSeries.map((s) => {
+                const seriesIndex = allSeries.indexOf(s);
+                const isLastInStack = s === visibleSeries[visibleSeries.length - 1];
+                return /* @__PURE__ */ jsxs(
+                  Bar,
+                  {
+                    dataKey: s.key,
+                    name: s.label,
+                    fill: allColors[seriesIndex],
+                    radius: capFor(isLastInStack),
+                    maxBarSize,
+                    stackId: stacked ? "stack" : void 0,
+                    stroke: stacked ? "var(--color-surface)" : void 0,
+                    strokeWidth: stacked ? 2 : 0,
+                    isAnimationActive: false,
+                    cursor: onBarClick ? "pointer" : void 0,
+                    onClick: onBarClick ? (_entry, index) => onBarClick(data[index], index, s.key) : void 0,
+                    children: [
+                      categoryColors?.map((fill, i) => /* @__PURE__ */ jsx(Cell, { fill }, i)),
+                      showLabels && /* @__PURE__ */ jsx(
+                        LabelList,
+                        {
+                          dataKey: s.key,
+                          position: isHorizontal ? "right" : "top",
+                          formatter: (value) => typeof value === "number" && value !== 0 ? valueFormatter(value) : "",
+                          ...CHART_LABEL_STYLE
+                        }
+                      )
+                    ]
+                  },
+                  s.key
+                );
+              })
+            ]
+          }
+        )
       }
-    ) }) }),
+    ) }),
     /* @__PURE__ */ jsx(
       ChartFooter,
       {
@@ -5206,7 +5224,7 @@ function DonutChart({
   emptyDescription,
   className
 }) {
-  const slices = React.useMemo(() => {
+  const slices = React2.useMemo(() => {
     const rows = sort ? [...data].sort((a, b) => b.value - a.value) : data;
     let kept = rows;
     if (rows.length > maxSlices) {
