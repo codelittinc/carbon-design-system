@@ -78,6 +78,33 @@ export const Horizontal: Story = {
 };
 
 /**
+ * Vertical bars with long names: each is wrapped onto up to three lines under
+ * its own bar, never dropped or overlapped, with the full name on hover. Past
+ * 12 bars the labels thin out instead, as for a long run of dates.
+ */
+export const LongNames: Story = {
+  args: {
+    data: [
+      { step: "1. Welcome to Gatekeeper", percent: 100 },
+      { step: "2. Adding a product and its access instructions", percent: 89 },
+      { step: "3. Training tracks", percent: 67 },
+      { step: "4. Writing a handbook document", percent: 44 },
+      { step: "5. Quizzes", percent: 22 },
+      { step: "6. Publishing a process to everyone in the company", percent: 11 },
+    ],
+    categoryKey: "step",
+    categoryLabel: "Step",
+    series: [{ key: "percent", label: "Done" }],
+    valueFormatter: (value) => `${value}%`,
+  },
+  render: (args) => (
+    <ChartCard title="Completion by step" subtitle="In the track's order">
+      <BarChart {...args} />
+    </ChartCard>
+  ),
+};
+
+/**
  * Several measures per category, side by side. Direct labels switch off
  * automatically here — a number on every bar would be unreadable — and the
  * legend carries series identity instead.

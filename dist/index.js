@@ -4754,6 +4754,30 @@ var CHART_LABEL_STYLE = {
   fontFamily: "var(--font-mono)",
   fontWeight: 500
 };
+
+// src/lib/wrap-label.ts
+function wrapLabel(text, maxChars, maxLines) {
+  const width = Math.max(1, Math.floor(maxChars));
+  const fit = (word) => word.length > width ? `${word.slice(0, Math.max(1, width - 1))}\u2026` : word;
+  const lines = [];
+  let current = "";
+  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+    if (!current) current = word;
+    else if (current.length + 1 + word.length <= width) current = `${current} ${word}`;
+    else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  if (!lines.length) return [""];
+  const kept = lines.slice(0, Math.max(1, maxLines)).map(fit);
+  if (lines.length > kept.length) {
+    const last = kept[kept.length - 1];
+    kept[kept.length - 1] = last.endsWith("\u2026") ? last : `${last.length >= width ? last.slice(0, Math.max(1, width - 1)) : last}\u2026`;
+  }
+  return kept;
+}
 function useChartSeries(series, data, context) {
   const allSeries = capSeries(series, context);
   const [hidden, setHidden] = React.useState(() => /* @__PURE__ */ new Set());
@@ -4811,6 +4835,19 @@ function ChartFooter({
     )
   ] });
 }
+var CATEGORY_CHAR_WIDTH = 6;
+var CATEGORY_LINE_HEIGHT = 13;
+var CATEGORY_MAX_LINES = 3;
+var WRAPPED_CATEGORY_LIMIT = 12;
+function WrappedCategoryTick({ x = 0, y = 0, width, visibleTicksCount, payload }) {
+  const text = String(payload?.value ?? "");
+  const slot = width && visibleTicksCount ? width / visibleTicksCount : 80;
+  const lines = wrapLabel(text, (slot - 6) / CATEGORY_CHAR_WIDTH, CATEGORY_MAX_LINES);
+  return /* @__PURE__ */ jsxs("text", { x, y, textAnchor: "middle", ...CHART_TICK_CATEGORY, children: [
+    /* @__PURE__ */ jsx("title", { children: text }),
+    lines.map((line, i) => /* @__PURE__ */ jsx("tspan", { x, dy: i === 0 ? "0.9em" : CATEGORY_LINE_HEIGHT, children: line }, i))
+  ] });
+}
 function BarChart({
   data,
   categoryKey,
@@ -4851,6 +4888,15 @@ function BarChart({
   const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
   const showLegend = legend ?? allSeries.length > 1;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
+  const wrapCategories = data.length <= WRAPPED_CATEGORY_LIMIT;
+  const categoryAxisHeight = React.useMemo(() => {
+    if (!wrapCategories) return void 0;
+    const words = data.reduce(
+      (max, row) => Math.max(max, String(row[categoryKey] ?? "").trim().split(/\s+/).length),
+      1
+    );
+    return 10 + Math.min(CATEGORY_MAX_LINES, words) * CATEGORY_LINE_HEIGHT;
+  }, [wrapCategories, data, categoryKey]);
   const rightGutter = React.useMemo(() => {
     if (!isHorizontal) return 8;
     const widest = showLabels ? data.reduce((max, row) => {
@@ -4923,10 +4969,11 @@ function BarChart({
               XAxis,
               {
                 dataKey: categoryKey,
-                tick: CHART_TICK_CATEGORY,
+                tick: wrapCategories ? /* @__PURE__ */ jsx(WrappedCategoryTick, {}) : CHART_TICK_CATEGORY,
                 axisLine: false,
                 tickLine: false,
-                interval: "preserveStartEnd"
+                interval: wrapCategories ? 0 : "preserveStartEnd",
+                height: categoryAxisHeight
               }
             ),
             /* @__PURE__ */ jsx(
