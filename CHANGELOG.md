@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.42.0] - 2026-10-23
+
+### Changed
+
+- **`BarChart`**: vertical bars name every category. Up to 12 bars, when each bar's slot holds at least 8 characters a line, each name wraps onto up to four lines under its own bar (a word longer than the slot splits across lines; an ellipsis past four lines; the full name on hover) instead of one line where neighbours overlapped and Recharts dropped some. The axis reserves the lines the longest name actually takes. More bars, or a chart too narrow for them, thin the labels out as before. Horizontal bars are unchanged.
+
 ## [1.41.0] - 2026-10-22
 
 ### Added

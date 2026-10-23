@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { cn } from "@/lib/cn";
+import { wrapLabel, wrappedLineCount } from "@/lib/wrap-label";
 import {
   CHART_GRID_COLOR,
   CHART_LABEL_STYLE,
@@ -41,7 +42,10 @@ export interface BarChartProps extends ChartStateProps {
    * Which way the bars run. `"vertical"` (default) stands them up from a
    * bottom baseline; `"horizontal"` lays them out from the left, which is the
    * right choice when category names are long — they get a real label column
-   * instead of being rotated.
+   * instead of being rotated. Up to 12 vertical bars each get their name,
+   * wrapped onto up to four lines under the bar (full name on hover), when a
+   * bar's slot holds 8 characters a line; otherwise the labels thin out, as
+   * for a long run of dates.
    */
   orientation?: "vertical" | "horizontal";
   /** Stacks multiple series into one bar per category instead of grouping them. */
@@ -93,6 +97,53 @@ export interface BarChartProps extends ChartStateProps {
   /** Fired when a bar is clicked — for drill-down. */
   onBarClick?: (datum: ChartDatum, index: number, seriesKey: string) => void;
   className?: string;
+}
+
+/*
+ * Category ticks under vertical bars: 11px body text, estimated at 6.5px a
+ * character so capitals and wide glyphs still fit their slot.
+ */
+const CATEGORY_CHAR_WIDTH = 6.5;
+const CATEGORY_LINE_HEIGHT = 13;
+const CATEGORY_MAX_LINES = 4;
+/* Past this many bars, or under this many characters a slot, labels thin out instead. */
+const WRAPPED_CATEGORY_LIMIT = 12;
+const WRAPPED_CATEGORY_MIN_CHARS = 8;
+/* The vertical chart's value axis and right margin: what the plot loses to them. */
+const VERTICAL_VALUE_AXIS_WIDTH = 48;
+const VERTICAL_RIGHT_MARGIN = 8;
+
+/** Characters a wrapped line may hold in a bar's slot, 3px kept clear each side. */
+const charsInSlot = (slot: number) => (slot - 6) / CATEGORY_CHAR_WIDTH;
+
+interface CategoryTickProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  visibleTicksCount?: number;
+  payload?: { value: string | number };
+}
+
+/**
+ * Every category's name under its own bar, wrapped to the bar's slot rather
+ * than drawn on one line, where neighbours overlap and Recharts drops some.
+ * The slot is the axis width over the number of ticks, as `interval={0}` keeps
+ * them all.
+ */
+function WrappedCategoryTick({ x = 0, y = 0, width, visibleTicksCount, payload }: CategoryTickProps) {
+  const text = String(payload?.value ?? "");
+  const slot = width && visibleTicksCount ? width / visibleTicksCount : 80;
+  const lines = wrapLabel(text, charsInSlot(slot), CATEGORY_MAX_LINES);
+  return (
+    <text x={x} y={y} textAnchor="middle" {...CHART_TICK_CATEGORY}>
+      <title>{text}</title>
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? "0.9em" : CATEGORY_LINE_HEIGHT}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
 }
 
 /**
@@ -166,6 +217,24 @@ export function BarChart({
   const showLabels = valueLabels ?? (visibleSeries.length === 1 && data.length <= 16);
   const showLegend = legend ?? allSeries.length > 1;
   const axisTickFormatter = tickFormatter ?? valueFormatter;
+  /*
+   * Vertical bars wrap their names when each bar's slot holds a readable line:
+   * the plot is the container less the value axis and margin, over the bars.
+   * Unmeasured, too many bars or too narrow, the ticks thin out as before.
+   */
+  const [chartWidth, setChartWidth] = React.useState(0);
+  const slotChars =
+    chartWidth > 0
+      ? charsInSlot((chartWidth - VERTICAL_VALUE_AXIS_WIDTH - VERTICAL_RIGHT_MARGIN) / data.length)
+      : 0;
+  const wrapCategories =
+    !isHorizontal && data.length <= WRAPPED_CATEGORY_LIMIT && slotChars >= WRAPPED_CATEGORY_MIN_CHARS;
+  /* Room under the bars for the lines the longest name actually wraps to. */
+  const categoryAxisHeight = React.useMemo(() => {
+    if (!wrapCategories) return undefined;
+    const labels = data.map((row) => String(row[categoryKey] ?? ""));
+    return 10 + wrappedLineCount(labels, slotChars, CATEGORY_MAX_LINES) * CATEGORY_LINE_HEIGHT;
+  }, [wrapCategories, data, categoryKey, slotChars]);
 
   /*
    * Horizontal bars put their value labels at the bar's right end, and the
@@ -176,7 +245,7 @@ export function BarChart({
    * floor that covers the overhang of the final axis tick.
    */
   const rightGutter = React.useMemo(() => {
-    if (!isHorizontal) return 8;
+    if (!isHorizontal) return VERTICAL_RIGHT_MARGIN;
     const widest = showLabels
       ? data.reduce((max, row) => {
           const rowMax = allSeries.reduce((m, s) => {
@@ -225,7 +294,11 @@ export function BarChart({
   return (
     <div className={cn("w-full", className)}>
       <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={isHorizontal ? undefined : (width) => setChartWidth(width)}
+        >
           <RechartsBarChart
             accessibilityLayer
             data={plotData}
@@ -254,17 +327,18 @@ export function BarChart({
               <>
                 <XAxis
                   dataKey={categoryKey}
-                  tick={CHART_TICK_CATEGORY}
+                  tick={wrapCategories ? <WrappedCategoryTick /> : CHART_TICK_CATEGORY}
                   axisLine={false}
                   tickLine={false}
-                  interval="preserveStartEnd"
+                  interval={wrapCategories ? 0 : "preserveStartEnd"}
+                  height={categoryAxisHeight}
                 />
                 <YAxis
                   tick={CHART_TICK_VALUE}
                   tickFormatter={axisTickFormatter}
                   axisLine={false}
                   tickLine={false}
-                  width={48}
+                  width={VERTICAL_VALUE_AXIS_WIDTH}
                 />
               </>
             )}
