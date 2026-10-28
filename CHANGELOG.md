@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.42.1] - 2026-10-28
+
+### Fixed
+
+- **`DonutChart`**: the hover tooltip now sits above the center value and label. The center readout was painted over the tooltip, making slice details hard to read when the tooltip crossed the hole.
+
 ## [1.42.0] - 2026-10-23
 
 ### Changed
