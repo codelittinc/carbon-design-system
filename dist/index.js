@@ -5271,6 +5271,7 @@ function DonutChart({
                   /* @__PURE__ */ jsx(
                     Tooltip$1,
                     {
+                      wrapperStyle: { zIndex: 10 },
                       content: tooltipContent ? /* @__PURE__ */ jsx(ChartSliceTooltipContent, { render: tooltipContent }) : /* @__PURE__ */ jsx(ChartTooltipContent, { valueFormatter })
                     }
                   ),

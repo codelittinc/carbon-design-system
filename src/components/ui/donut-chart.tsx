@@ -164,7 +164,9 @@ export function DonutChart({
       >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
+            {/* Lift the tooltip above the center overlay, which is painted after the chart. */}
             <RechartsTooltip
+              wrapperStyle={{ zIndex: 10 }}
               content={
                 tooltipContent ? (
                   <ChartSliceTooltipContent render={tooltipContent} />
