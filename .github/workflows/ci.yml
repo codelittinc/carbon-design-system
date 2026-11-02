@@ -37,5 +37,11 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      - name: Check hosted authentication
+        run: |
+          pnpm run test:auth
+          pnpm exec tsc --noEmit -p auth/tsconfig.json
+          pnpm run build
+
       - name: Build library
         run: pnpm run build:lib

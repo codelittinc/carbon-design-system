@@ -1,5 +1,6 @@
 node_modules
 storybook-static
+auth-static
 *.log
 *.tgz
 .DS_Store

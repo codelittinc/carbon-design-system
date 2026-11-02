@@ -321,3 +321,34 @@ The app reads the session, catches SDK failures and performs navigation. Only se
 disable confirmation and cancellation; `unavailable` removes confirmation but
 allows cancellation. Use `copy` to translate visible strings (including
 `signedOutTitle`, `signedOutDescription`, `signIn` and `cancel`).
+
+## Hosted Storybook authentication
+
+The hosted documentation uses the same Clerk application as Gatekeeper. Its
+Gatekeeper product is **Design System**, access key `design-system`, with one
+role: `standard` (displayed as **Standard** and set as the default level).
+Only a confirmed grant with that role opens the documentation. People are given
+access in Gatekeeper; creating the product does not give anybody access.
+
+`pnpm build` builds Storybook and its CarbonOS sign-in/sign-out screens;
+`pnpm start` serves them through Express. Set `CLERK_PUBLISHABLE_KEY`,
+`CLERK_SECRET_KEY`, `APP_ORIGIN`, and `GATEKEEPER_URL` at runtime (see
+`.env.example`). These hosting credentials are never compiled into the component
+library or the Docker build. Gatekeeper's `API_AUTHORIZED_PARTIES` must include
+the exact `APP_ORIGIN`. The production origin is
+`https://design-system.carbonresidential.com`.
+
+The server validates the Clerk session and verified primary email, then forwards
+that person's session token to `GET /api/me?app=design-system`. Gatekeeper remains
+the source of access; no local allowlist, shared API key, or authorization cache
+is used. Missing configuration, failed lookups, unknown roles, and revoked or
+unconfirmed grants all deny access. Storybook pages, iframes, JSON indexes,
+bundles and example files use the same gate and are served with `private,
+no-store`. The auth UI and `/healthz` are public; the latter contains no user data.
+
+The Storybook toolbar has a **Sign out** link and keeps the Clerk session fresh.
+`pnpm dev` remains the local Storybook authoring server and should not be used as
+a production start command. Basic Auth environment variables are no longer used.
+
+Run `pnpm test:auth` for the HTTP authorization and failure-path checks, and
+`pnpm exec tsc --noEmit -p auth/tsconfig.json` to check the hosting UI.

@@ -43,14 +43,16 @@
   "scripts": {
     "dev": "storybook dev -p 6006",
     "storybook": "storybook dev -p 6006",
-    "build": "storybook build",
+    "build": "storybook build && pnpm run build:auth",
     "build-storybook": "storybook build",
     "build:lib": "node scripts/generate-tokens.mjs && tsup",
     "tokens:generate": "node scripts/generate-tokens.mjs",
     "prepack": "pnpm run build:lib",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:auth": "vite build --config auth/vite.config.ts",
+    "test:auth": "node --test test/server-auth.node.mjs"
   },
   "engines": {
     "node": ">=22"
@@ -94,11 +96,14 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@clerk/express": "^2.1.86",
+    "@clerk/react": "^6.18.4",
     "@storybook/addon-a11y": "^8.6.14",
     "@storybook/addon-docs": "^8.6.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-themes": "^8.6.14",
     "@storybook/blocks": "^8.6.14",
+    "@storybook/manager-api": "^8.6.14",
     "@storybook/react": "^8.6.14",
     "@storybook/react-vite": "^8.6.14",
     "@tailwindcss/vite": "^4.2.4",

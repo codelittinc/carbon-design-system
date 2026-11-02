@@ -16,23 +16,22 @@ COPY . .
 RUN pnpm run build
 
 # ─────────────────────────────────────────────────────────────
-# Runtime stage — the Express auth server + the static site
+# Runtime stage — Clerk/Gatekeeper auth server + the static site
 # ─────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN corepack enable
 
-# server.js only needs Express. Express is a devDependency of the published
-# package (library consumers must not install it), so installing the package's
-# own manifest with --prod would skip it. Install Express in isolation from a
-# minimal manifest instead — this also keeps the component libraries (radix,
-# @tanstack, etc.), which server.js never touches, out of the runtime image.
-RUN printf '{"name":"carbon-storybook-server","private":true,"type":"module","dependencies":{"express":"^4.19.2"}}' > package.json \
+# Hosting dependencies stay out of the published component library's runtime deps.
+COPY package.json ./source-package.json
+RUN node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("source-package.json")); fs.writeFileSync("package.json", JSON.stringify({name:"carbon-storybook-server",private:true,type:"module",packageManager:p.packageManager,dependencies:{express:p.devDependencies.express,"@clerk/express":p.devDependencies["@clerk/express"]}}));' \
  && pnpm install --prod
 
 COPY server.js ./
+COPY server ./server
 COPY --from=build /app/storybook-static ./storybook-static
+COPY --from=build /app/auth-static ./auth-static
 
-# Heroku injects $PORT at runtime; server.js binds 0.0.0.0 on it.
+# Railway injects $PORT at runtime; server.js binds 0.0.0.0 on it.
 CMD ["node", "server.js"]
