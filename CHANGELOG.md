@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.43.0] - 2026-11-05
+
+### Added
+
+- **`Breadcrumb`**: composable navigation with `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage` and `BreadcrumbSeparator`. Ancestor links support router links through `asChild`; the current page is non-interactive text, separators are hidden from screen readers, and long paths wrap within their container.
+
 ## [1.42.1] - 2026-10-28
 
 ### Fixed
