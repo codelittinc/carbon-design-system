@@ -53,6 +53,7 @@ export * from "./components/ui/alert";
 export * from "./components/ui/spinner";
 export * from "./components/ui/label";
 export * from "./components/ui/pagination";
+export * from "./components/ui/breadcrumb";
 export * from "./components/ui/multi-select";
 export * from "./components/ui/segmented-control";
 export * from "./components/ui/category-chip";
