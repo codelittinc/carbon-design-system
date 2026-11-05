@@ -7,7 +7,7 @@ import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, ChevronRight, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, Grip as AppsIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
@@ -979,15 +979,24 @@ function Pagination({
     }
   );
 }
-function Breadcrumb({ className, ...props }) {
-  return /* @__PURE__ */ jsx("nav", { "aria-label": "Breadcrumb", className, ...props });
-}
-function BreadcrumbList({ className, ...props }) {
-  return /* @__PURE__ */ jsx("ol", { className: cn("flex flex-wrap items-center gap-2 text-sm text-text-muted", className), ...props });
-}
-function BreadcrumbItem({ className, ...props }) {
-  return /* @__PURE__ */ jsx("li", { className: cn("inline-flex min-w-0 max-w-full items-center gap-2", className), ...props });
-}
+var Breadcrumb = forwardRef(
+  ({ className, ...props }, ref) => {
+    return /* @__PURE__ */ jsx("nav", { ref, "aria-label": "Breadcrumb", className, ...props });
+  }
+);
+Breadcrumb.displayName = "Breadcrumb";
+var BreadcrumbList = forwardRef(
+  ({ className, ...props }, ref) => {
+    return /* @__PURE__ */ jsx("ol", { ref, className: cn("flex flex-wrap items-center gap-2 text-sm text-text-muted", className), ...props });
+  }
+);
+BreadcrumbList.displayName = "BreadcrumbList";
+var BreadcrumbItem = forwardRef(
+  ({ className, ...props }, ref) => {
+    return /* @__PURE__ */ jsx("li", { ref, className: cn("inline-flex min-w-0 max-w-full items-center gap-2", className), ...props });
+  }
+);
+BreadcrumbItem.displayName = "BreadcrumbItem";
 var BreadcrumbLink = forwardRef(
   ({ asChild = false, className, ...props }, ref) => {
     const Comp = asChild ? Slot : "a";
@@ -998,12 +1007,16 @@ var BreadcrumbLink = forwardRef(
   }
 );
 BreadcrumbLink.displayName = "BreadcrumbLink";
-function BreadcrumbPage({ className, ...props }) {
-  return /* @__PURE__ */ jsx("span", { "aria-current": "page", className: cn("min-w-0 [overflow-wrap:anywhere] text-text-primary", className), ...props });
-}
-function BreadcrumbSeparator({ children, className, ...props }) {
-  return /* @__PURE__ */ jsx("li", { role: "presentation", "aria-hidden": "true", className: cn("shrink-0", className), ...props, children: children ?? /* @__PURE__ */ jsx(ChevronRight, { size: 14 }) });
-}
+var BreadcrumbPage = forwardRef(
+  ({ className, ...props }, ref) => {
+    return /* @__PURE__ */ jsx("span", { ref, "aria-current": "page", className: cn("min-w-0 [overflow-wrap:anywhere] text-text-primary", className), ...props });
+  }
+);
+BreadcrumbPage.displayName = "BreadcrumbPage";
+var BreadcrumbSeparator = forwardRef(
+  ({ children, className, ...props }, ref) => /* @__PURE__ */ jsx("span", { ref, "aria-hidden": "true", className: cn("shrink-0", className), ...props, children: children ?? /* @__PURE__ */ jsx(ChevronRight, { size: 14 }) })
+);
+BreadcrumbSeparator.displayName = "BreadcrumbSeparator";
 function useCreateOption(onCreate) {
   const inFlight = useRef(false);
   const [creating, setCreating] = useState(false);

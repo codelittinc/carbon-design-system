@@ -5,18 +5,27 @@ import { Slot } from "@radix-ui/react-slot";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-/** Compose a folder or page path. Keep router links inside a client component. */
-export function Breadcrumb({ className, ...props }: ComponentPropsWithoutRef<"nav">) {
-  return <nav aria-label="Breadcrumb" className={className} {...props} />;
-}
+/** Compose an ordered path from ancestor locations to the current page. */
+export const Breadcrumb = forwardRef<HTMLElement, ComponentPropsWithoutRef<"nav">>(
+  ({ className, ...props }, ref) => {
+    return <nav ref={ref} aria-label="Breadcrumb" className={className} {...props} />;
+  },
+);
+Breadcrumb.displayName = "Breadcrumb";
 
-export function BreadcrumbList({ className, ...props }: ComponentPropsWithoutRef<"ol">) {
-  return <ol className={cn("flex flex-wrap items-center gap-2 text-sm text-text-muted", className)} {...props} />;
-}
+export const BreadcrumbList = forwardRef<HTMLOListElement, ComponentPropsWithoutRef<"ol">>(
+  ({ className, ...props }, ref) => {
+    return <ol ref={ref} className={cn("flex flex-wrap items-center gap-2 text-sm text-text-muted", className)} {...props} />;
+  },
+);
+BreadcrumbList.displayName = "BreadcrumbList";
 
-export function BreadcrumbItem({ className, ...props }: ComponentPropsWithoutRef<"li">) {
-  return <li className={cn("inline-flex min-w-0 max-w-full items-center gap-2", className)} {...props} />;
-}
+export const BreadcrumbItem = forwardRef<HTMLLIElement, ComponentPropsWithoutRef<"li">>(
+  ({ className, ...props }, ref) => {
+    return <li ref={ref} className={cn("inline-flex min-w-0 max-w-full items-center gap-2", className)} {...props} />;
+  },
+);
+BreadcrumbItem.displayName = "BreadcrumbItem";
 
 export interface BreadcrumbLinkProps extends ComponentPropsWithoutRef<"a"> {
   /** Style a router link instead of rendering another anchor. */
@@ -35,12 +44,19 @@ export const BreadcrumbLink = forwardRef<HTMLAnchorElement, BreadcrumbLinkProps>
 BreadcrumbLink.displayName = "BreadcrumbLink";
 
 /** The current location is text, so it does not add a redundant link or tab stop. */
-export function BreadcrumbPage({ className, ...props }: ComponentPropsWithoutRef<"span">) {
-  return <span aria-current="page" className={cn("min-w-0 [overflow-wrap:anywhere] text-text-primary", className)} {...props} />;
-}
+export const BreadcrumbPage = forwardRef<HTMLSpanElement, ComponentPropsWithoutRef<"span">>(
+  ({ className, ...props }, ref) => {
+    return <span ref={ref} aria-current="page" className={cn("min-w-0 [overflow-wrap:anywhere] text-text-primary", className)} {...props} />;
+  },
+);
+BreadcrumbPage.displayName = "BreadcrumbPage";
 
-export function BreadcrumbSeparator({ children, className, ...props }: ComponentPropsWithoutRef<"li">) {
-  return <li role="presentation" aria-hidden="true" className={cn("shrink-0", className)} {...props}>
-    {children ?? <ChevronRight size={14} />}
-  </li>;
-}
+/** Place inside the preceding BreadcrumbItem so it stays with its link when wrapping. */
+export const BreadcrumbSeparator = forwardRef<HTMLSpanElement, ComponentPropsWithoutRef<"span">>(
+  ({ children, className, ...props }, ref) => (
+    <span ref={ref} aria-hidden="true" className={cn("shrink-0", className)} {...props}>
+      {children ?? <ChevronRight size={14} />}
+    </span>
+  ),
+);
+BreadcrumbSeparator.displayName = "BreadcrumbSeparator";

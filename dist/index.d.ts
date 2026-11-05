@@ -191,18 +191,19 @@ interface PaginationProps {
  */
 declare function Pagination({ page, totalPages, onPageChange, totalItems, pageSize, className, }: PaginationProps): ReactElement | null;
 
-/** Compose a folder or page path. Keep router links inside a client component. */
-declare function Breadcrumb({ className, ...props }: ComponentPropsWithoutRef<"nav">): react.JSX.Element;
-declare function BreadcrumbList({ className, ...props }: ComponentPropsWithoutRef<"ol">): react.JSX.Element;
-declare function BreadcrumbItem({ className, ...props }: ComponentPropsWithoutRef<"li">): react.JSX.Element;
+/** Compose an ordered path from ancestor locations to the current page. */
+declare const Breadcrumb: react.ForwardRefExoticComponent<Omit<react.DetailedHTMLProps<react.HTMLAttributes<HTMLElement>, HTMLElement>, "ref"> & react.RefAttributes<HTMLElement>>;
+declare const BreadcrumbList: react.ForwardRefExoticComponent<Omit<react.DetailedHTMLProps<react.OlHTMLAttributes<HTMLOListElement>, HTMLOListElement>, "ref"> & react.RefAttributes<HTMLOListElement>>;
+declare const BreadcrumbItem: react.ForwardRefExoticComponent<Omit<react.DetailedHTMLProps<react.LiHTMLAttributes<HTMLLIElement>, HTMLLIElement>, "ref"> & react.RefAttributes<HTMLLIElement>>;
 interface BreadcrumbLinkProps extends ComponentPropsWithoutRef<"a"> {
     /** Style a router link instead of rendering another anchor. */
     asChild?: boolean;
 }
 declare const BreadcrumbLink: react.ForwardRefExoticComponent<BreadcrumbLinkProps & react.RefAttributes<HTMLAnchorElement>>;
 /** The current location is text, so it does not add a redundant link or tab stop. */
-declare function BreadcrumbPage({ className, ...props }: ComponentPropsWithoutRef<"span">): react.JSX.Element;
-declare function BreadcrumbSeparator({ children, className, ...props }: ComponentPropsWithoutRef<"li">): react.JSX.Element;
+declare const BreadcrumbPage: react.ForwardRefExoticComponent<Omit<react.DetailedHTMLProps<react.HTMLAttributes<HTMLSpanElement>, HTMLSpanElement>, "ref"> & react.RefAttributes<HTMLSpanElement>>;
+/** Place inside the preceding BreadcrumbItem so it stays with its link when wrapping. */
+declare const BreadcrumbSeparator: react.ForwardRefExoticComponent<Omit<react.DetailedHTMLProps<react.HTMLAttributes<HTMLSpanElement>, HTMLSpanElement>, "ref"> & react.RefAttributes<HTMLSpanElement>>;
 
 interface MultiSelectOption {
     value: string;
