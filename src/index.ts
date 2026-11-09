@@ -21,6 +21,10 @@ export {
   richTextTags,
   safeHref,
   sanitizeRichText,
+  IMAGE_ALIGNMENTS,
+  imageAlignmentAttributes,
+  safeImageAlignment,
+  type ImageAlignment,
   type RichTextFormatting,
   type RichTextSanitizeOptions,
 } from "./lib/rich-text";

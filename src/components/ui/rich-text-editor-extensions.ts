@@ -211,7 +211,13 @@ const imageNodeView: NodeViewRenderer = ({ node: initial, getPos, editor }) => {
       start.preventDefault();
       start.stopPropagation();
       const startWidth = img.offsetWidth;
-      const column = dom.clientWidth;
+      // A wrapped image's box is floated and only as wide as the image, so
+      // the column is the surface it sits in, less that surface's padding.
+      const surface = dom.parentElement;
+      const column =
+        safeImageAlignment(node.attrs.alignment) === "left-wrap" && surface
+          ? surface.clientWidth - parseFloat(getComputedStyle(surface).paddingLeft || "0") - parseFloat(getComputedStyle(surface).paddingRight || "0")
+          : dom.clientWidth;
       const max = Math.min(MAX_IMAGE_WIDTH, column > 0 ? column : MAX_IMAGE_WIDTH);
       let width = startWidth;
       handle.setPointerCapture?.(start.pointerId);

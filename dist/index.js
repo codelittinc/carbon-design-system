@@ -271,6 +271,11 @@ function safeHref(raw) {
   if (!SAFE_SCHEMES.includes(scheme)) return null;
   return cleaned.replace(/ /g, "%20");
 }
+function safeRootRelativeUrl(raw) {
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (!/^\/(?![/\\])/.test(cleaned) || cleaned.includes("\\")) return null;
+  return cleaned.replace(/ /g, "%20");
+}
 function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
@@ -413,7 +418,7 @@ function sanitizeRichText(html, options) {
     const canonical = aliases[raw];
     if (!canonical) continue;
     if (canonical === "img") {
-      const src = safeImageSrc(attrs.src ?? "");
+      const src = safeImageSrc(attrs.src ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.src ?? "") : null);
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
@@ -428,7 +433,7 @@ function sanitizeRichText(html, options) {
     }
     if (canonical === "a") {
       if (stack.some((tag) => tag.name === "a")) closeThrough("a");
-      const href = safeHref(attrs.href ?? "");
+      const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
       stack.push({ name: "a" });
@@ -2183,10 +2188,14 @@ var RichTextEditor = forwardRef(
     );
   }
 );
+
+// src/lib/rich-text-prose.ts
 var RICH_TEXT_PROSE = [
   "[&_a]:text-accent-text [&_a]:underline [&_a]:underline-offset-2",
-  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
-  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+  // flow-root: a list beside a wrapped image starts after it, so its
+  // bullets are not drawn over the image.
+  "[&_ol]:my-1 [&_ol]:flow-root [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_ul]:my-1 [&_ul]:flow-root [&_ul]:list-disc [&_ul]:pl-5",
   "[&_li]:my-0.5",
   "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_strong]:font-semibold [&_strong]:text-text-primary [&_s]:line-through",
@@ -2198,23 +2207,33 @@ var RICH_TEXT_PROSE = [
   "[&_code]:rounded-sm [&_code]:bg-surface-overlay [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.8125rem] [&_code]:text-accent-text",
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-text-primary",
-  "[&_img]:block [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto"
+  "[&_img]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
 ].join(" ");
+function selectionHtml(range, root) {
+  let fragment = range.cloneContents();
+  for (let node = range.commonAncestorContainer; node && node !== root; node = node.parentNode) {
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const shell = node.cloneNode(false);
+    shell.appendChild(fragment);
+    fragment = shell;
+  }
+  const holder = document.createElement("div");
+  holder.append(fragment);
+  for (const image of holder.querySelectorAll("img[src]")) image.setAttribute("src", image.src);
+  for (const link of holder.querySelectorAll("a[href]")) link.setAttribute("href", link.href);
+  return holder.innerHTML;
+}
 var RichTextView = forwardRef(
-  ({ html, formatting = "extended", images = true, cleanCopy = false, transform, className, ...props }, ref) => {
-    const clean2 = useMemo(() => {
-      const sanitized = sanitizeRichText(html, { formatting, images });
-      return transform ? transform(sanitized) : sanitized;
-    }, [html, formatting, images, transform]);
+  ({ html, formatting = "extended", images = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
+    const options = useMemo(() => ({ formatting, images, rootRelative }), [formatting, images, rootRelative]);
+    const clean2 = useMemo(() => sanitizeRichText(html, options), [html, options]);
     function copy(event) {
+      const root = event.currentTarget;
       const selection = window.getSelection();
-      if (selection?.rangeCount !== 1 || selection.isCollapsed || !event.currentTarget.contains(selection.anchorNode) || !event.currentTarget.contains(selection.focusNode))
+      if (selection?.rangeCount !== 1 || selection.isCollapsed || !root.contains(selection.anchorNode) || !root.contains(selection.focusNode))
         return;
-      const fragment = document.createElement("div");
-      fragment.append(selection.getRangeAt(0).cloneContents());
-      for (const image of fragment.querySelectorAll("img[src]")) image.setAttribute("src", image.src);
-      for (const link of fragment.querySelectorAll("a[href]")) link.setAttribute("href", link.href);
-      event.clipboardData.setData("text/html", sanitizeRichText(fragment.innerHTML, { formatting, images }));
+      const markup = selectionHtml(selection.getRangeAt(0), root);
+      event.clipboardData.setData("text/html", sanitizeRichText(markup, { formatting, images }));
       event.clipboardData.setData("text/plain", selection.toString());
       event.preventDefault();
     }
@@ -7664,4 +7683,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

@@ -308,6 +308,17 @@ describe("RichTextEditor — image upload", () => {
     );
   });
 
+  it("lets a wrapped image grow to the width of the text column", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG.replace('alt=""', 'alt="" width="64" data-align="left-wrap"')} />);
+    Object.defineProperty(editor(), "clientWidth", { configurable: true, get: () => 600 });
+    const container = editor().querySelector("[data-resize-container]") as HTMLElement;
+    Object.defineProperty(container, "clientWidth", { configurable: true, get: () => 64 });
+    sized(64);
+    drag("bottom-right", 100, 300);
+    expect(onChange.mock.lastCall?.[0]).toContain('width="264"');
+  });
+
   it("shows the alignment controls while an image is selected, and stores the one picked", () => {
     const onChange = vi.fn();
     render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG} />);

@@ -28,11 +28,14 @@ describe("RichTextView", () => {
     expect(container.firstElementChild?.innerHTML).toBe("T");
   });
 
-  it("runs transform on the sanitized markup", () => {
-    const { container } = render(
-      <RichTextView html={'<p><a href="https://x.invalid/1">a</a></p>'} transform={(h) => h.replace("https://x.invalid/1", "/doc/1")} />,
-    );
-    expect(container.querySelector("a")?.getAttribute("href")).toBe("/doc/1");
+  it("keeps root-relative links and images only with rootRelative", () => {
+    const html = '<p><a href="/handbook/1">doc</a></p><img src="/api/files/9" alt="Shot">';
+    const off = render(<RichTextView html={html} />);
+    expect(off.container.firstElementChild?.innerHTML).toBe("<p>doc</p>");
+    off.unmount();
+    const { container } = render(<RichTextView html={html} rootRelative />);
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/handbook/1");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("/api/files/9");
   });
 
   it("styles with RICH_TEXT_PROSE and the caller's classes", () => {
@@ -40,6 +43,21 @@ describe("RichTextView", () => {
     const root = container.firstElementChild as HTMLElement;
     expect(root).toHaveClass("text-base");
     expect(root.className).toContain(RICH_TEXT_PROSE.split(" ")[0]);
+  });
+
+  it("copies part of a formatted run with the elements around it", () => {
+    const { container } = render(<RichTextView cleanCopy html="<ul><li><strong>Full Name</strong></li></ul>" />);
+    const root = container.firstElementChild as HTMLElement;
+    const text = root.querySelector("strong")!.firstChild!;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 4);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const data: Record<string, string> = {};
+    fireEvent.copy(root, { clipboardData: { setData: (type: string, value: string) => { data[type] = value; } } });
+    expect(data["text/html"]).toBe("<ul><li><strong>Full</strong></li></ul>");
   });
 
   it("copies a selection inside it as sanitized HTML with absolute URLs", () => {

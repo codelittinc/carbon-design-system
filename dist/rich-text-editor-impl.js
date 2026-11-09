@@ -137,6 +137,11 @@ function safeHref(raw) {
   if (!SAFE_SCHEMES.includes(scheme)) return null;
   return cleaned.replace(/ /g, "%20");
 }
+function safeRootRelativeUrl(raw) {
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (!/^\/(?![/\\])/.test(cleaned) || cleaned.includes("\\")) return null;
+  return cleaned.replace(/ /g, "%20");
+}
 function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
@@ -279,7 +284,7 @@ function sanitizeRichText(html, options) {
     const canonical = aliases[raw];
     if (!canonical) continue;
     if (canonical === "img") {
-      const src = safeImageSrc(attrs.src ?? "");
+      const src = safeImageSrc(attrs.src ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.src ?? "") : null);
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
@@ -294,7 +299,7 @@ function sanitizeRichText(html, options) {
     }
     if (canonical === "a") {
       if (stack.some((tag) => tag.name === "a")) closeThrough("a");
-      const href = safeHref(attrs.href ?? "");
+      const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
       stack.push({ name: "a" });
@@ -504,7 +509,8 @@ var imageNodeView = ({ node: initial, getPos, editor }) => {
       start.preventDefault();
       start.stopPropagation();
       const startWidth = img.offsetWidth;
-      const column = dom.clientWidth;
+      const surface = dom.parentElement;
+      const column = safeImageAlignment(node.attrs.alignment) === "left-wrap" && surface ? surface.clientWidth - parseFloat(getComputedStyle(surface).paddingLeft || "0") - parseFloat(getComputedStyle(surface).paddingRight || "0") : dom.clientWidth;
       const max = Math.min(MAX_IMAGE_WIDTH, column > 0 ? column : MAX_IMAGE_WIDTH);
       let width = startWidth;
       handle.setPointerCapture?.(start.pointerId);
@@ -1609,14 +1615,16 @@ function fromEditorHtml(html) {
   return isRichTextEmpty(out) ? "" : out;
 }
 var SURFACE = cn(
-  "min-h-24 w-full break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
+  "min-h-24 w-full flow-root break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
   // The editable surface styles its own output. These match the renderer a
   // consumer writes for stored rich text, so what somebody types looks like
   // what they get.
   "[&_a]:cursor-text [&_a]:text-accent-text [&_a]:underline [&_a]:underline-offset-2",
   "[&_strong]:font-semibold [&_s]:line-through",
-  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
-  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+  // flow-root on the surface contains a wrapped image; on a list it starts
+  // the list beside the image, so bullets are not drawn over it.
+  "[&_ol]:my-1 [&_ol]:flow-root [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_ul]:my-1 [&_ul]:flow-root [&_ul]:list-disc [&_ul]:pl-5",
   "[&_li]:my-0.5",
   "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_h1]:mt-3 [&_h1]:mb-1 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h1:first-child]:mt-0",

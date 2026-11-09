@@ -111,8 +111,17 @@ export type RichTextFormatting = "basic" | "extended";
 export interface RichTextSanitizeOptions {
   /** `extended` also keeps h1–h3, blockquote, code and pre. Default `basic`. */
   formatting?: RichTextFormatting;
-  /** Keeps `<img>`, with an http(s) `src`, an `alt` and a pixel `width`, and nothing else. */
+  /** Keeps `<img>`, with an http(s) `src`, an `alt`, a pixel `width` and an alignment, and nothing else. */
   images?: boolean;
+  /**
+   * Also keeps a root-relative `href` or image `src` (`/handbook/…`,
+   * `/api/files/…`): a path on the page's own origin. Off by default, because
+   * a note's links point elsewhere. Turn it on to render markup an app has
+   * already sanitized on its server and resolved to its own routes. Never a
+   * protocol-relative `//host` or `/\host`, which browsers read as another
+   * origin.
+   */
+  rootRelative?: boolean;
 }
 
 /**
@@ -295,6 +304,19 @@ export function safeHref(raw: string): string | null {
   if (!SAFE_SCHEMES.includes(scheme)) return null;
 
   // Encoded, not stripped, so the URL that comes out is the URL that went in.
+  return cleaned.replace(/ /g, "%20");
+}
+
+/**
+ * A path on the page's own origin (`/handbook/…`), or null. `//host` and
+ * `/\host` are refused: browsers resolve both to another origin. Control
+ * characters are stripped first, for the same reason as in `safeHref`, and a
+ * backslash anywhere is refused rather than reasoned about.
+ */
+export function safeRootRelativeUrl(raw: string): string | null {
+  // eslint-disable-next-line no-control-regex
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (!/^\/(?![/\\])/.test(cleaned) || cleaned.includes("\\")) return null;
   return cleaned.replace(/ /g, "%20");
 }
 
@@ -560,7 +582,7 @@ export function sanitizeRichText(
       // Without a usable src there is no image, and an `<img>` with nothing to
       // load is not worth keeping. `alt` is re-escaped rather than copied, and
       // `width` is re-written from the number `safeImageWidth` parsed.
-      const src = safeImageSrc(attrs.src ?? "");
+      const src = safeImageSrc(attrs.src ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.src ?? "") : null);
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
@@ -582,7 +604,7 @@ export function sanitizeRichText(
       // then close the wrong one.
       if (stack.some((tag) => tag.name === "a")) closeThrough("a");
 
-      const href = safeHref(attrs.href ?? "");
+      const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       // No usable href: keep the words, drop the anchor. A link to
       // `javascript:…` is the one case where preserving the element would be
       // preserving the attack.

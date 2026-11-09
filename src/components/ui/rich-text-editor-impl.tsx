@@ -112,14 +112,16 @@ export interface RichTextEditorProps {
 
 /** The base classes on the editable surface, before the app's `className`. */
 const SURFACE = cn(
-  "min-h-24 w-full break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
+  "min-h-24 w-full flow-root break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
   // The editable surface styles its own output. These match the renderer a
   // consumer writes for stored rich text, so what somebody types looks like
   // what they get.
   "[&_a]:cursor-text [&_a]:text-accent-text [&_a]:underline [&_a]:underline-offset-2",
   "[&_strong]:font-semibold [&_s]:line-through",
-  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
-  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+  // flow-root on the surface contains a wrapped image; on a list it starts
+  // the list beside the image, so bullets are not drawn over it.
+  "[&_ol]:my-1 [&_ol]:flow-root [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_ul]:my-1 [&_ul]:flow-root [&_ul]:list-disc [&_ul]:pl-5",
   "[&_li]:my-0.5",
   "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_h1]:mt-3 [&_h1]:mb-1 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h1:first-child]:mt-0",

@@ -551,6 +551,24 @@ describe("sanitizeRichText options", () => {
     },
   );
 
+  it("rootRelative keeps a path on the page's own origin, in a link and an image", () => {
+    const options = { ...IMAGES, rootRelative: true };
+    expect(sanitizeRichText('<p><a href="/handbook/abc/preview">d</a></p>', options)).toBe(
+      '<p><a href="/handbook/abc/preview" target="_blank" rel="noopener noreferrer">d</a></p>',
+    );
+    expect(sanitizeRichText('<img src="/api/files/9" alt="">', options)).toBe('<img src="/api/files/9" alt="" />');
+    expect(sanitizeRichText('<img src="/api/files/9" alt="">', IMAGES)).toBe("");
+  });
+
+  it.each(["//evil.example/x", "/\\evil.example/x", "/\\/evil", "/a\\b", "\t//evil.example", "relative/path", "./x", "javascript:alert(1)"])(
+    "rootRelative still refuses another origin or a bare path: %j",
+    (url) => {
+      const options = { ...IMAGES, rootRelative: true };
+      expect(sanitizeRichText(`<p><a href="${url}">d</a></p>`, options)).toBe("<p>d</p>");
+      expect(sanitizeRichText(`<img src="${url}" alt="">`, options)).toBe("");
+    },
+  );
+
   it("does not hang on a slash inside a tag that does not close it", () => {
     expect(sanitizeRichText('<img / src="https://x.com/a.png" alt="A">', IMAGES)).toBe(
       '<img src="https://x.com/a.png" alt="A" />',

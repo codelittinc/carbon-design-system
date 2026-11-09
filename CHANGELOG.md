@@ -12,9 +12,10 @@ uses it as the GitHub Release notes.
 
 ### Added
 
-- **`RichTextView`**: the read-only counterpart of `RichTextEditor`. Sanitizes the stored HTML it is given (`formatting`, default `extended`; `images`, default `true`), styles it with the new exported `RICH_TEXT_PROSE` classes and renders in a `flow-root`, so an image wrapped with text stays inside the document. `cleanCopy` copies a selection as sanitized HTML with absolute URLs (for pasting into email), and `transform` lets an app restore what it swapped out before sanitizing. Apps no longer need their own `dangerouslySetInnerHTML` reader.
-- **Image alignment** in `RichTextEditor` (with `uploadImage`): selecting an image shows Align left, center, right and "Wrap text to the right of image". It is stored as `data-align` (`left`, `center`, `right`, `left-wrap`).
-- **`sanitizeRichText`** with `images: true` keeps `data-align` from that enum and writes a `style` it generates (block and margins, or a left float for `left-wrap`). Authored styles are still dropped. Readers on older versions drop the alignment and show the image centered.
+- **`RichTextView`**: the read-only counterpart of `RichTextEditor`. Sanitizes the stored HTML it is given (`formatting`, default `extended`; `images`, default `true`), styles it with `RICH_TEXT_PROSE` and renders in a `flow-root`, so an image wrapped with text stays inside the document. `rootRelative` keeps same-origin paths (`/handbook/…`, `/api/files/…`) for markup an app resolved to its own routes. `cleanCopy` copies a selection as sanitized HTML with absolute URLs, keeping the elements around a partial selection, for pasting into email. Apps no longer need their own `dangerouslySetInnerHTML` reader.
+- **`RICH_TEXT_PROSE`**: the reading styles, exported from the root and from `/utils` (server components). Lists start beside a wrapped image instead of drawing bullets over it.
+- **Image alignment** in `RichTextEditor` (with `uploadImage`): selecting an image shows Align left, center, right and "Wrap text to the right of image", stored as `data-align` (`left`, `center`, `right`, `left-wrap`). A wrapped image can be resized up to the column width, and the editor surface contains the float.
+- **`sanitizeRichText`** with `images: true` keeps `data-align` from that enum and writes a `style` it generates (block and margins, or a left float for `left-wrap`). Authored styles are still dropped. Readers on older versions drop the alignment and show the image centered. New option `rootRelative` keeps root-relative `href`/`src` (never `//host` or `/\host`). `IMAGE_ALIGNMENTS`, `ImageAlignment`, `safeImageAlignment` and `imageAlignmentAttributes` are exported for apps with their own sanitizer.
 
 ### Fixed
 
