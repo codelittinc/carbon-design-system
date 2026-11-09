@@ -94,7 +94,7 @@ utilities used throughout the components — there are no hard-coded hex values 
 | Token group | Examples |
 |-------------|----------|
 | **Colors** | `carbon-50…950`, `amber-300…900`, `success`/`error`/`warning`/`info`, semantic `surface`/`text-*`/`border`, adaptive `accent-*`/`*-text`/`*-soft`/`*-border` (see [Theming](#theming-dark--light)) |
-| **Typography** | `font-display` (Instrument Serif), `font-body` (DM Sans), `font-mono` (JetBrains Mono), `.tabular-nums` |
+| **Typography** | `font-display` (Inter), `font-body` (Inter), `font-mono` (JetBrains Mono), `.tabular-nums` |
 | **Spacing** | tightened scale `px → 20` (1px → 80px) |
 | **Radius** | `sm` 4px · `md` 6px · `lg` 8px · `xl` 12px |
 
