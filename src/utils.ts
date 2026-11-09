@@ -46,9 +46,14 @@ export {
   richTextTags,
   safeHref,
   sanitizeRichText,
+  IMAGE_ALIGNMENTS,
+  imageAlignmentAttributes,
+  safeImageAlignment,
+  type ImageAlignment,
   type RichTextFormatting,
   type RichTextSanitizeOptions,
 } from "./lib/rich-text";
+export { RICH_TEXT_PROSE } from "./lib/rich-text-prose";
 export {
   isAllowedEditorHref,
   linkHrefErrorMessage,

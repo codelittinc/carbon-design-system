@@ -295,6 +295,44 @@ describe("RichTextEditor — image upload", () => {
     expect(editor().querySelector("img")?.style.width).toBe("");
   });
 
+  it("keeps a stored alignment and draws a wrapped image floated left", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG.replace('alt=""', 'alt="" data-align="left-wrap" style="float: right"')} />);
+    const container = editor().querySelector("[data-resize-container]") as HTMLElement;
+    const wrapper = editor().querySelector("[data-resize-wrapper]") as HTMLElement;
+    expect(container.style.cssFloat).toBe("left");
+    expect(wrapper.style.marginLeft).toBe("0px");
+    edit(() => editorOf(editor()).commands.insertContentAt(0, "x"));
+    expect(sanitizeRichText(onChange.mock.lastCall?.[0] as string, { images: true })).toContain(
+      'data-align="left-wrap" style="display: block; float: left; margin: 0 12px 8px 0;"',
+    );
+  });
+
+  it("lets a wrapped image grow to the width of the text column", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG.replace('alt=""', 'alt="" width="64" data-align="left-wrap"')} />);
+    Object.defineProperty(editor(), "clientWidth", { configurable: true, get: () => 600 });
+    const container = editor().querySelector("[data-resize-container]") as HTMLElement;
+    Object.defineProperty(container, "clientWidth", { configurable: true, get: () => 64 });
+    sized(64);
+    drag("bottom-right", 100, 300);
+    expect(onChange.mock.lastCall?.[0]).toContain('width="264"');
+  });
+
+  it("shows the alignment controls while an image is selected, and stores the one picked", () => {
+    const onChange = vi.fn();
+    render(<Harness uploadImage={async () => null} onChange={onChange} initial={IMG} />);
+    expect(screen.queryByRole("button", { name: "Align image right" })).toBeNull();
+    const tiptap = editorOf(editor());
+    edit(() => tiptap.commands.setNodeSelection(3));
+    expect(screen.getByRole("button", { name: "Align image center" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Align image right" }));
+    expect(onChange.mock.lastCall?.[0]).toContain('data-align="right"');
+    expect((editor().querySelector("[data-resize-wrapper]") as HTMLElement).style.marginRight).toBe("0px");
+    fireEvent.click(screen.getByRole("button", { name: "Wrap text to the right of image" }));
+    expect(onChange.mock.lastCall?.[0]).toContain('data-align="left-wrap"');
+  });
+
   it("shows the stored width again after an undo", () => {
     render(<Harness uploadImage={async () => null} initial={IMG.replace('alt=""', 'alt="" width="300"')} />);
     sized(300);

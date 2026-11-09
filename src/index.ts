@@ -21,6 +21,10 @@ export {
   richTextTags,
   safeHref,
   sanitizeRichText,
+  IMAGE_ALIGNMENTS,
+  imageAlignmentAttributes,
+  safeImageAlignment,
+  type ImageAlignment,
   type RichTextFormatting,
   type RichTextSanitizeOptions,
 } from "./lib/rich-text";
@@ -70,6 +74,7 @@ export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
 export * from "./components/ui/textarea";
 export * from "./components/ui/rich-text-editor";
+export * from "./components/ui/rich-text-view";
 export * from "./components/ui/checkbox";
 export * from "./components/ui/switch";
 export * from "./components/ui/select";

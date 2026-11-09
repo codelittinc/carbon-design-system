@@ -10,7 +10,7 @@ import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
 import { StarterKit } from '@tiptap/starter-kit';
-import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, Link2, Unlink, X } from 'lucide-react';
+import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, WrapText, Link2, Unlink, X } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
@@ -137,9 +137,26 @@ function safeHref(raw) {
   if (!SAFE_SCHEMES.includes(scheme)) return null;
   return cleaned.replace(/ /g, "%20");
 }
+function safeRootRelativeUrl(raw) {
+  const cleaned = decodeEntities(raw).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  if (!/^\/(?![/\\])/.test(cleaned) || cleaned.includes("\\")) return null;
+  return cleaned.replace(/ /g, "%20");
+}
 function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
+}
+var IMAGE_ALIGNMENTS = ["left", "center", "right", "left-wrap"];
+function safeImageAlignment(raw) {
+  return IMAGE_ALIGNMENTS.includes(raw) ? raw : null;
+}
+function imageAlignmentAttributes(raw) {
+  const align = safeImageAlignment(raw);
+  if (align === null) return {};
+  if (align === "left-wrap") return { "data-align": align, style: "display: block; float: left; margin: 0 12px 8px 0;" };
+  const left = align === "left" ? "0" : "auto";
+  const right = align === "right" ? "0" : "auto";
+  return { "data-align": align, style: `display: block; margin-left: ${left}; margin-right: ${right};` };
 }
 var MAX_IMAGE_WIDTH = 4096;
 function safeImageWidth(raw) {
@@ -165,6 +182,10 @@ function readTag(html, from) {
       break;
     }
     if (html[i] === "<") break;
+    if (html[i] === "/") {
+      i++;
+      continue;
+    }
     const nameStart = i;
     while (i < html.length && !/[\s=>/]/.test(html[i])) i++;
     const name = html.slice(nameStart, i).toLowerCase();
@@ -263,11 +284,13 @@ function sanitizeRichText(html, options) {
     const canonical = aliases[raw];
     if (!canonical) continue;
     if (canonical === "img") {
-      const src = safeImageSrc(attrs.src ?? "");
+      const src = safeImageSrc(attrs.src ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.src ?? "") : null);
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
+      const alignment = imageAlignmentAttributes(decodeEntities(attrs["data-align"] ?? ""));
+      const position = alignment["data-align"] ? ` data-align="${alignment["data-align"]}" style="${alignment.style}"` : "";
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`}${position} />`);
       continue;
     }
     if (VOID_TAGS.has(canonical)) {
@@ -276,7 +299,7 @@ function sanitizeRichText(html, options) {
     }
     if (canonical === "a") {
       if (stack.some((tag) => tag.name === "a")) closeThrough("a");
-      const href = safeHref(attrs.href ?? "");
+      const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
       stack.push({ name: "a" });
@@ -415,6 +438,11 @@ var CarbonImage = Image.extend({
         parseHTML: (element) => editorImageSrc(element.getAttribute("src") ?? "")
       },
       alt: { default: null },
+      alignment: {
+        default: null,
+        parseHTML: (element) => safeImageAlignment(element.getAttribute("data-align")),
+        renderHTML: (attributes) => imageAlignmentAttributes(attributes.alignment)
+      },
       width: {
         default: null,
         parseHTML: (element) => safeImageWidth(element.getAttribute("width")),
@@ -457,6 +485,12 @@ var imageNodeView = ({ node: initial, getPos, editor }) => {
     const src = node.attrs.src;
     if (src && img.getAttribute("src") !== src) img.setAttribute("src", src);
     img.setAttribute("alt", node.attrs.alt ?? "");
+    const alignment = safeImageAlignment(node.attrs.alignment);
+    dom.style.cssFloat = alignment === "left-wrap" ? "left" : "";
+    dom.style.marginRight = alignment === "left-wrap" ? "12px" : "";
+    dom.style.marginTop = alignment === "left-wrap" ? "0" : "";
+    wrapper.style.marginLeft = alignment === "left" || alignment === "left-wrap" ? "0" : "auto";
+    wrapper.style.marginRight = alignment === "right" ? "0" : "auto";
     const width = safeImageWidth(node.attrs.width);
     img.style.width = width === null ? "" : `${width}px`;
   };
@@ -475,7 +509,8 @@ var imageNodeView = ({ node: initial, getPos, editor }) => {
       start.preventDefault();
       start.stopPropagation();
       const startWidth = img.offsetWidth;
-      const column = dom.clientWidth;
+      const surface = dom.parentElement;
+      const column = safeImageAlignment(node.attrs.alignment) === "left-wrap" && surface ? surface.clientWidth - parseFloat(getComputedStyle(surface).paddingLeft || "0") - parseFloat(getComputedStyle(surface).paddingRight || "0") : dom.clientWidth;
       const max = Math.min(MAX_IMAGE_WIDTH, column > 0 ? column : MAX_IMAGE_WIDTH);
       let width = startWidth;
       handle.setPointerCapture?.(start.pointerId);
@@ -1293,7 +1328,9 @@ var INACTIVE = {
   codeBlock: false,
   bulletList: false,
   orderedList: false,
-  link: false
+  link: false,
+  image: false,
+  imageAlignment: "center"
 };
 function RichTextToolbar({
   editor,
@@ -1328,7 +1365,9 @@ function RichTextToolbar({
       codeBlock: extended && e.isActive("codeBlock"),
       bulletList: e.isActive("bulletList"),
       orderedList: e.isActive("orderedList"),
-      link: e.isActive("link")
+      link: e.isActive("link"),
+      image: images && e.isActive("image"),
+      imageAlignment: images && e.getAttributes("image").alignment || "center"
     } : INACTIVE
   }) ?? INACTIVE;
   const toggle = (key, label, icon, shortcut, isActive, run) => ({ key, label, icon, shortcut, active: isActive, run });
@@ -1421,8 +1460,23 @@ function RichTextToolbar({
       (e) => e.chain().focus().toggleOrderedList().run()
     )
   ];
+  const imageAlignment = images && active.image ? [
+    ["left", "Align image left", AlignLeft],
+    ["center", "Align image center", AlignCenter],
+    ["right", "Align image right", AlignRight],
+    ["left-wrap", "Wrap text to the right of image", WrapText]
+  ].map(
+    ([alignment, label, icon]) => toggle(
+      `image-${alignment}`,
+      label,
+      icon,
+      void 0,
+      active.imageAlignment === alignment,
+      (e) => e.chain().focus().updateAttributes("image", { alignment }).run()
+    )
+  ) : [];
   const order = [
-    ...[...inline, ...blocks, ...lists].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment].map((t) => ({ key: t.key, enabled: !inert })),
     { key: "link", enabled: !inert },
     ...images ? [{ key: "image", enabled: !inert }] : [],
     ...insertActions.map((_, index) => ({ key: `action-${index}`, enabled: !inert }))
@@ -1522,7 +1576,7 @@ function RichTextToolbar({
       /* @__PURE__ */ jsx(TooltipContent, { side: "top", className: "max-w-xs break-words", children: action.title })
     ] }, `action-${index}`);
   });
-  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), insertGroup, actionGroup].filter((group) => group.length > 0);
+  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), insertGroup, actionGroup].filter((group) => group.length > 0);
   const separated = extended || images || linkPanel || insertActions.length > 0;
   return /* @__PURE__ */ jsx(
     "div",
@@ -1561,14 +1615,16 @@ function fromEditorHtml(html) {
   return isRichTextEmpty(out) ? "" : out;
 }
 var SURFACE = cn(
-  "min-h-24 w-full break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
+  "min-h-24 w-full flow-root break-words px-3 py-2 text-sm leading-relaxed text-text-primary focus-visible:outline-none",
   // The editable surface styles its own output. These match the renderer a
   // consumer writes for stored rich text, so what somebody types looks like
   // what they get.
   "[&_a]:cursor-text [&_a]:text-accent-text [&_a]:underline [&_a]:underline-offset-2",
   "[&_strong]:font-semibold [&_s]:line-through",
-  "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
-  "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+  // flow-root on the surface contains a wrapped image; on a list it starts
+  // the list beside the image, so bullets are not drawn over it.
+  "[&_ol]:my-1 [&_ol]:flow-root [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_ul]:my-1 [&_ul]:flow-root [&_ul]:list-disc [&_ul]:pl-5",
   "[&_li]:my-0.5",
   "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
   "[&_h1]:mt-3 [&_h1]:mb-1 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h1:first-child]:mt-0",

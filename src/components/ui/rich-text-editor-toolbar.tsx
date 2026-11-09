@@ -4,6 +4,9 @@ import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
   Code,
   Heading1,
@@ -16,9 +19,10 @@ import {
   SquareCode,
   Strikethrough,
   TextQuote,
+  WrapText,
   type LucideIcon,
 } from "lucide-react";
-import type { RichTextFormatting } from "@/lib/rich-text";
+import type { ImageAlignment, RichTextFormatting } from "@/lib/rich-text";
 import { Button } from "./button";
 import { RichTextImageButton } from "./rich-text-image-button";
 import { RichTextLinkPanel, type LinkPanelTarget } from "./rich-text-link-panel";
@@ -54,7 +58,7 @@ interface Toggle {
   key: string;
   label: string;
   icon: LucideIcon;
-  shortcut: Shortcut;
+  shortcut?: Shortcut;
   active: boolean;
   run: (editor: Editor) => void;
 }
@@ -72,13 +76,16 @@ const INACTIVE = {
   bulletList: false,
   orderedList: false,
   link: false,
+  image: false,
+  imageAlignment: "center" as ImageAlignment,
 };
 
 /**
  * The editor's toolbar: `role="toolbar"` with one Tab stop, Left/Right/Home/End
  * between controls (the ARIA toolbar pattern), and Tab on to the text.
  *
- * Controls come in fixed groups — inline, blocks, lists, insert, actions — so
+ * Controls come in fixed groups — inline, blocks, lists, image alignment (only
+ * while an image is selected), insert, actions — so
  * Bold is in the same place in every configuration. The default editor has no
  * separators, so it looks as it always has; once an opt-in adds a control, a
  * separator goes between every pair of non-empty groups.
@@ -125,6 +132,8 @@ export function RichTextToolbar({
               bulletList: e.isActive("bulletList"),
               orderedList: e.isActive("orderedList"),
               link: e.isActive("link"),
+              image: images && e.isActive("image"),
+              imageAlignment: ((images && e.getAttributes("image").alignment) || "center") as ImageAlignment,
             }
           : INACTIVE,
     }) ?? INACTIVE;
@@ -133,7 +142,7 @@ export function RichTextToolbar({
     key: string,
     label: string,
     icon: LucideIcon,
-    shortcut: Shortcut,
+    shortcut: Shortcut | undefined,
     isActive: boolean,
     run: (editor: Editor) => void,
   ): Toggle => ({ key, label, icon, shortcut, active: isActive, run });
@@ -184,11 +193,29 @@ export function RichTextToolbar({
     ),
   ];
 
+  // Shown while an image is selected. No alignment stored reads as centered,
+  // which is how an image without one renders.
+  const imageAlignment: Toggle[] =
+    images && active.image
+      ? (
+          [
+            ["left", "Align image left", AlignLeft],
+            ["center", "Align image center", AlignCenter],
+            ["right", "Align image right", AlignRight],
+            ["left-wrap", "Wrap text to the right of image", WrapText],
+          ] as const
+        ).map(([alignment, label, icon]) =>
+          toggle(`image-${alignment}`, label, icon, undefined, active.imageAlignment === alignment, (e) =>
+            e.chain().focus().updateAttributes("image", { alignment }).run(),
+          ),
+        )
+      : [];
+
   // Roving tabindex. Every control is listed in DOM order with whether it can
   // take focus; the one somebody last focused keeps the Tab stop, or the first
   // enabled one when that is gone (disabled mid-upload, say).
   const order: { key: string; enabled: boolean }[] = [
-    ...[...inline, ...blocks, ...lists].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment].map((t) => ({ key: t.key, enabled: !inert })),
     { key: "link", enabled: !inert },
     ...(images ? [{ key: "image", enabled: !inert }] : []),
     ...insertActions.map((_, index) => ({ key: `action-${index}`, enabled: !inert })),
@@ -306,7 +333,7 @@ export function RichTextToolbar({
     );
   });
 
-  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), insertGroup, actionGroup]
+  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), insertGroup, actionGroup]
     .filter((group) => group.length > 0);
   const separated = extended || images || linkPanel || insertActions.length > 0;
 
