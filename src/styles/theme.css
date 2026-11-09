@@ -13,7 +13,7 @@
  * classes (bg-carbon-900, text-text-muted, rounded-lg, font-display, etc.).
  */
 
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 @import "tailwindcss";
 @import "./sign-in.css";
@@ -176,8 +176,9 @@
   --color-chart-grid: #232329;
 
   /* ── Typography ── */
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-body: "DM Sans", system-ui, sans-serif;
+  /* Inter is the brand typeface (Carbon Residential Branding Guidelines). */
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* ── Spacing scale (tighter for data density) ── */

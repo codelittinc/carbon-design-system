@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.44.0] - 2026-11-09
+
+### Changed
+
+- **Typography**: `--font-display` and `--font-body` now use **Inter**, the typeface set by the Carbon Residential Branding Guidelines, replacing Instrument Serif (display) and DM Sans (body). The theme's Google Fonts import loads Inter 400–700 and no longer loads Instrument Serif or DM Sans. `--font-mono` (JetBrains Mono) is unchanged. Token names are the same, so no code changes are needed; page titles, `PageHeader`, `ProductMark` and the sign-in title render in Inter.
+
 ## [1.43.0] - 2026-11-05
 
 ### Added

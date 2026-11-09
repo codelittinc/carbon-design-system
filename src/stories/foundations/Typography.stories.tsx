@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 /**
- * Three typefaces carry the system: Instrument Serif for display headings, DM Sans for body
- * and UI, and JetBrains Mono for numerals and code. Monospace numerals use `tabular-nums` so
+ * Two typefaces carry the system: Inter (the Carbon brand typeface) for display headings,
+ * body and UI, and JetBrains Mono for numerals and code. Monospace numerals use `tabular-nums` so
  * financial columns align to the decimal.
  */
 const meta: Meta = {
@@ -34,11 +34,11 @@ export const Typefaces: StoryObj = {
       <section className="mb-10">
         <h2 className="mb-2 text-lg font-semibold text-text-primary">Families</h2>
         <Row label="Display" token="font-display">
-          <p className="font-display text-3xl text-text-primary">Instrument Serif</p>
+          <p className="font-display text-3xl text-text-primary">Inter</p>
           <p className="mt-1 text-xs text-text-muted">Page titles and editorial moments.</p>
         </Row>
         <Row label="Body / UI" token="font-body">
-          <p className="font-body text-xl text-text-primary">DM Sans — the quick brown fox</p>
+          <p className="font-body text-xl text-text-primary">Inter — the quick brown fox</p>
           <p className="mt-1 text-xs text-text-muted">Default for all UI and body copy.</p>
         </Row>
         <Row label="Mono" token="font-mono">
