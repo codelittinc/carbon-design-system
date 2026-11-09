@@ -528,6 +528,36 @@ describe("sanitizeRichText options", () => {
     expect(sanitizeRichText('<img src="https://x.com/a.png" alt="" width="1">', IMAGES)).toContain('width="1"');
   });
 
+  it.each([
+    ["left", "display: block; margin-left: 0; margin-right: auto;"],
+    ["center", "display: block; margin-left: auto; margin-right: auto;"],
+    ["right", "display: block; margin-left: auto; margin-right: 0;"],
+    ["left-wrap", "display: block; float: left; margin: 0 12px 8px 0;"],
+  ])("images keeps data-align=%j with a generated style, never the authored one", (align, style) => {
+    const once = sanitizeRichText(
+      `<img src="https://x.com/a.png" alt="" data-align="${align}" style="position: fixed; background: url(javascript:x)">`,
+      IMAGES,
+    );
+    expect(once).toBe(`<img src="https://x.com/a.png" alt="" data-align="${align}" style="${style}" />`);
+    expect(sanitizeRichText(once, IMAGES)).toBe(once);
+  });
+
+  it.each(["", "LEFT", "justify", "left; float: right", 'left" onerror="alert(1)', "left-wrap "])(
+    "images drops a data-align outside the enum, with its style: %j",
+    (align) => {
+      expect(
+        sanitizeRichText(`<img src="https://x.com/a.png" alt="" data-align='${align}' style="float: left">`, IMAGES),
+      ).toBe('<img src="https://x.com/a.png" alt="" />');
+    },
+  );
+
+  it("does not hang on a slash inside a tag that does not close it", () => {
+    expect(sanitizeRichText('<img / src="https://x.com/a.png" alt="A">', IMAGES)).toBe(
+      '<img src="https://x.com/a.png" alt="A" />',
+    );
+    expect(sanitizeRichText("<p / >a</p>")).toBe("<p>a</p>");
+  });
+
   it.each(["javascript:alert(1)", "data:image/png;base64,AAAA", "/relative/a.png", "mailto:a@b.c", ""])(
     "images drops an image whose src is not http(s): %s",
     (src) => {

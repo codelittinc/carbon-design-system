@@ -5,7 +5,14 @@ import { Link } from "@tiptap/extension-link";
 import { ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { StarterKit } from "@tiptap/starter-kit";
 import { isAllowedEditorHref } from "@/lib/link-href";
-import { MAX_IMAGE_WIDTH, safeImageSrc, safeImageWidth, type RichTextFormatting } from "@/lib/rich-text";
+import {
+  MAX_IMAGE_WIDTH,
+  imageAlignmentAttributes,
+  safeImageAlignment,
+  safeImageSrc,
+  safeImageWidth,
+  type RichTextFormatting,
+} from "@/lib/rich-text";
 
 /**
  * The editor's schema, derived from its props.
@@ -89,10 +96,12 @@ export function editorImageSrc(raw: string): string | null {
 }
 
 /**
- * Only `src`, `alt` and `width`; height and title are dropped as every sanitizer
- * drops them. `src` goes through `editorImageSrc`, and an image whose `src` it
- * refuses is not parsed at all. `width` is whatever `safeImageWidth` keeps, so a
- * resize survives the save exactly. No `![alt](src)` typing rule: images come in
+ * Only `src`, `alt`, `width` and `alignment`; height and title are dropped as
+ * every sanitizer drops them. `src` goes through `editorImageSrc`, and an image
+ * whose `src` it refuses is not parsed at all. `width` is whatever
+ * `safeImageWidth` keeps, so a resize survives the save exactly. `alignment` is
+ * read from `data-align` and written back with the style
+ * `imageAlignmentAttributes` generates; no authored style is ever read. No `![alt](src)` typing rule: images come in
  * through the button only.
  *
  * The node view is ours rather than TipTap's `ResizableNodeView`, which (as of
@@ -108,6 +117,11 @@ const CarbonImage = Image.extend({
         parseHTML: (element: HTMLElement) => editorImageSrc(element.getAttribute("src") ?? ""),
       },
       alt: { default: null },
+      alignment: {
+        default: null,
+        parseHTML: (element: HTMLElement) => safeImageAlignment(element.getAttribute("data-align")),
+        renderHTML: (attributes: { alignment?: unknown }) => imageAlignmentAttributes(attributes.alignment),
+      },
       width: {
         default: null,
         parseHTML: (element: HTMLElement) => safeImageWidth(element.getAttribute("width")),
@@ -169,6 +183,13 @@ const imageNodeView: NodeViewRenderer = ({ node: initial, getPos, editor }) => {
     const src = node.attrs.src as string | null;
     if (src && img.getAttribute("src") !== src) img.setAttribute("src", src);
     img.setAttribute("alt", (node.attrs.alt as string | null) ?? "");
+    // No alignment is the centered default.
+    const alignment = safeImageAlignment(node.attrs.alignment);
+    dom.style.cssFloat = alignment === "left-wrap" ? "left" : "";
+    dom.style.marginRight = alignment === "left-wrap" ? "12px" : "";
+    dom.style.marginTop = alignment === "left-wrap" ? "0" : "";
+    wrapper.style.marginLeft = alignment === "left" || alignment === "left-wrap" ? "0" : "auto";
+    wrapper.style.marginRight = alignment === "right" ? "0" : "auto";
     const width = safeImageWidth(node.attrs.width);
     img.style.width = width === null ? "" : `${width}px`;
   };

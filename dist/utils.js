@@ -190,6 +190,18 @@ function safeImageSrc(raw) {
   const src = safeHref(raw);
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
+var IMAGE_ALIGNMENTS = ["left", "center", "right", "left-wrap"];
+function safeImageAlignment(raw) {
+  return IMAGE_ALIGNMENTS.includes(raw) ? raw : null;
+}
+function imageAlignmentAttributes(raw) {
+  const align = safeImageAlignment(raw);
+  if (align === null) return {};
+  if (align === "left-wrap") return { "data-align": align, style: "display: block; float: left; margin: 0 12px 8px 0;" };
+  const left = align === "left" ? "0" : "auto";
+  const right = align === "right" ? "0" : "auto";
+  return { "data-align": align, style: `display: block; margin-left: ${left}; margin-right: ${right};` };
+}
 var MAX_IMAGE_WIDTH = 4096;
 function safeImageWidth(raw) {
   const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
@@ -214,6 +226,10 @@ function readTag(html, from) {
       break;
     }
     if (html[i] === "<") break;
+    if (html[i] === "/") {
+      i++;
+      continue;
+    }
     const nameStart = i;
     while (i < html.length && !/[\s=>/]/.test(html[i])) i++;
     const name = html.slice(nameStart, i).toLowerCase();
@@ -316,7 +332,9 @@ function sanitizeRichText(html, options) {
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
+      const alignment = imageAlignmentAttributes(decodeEntities(attrs["data-align"] ?? ""));
+      const position = alignment["data-align"] ? ` data-align="${alignment["data-align"]}" style="${alignment.style}"` : "";
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`}${position} />`);
       continue;
     }
     if (VOID_TAGS.has(canonical)) {

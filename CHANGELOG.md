@@ -8,6 +8,18 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.44.0] - 2026-11-09
+
+### Added
+
+- **`RichTextView`**: the read-only counterpart of `RichTextEditor`. Sanitizes the stored HTML it is given (`formatting`, default `extended`; `images`, default `true`), styles it with the new exported `RICH_TEXT_PROSE` classes and renders in a `flow-root`, so an image wrapped with text stays inside the document. `cleanCopy` copies a selection as sanitized HTML with absolute URLs (for pasting into email), and `transform` lets an app restore what it swapped out before sanitizing. Apps no longer need their own `dangerouslySetInnerHTML` reader.
+- **Image alignment** in `RichTextEditor` (with `uploadImage`): selecting an image shows Align left, center, right and "Wrap text to the right of image". It is stored as `data-align` (`left`, `center`, `right`, `left-wrap`).
+- **`sanitizeRichText`** with `images: true` keeps `data-align` from that enum and writes a `style` it generates (block and margins, or a left float for `left-wrap`). Authored styles are still dropped. Readers on older versions drop the alignment and show the image centered.
+
+### Fixed
+
+- **`sanitizeRichText`** no longer hangs on a `/` inside a tag that does not end it (`<img / src="…">`).
+
 ## [1.43.0] - 2026-11-05
 
 ### Added

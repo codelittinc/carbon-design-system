@@ -58,7 +58,8 @@ declare function formatPeriodLabel(month: number, year: number): string;
  * the output: the exceptions are `<a href>`, whose value must survive
  * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
  * same check, http and https only), `alt`, and a `width` that is a whole number
- * of pixels (`safeImageWidth`). Every text run is escaped. The output tree
+ * of pixels (`safeImageWidth`), and a `data-align` from a fixed enum whose
+ * `style` is generated, not copied (`imageAlignmentAttributes`). Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,

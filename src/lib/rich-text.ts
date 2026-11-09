@@ -39,7 +39,8 @@
  * the output: the exceptions are `<a href>`, whose value must survive
  * `safeHref` before it is re-escaped, and, when images are on, `<img src>` (the
  * same check, http and https only), `alt`, and a `width` that is a whole number
- * of pixels (`safeImageWidth`). Every text run is escaped. The output tree
+ * of pixels (`safeImageWidth`), and a `data-align` from a fixed enum whose
+ * `style` is generated, not copied (`imageAlignmentAttributes`). Every text run is escaped. The output tree
  * is balanced by construction, because open tags come off a stack.
  *
  * The consequence is that an unrecognised tag cannot smuggle anything through,
@@ -307,6 +308,36 @@ export function safeImageSrc(raw: string): string | null {
   return src !== null && /^https?:/i.test(src) ? src : null;
 }
 
+/** Where an image sits in the text: the only positioning stored markup may carry. */
+export const IMAGE_ALIGNMENTS = ["left", "center", "right", "left-wrap"] as const;
+export type ImageAlignment = (typeof IMAGE_ALIGNMENTS)[number];
+
+/**
+ * The `data-align` an image keeps, or `null` to drop it. Only this enum ever
+ * positions an image; authored CSS is never accepted.
+ */
+export function safeImageAlignment(raw: unknown): ImageAlignment | null {
+  return (IMAGE_ALIGNMENTS as readonly unknown[]).includes(raw) ? (raw as ImageAlignment) : null;
+}
+
+/**
+ * The attributes an aligned image is written with: `data-align`, plus a `style`
+ * generated here from the enum — never copied from the input. The inline style
+ * carries the position into copied HTML (an email signature pasted into Gmail)
+ * and overrides a reader's default centering. `left-wrap` floats the image so
+ * the text that follows sits to its right; render it inside a `flow-root`
+ * container so a tall image does not spill past the document. An image without
+ * an alignment gets nothing, and keeps whatever the renderer does by default.
+ */
+export function imageAlignmentAttributes(raw: unknown): { "data-align"?: ImageAlignment; style?: string } {
+  const align = safeImageAlignment(raw);
+  if (align === null) return {};
+  if (align === "left-wrap") return { "data-align": align, style: "display: block; float: left; margin: 0 12px 8px 0;" };
+  const left = align === "left" ? "0" : "auto";
+  const right = align === "right" ? "0" : "auto";
+  return { "data-align": align, style: `display: block; margin-left: ${left}; margin-right: ${right};` };
+}
+
 /** The widest image `safeImageWidth` keeps, in CSS pixels. */
 export const MAX_IMAGE_WIDTH = 4096;
 
@@ -362,6 +393,12 @@ function readTag(
     // re-read from this position as a new tag rather than swallowing the rest of
     // the document looking for a `>` that does not exist.
     if (html[i] === "<") break;
+    // A slash outside `/>` (`<img / src="…">`) is malformed. Step over it, or
+    // the attribute loop below reads an empty name and never advances.
+    if (html[i] === "/") {
+      i++;
+      continue;
+    }
 
     const nameStart = i;
     while (i < html.length && !/[\s=>/]/.test(html[i])) i++;
@@ -527,7 +564,9 @@ export function sanitizeRichText(
       if (src === null) continue;
       const alt = escapeAttribute(decodeEntities(attrs.alt ?? ""));
       const width = safeImageWidth(decodeEntities(attrs.width ?? ""));
-      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`} />`);
+      const alignment = imageAlignmentAttributes(decodeEntities(attrs["data-align"] ?? ""));
+      const position = alignment["data-align"] ? ` data-align="${alignment["data-align"]}" style="${alignment.style}"` : "";
+      out.push(`<img src="${escapeAttribute(src)}" alt="${alt}"${width === null ? "" : ` width="${width}"`}${position} />`);
       continue;
     }
 
