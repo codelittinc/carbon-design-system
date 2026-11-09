@@ -72,6 +72,7 @@ export * from "./components/ui/checkbox-group";
 export * from "./components/ui/radio-group";
 export * from "./components/ui/status-badge";
 export * from "./components/ui/input";
+export * from "./components/ui/file-input";
 export * from "./components/ui/textarea";
 export * from "./components/ui/rich-text-editor";
 export * from "./components/ui/rich-text-view";

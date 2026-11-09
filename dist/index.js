@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React2 from 'react';
-import { forwardRef, isValidElement, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, cloneElement } from 'react';
+import { forwardRef, isValidElement, createContext, useRef, useState, useEffect, useSyncExternalStore, useImperativeHandle, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, cloneElement } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -2110,6 +2110,116 @@ function StatusBadge({ status, className }) {
   const label = status.replace(/_/g, " ");
   return /* @__PURE__ */ jsx(Badge, { variant, className, children: label });
 }
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function acceptsFile(file, accept) {
+  const rules = (accept ?? "").split(",").map((rule) => rule.trim().toLowerCase()).filter(Boolean);
+  if (rules.length === 0) return true;
+  const name = file.name.toLowerCase();
+  const type = file.type.toLowerCase();
+  return rules.some((rule) => {
+    if (rule.startsWith(".")) return name.endsWith(rule);
+    if (rule.endsWith("/*")) return type.startsWith(rule.slice(0, -1));
+    return type === rule;
+  });
+}
+var FileInput = forwardRef(
+  ({
+    id,
+    accept,
+    value,
+    onChange,
+    disabled = false,
+    invalid = false,
+    "aria-invalid": ariaInvalid,
+    "aria-describedby": describedBy,
+    buttonLabel = "Choose file",
+    emptyLabel = "No file chosen",
+    removeLabel = "Remove file",
+    className
+  }, ref) => {
+    const inputRef = useRef(null);
+    const [dragging, setDragging] = useState(false);
+    const isInvalid = invalid || ariaInvalid !== void 0 && ariaInvalid !== false && ariaInvalid !== "false";
+    useEffect(() => {
+      if (value === null && inputRef.current) inputRef.current.value = "";
+    }, [value]);
+    function setRefs(node) {
+      inputRef.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    }
+    function onDragOver(event) {
+      if (disabled) return;
+      event.preventDefault();
+      setDragging(true);
+    }
+    function onDrop(event) {
+      event.preventDefault();
+      setDragging(false);
+      if (disabled) return;
+      const file = event.dataTransfer.files[0];
+      if (!file || !acceptsFile(file, accept)) return;
+      onChange(file);
+    }
+    return /* @__PURE__ */ jsxs(
+      "div",
+      {
+        className: cn(
+          "flex min-w-0 items-center gap-3 rounded-md border border-dashed border-border bg-surface-raised p-1.5 pr-2 text-text-secondary transition-colors",
+          dragging && "border-accent bg-surface-overlay",
+          isInvalid && "border-error-border",
+          disabled && "opacity-50",
+          className
+        ),
+        onDragOver,
+        onDragLeave: () => setDragging(false),
+        onDrop,
+        children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              ref: setRefs,
+              id,
+              type: "file",
+              accept,
+              disabled,
+              "aria-invalid": isInvalid || void 0,
+              "aria-describedby": describedBy,
+              className: "peer sr-only",
+              onChange: (event) => onChange(event.currentTarget.files?.[0] ?? null)
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            Label,
+            {
+              htmlFor: id,
+              "aria-hidden": "true",
+              className: cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "text-text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-accent/50",
+                disabled && "pointer-events-none"
+              ),
+              children: buttonLabel
+            }
+          ),
+          /* @__PURE__ */ jsx("span", { className: "min-w-0 flex-1 truncate text-sm text-text-secondary", title: value?.name, children: value ? /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx("span", { className: "text-text-primary", children: value.name }),
+            /* @__PURE__ */ jsxs("span", { className: "text-text-muted", children: [
+              " \xB7 ",
+              formatFileSize(value.size)
+            ] })
+          ] }) : /* @__PURE__ */ jsx("span", { className: "text-text-muted", children: emptyLabel }) }),
+          value && !disabled && /* @__PURE__ */ jsx(DismissButton, { label: removeLabel, onClick: () => onChange(null) })
+        ]
+      }
+    );
+  }
+);
+FileInput.displayName = "FileInput";
 var Textarea = forwardRef(
   ({ className, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -7683,4 +7793,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileInput, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, acceptsFile, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatFileSize, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

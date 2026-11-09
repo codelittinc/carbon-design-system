@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.46.0] - 2026-11-09
+
+### Added
+
+- **`FileInput`**: choose one file. A "Choose file" button, the chosen file's name and size ("rippling-time-off-requests.csv · 883 KB") or "No file chosen", and an X that clears it. Controlled (`value: File | null`, `onChange`); `accept` is passed to the picker and also filters a file dropped on the row. The native `<input type="file">` is visually hidden but focusable and carries `id`, so `FormField htmlFor` labels it and Enter or Space opens the picker; the button shows its focus ring. `invalid` (or `aria-invalid` from `FormField`) draws the error border. `buttonLabel`, `emptyLabel` and `removeLabel` set the words. `formatFileSize` and `acceptsFile` are exported with it.
+
 ## [1.45.0] - 2026-11-09
 
 ### Changed
