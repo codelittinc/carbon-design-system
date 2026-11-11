@@ -56,7 +56,7 @@ export function createApp({
   });
   // Keep AFTER both gates: iframe.html, index.json, bundles, maps and fixtures too.
   app.use(express.static(staticDir, { dotfiles: "deny", cacheControl: false }));
-  app.get("*", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
+  app.get("/{*splat}", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
   app.use((_error, _req, res, _next) => res.status(503).json({ reason: "unavailable" }));
   return app;
 }

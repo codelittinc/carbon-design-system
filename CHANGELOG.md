@@ -8,6 +8,18 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.45.1] - 2026-11-10
+
+### Security
+
+- Upgraded dependencies to their latest versions; `pnpm audit` now reports no known vulnerabilities (was 27: 3 critical, 9 high, 14 moderate, 1 low). The advisories were in development and Storybook-hosting tooling (Storybook, Vite, Express/body-parser/qs/proxy-addr, undici via jsdom, vitest, glob/minimatch, source-map-js), not in code shipped to apps.
+
+### Changed
+
+- Runtime dependencies moved to their latest compatible versions: Radix UI primitives, TipTap 3.33, `lucide-react` 1.71, `tailwind-merge` 3.7. No component API changes.
+- `@tanstack/react-table` stays on v8 (8.21.3): v9 rewrites the table API, and `DataTable` re-exports its `ColumnDef` type, so moving would be a breaking change for apps.
+- Tooling: Storybook 10, Vite 8, Vitest 5, TypeScript 6, tsup 9, jsdom 31, Express 5. TypeScript stays on 6 because tsup's declaration build needs the TypeScript compiler API, which TypeScript 7 does not ship.
+
 ## [1.45.0] - 2026-11-09
 
 ### Changed

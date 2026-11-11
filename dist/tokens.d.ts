@@ -180,4 +180,5 @@ declare const colorTokens: {
 type ColorTheme = keyof typeof colorTokens;
 type ColorToken = keyof (typeof colorTokens)["dark"];
 
-export { type ColorTheme, type ColorToken, colorTokens };
+export { colorTokens };
+export type { ColorTheme, ColorToken };
