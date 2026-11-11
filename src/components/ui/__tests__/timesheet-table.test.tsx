@@ -400,13 +400,96 @@ describe("TimesheetTable time off", () => {
       fetchExpectedHours: vi.fn(async () => ({
         expectedHours: 32,
         ptoHours: 8,
-        timeOffs: [{ id: 1, type: "Vacation", startsAt: "2026-09-17T00:00:00.000Z", endsAt: "2026-09-18" }],
+        timeOffs: [
+          {
+            id: "0b6f6c1e-4c1f-4f7e-9a51-2d0d7a3c9e10",
+            type: "Vacation",
+            startsAt: "2026-09-17T00:00:00.000Z",
+            endsAt: "2026-09-18",
+          },
+        ],
       })),
     });
     renderTable(api);
     const row = (await screen.findByText("Vacation")).closest("tr")!;
     expect(within(row).getByText("Thu, Sep 17")).toBeInTheDocument();
     expect(within(row).getByText("Fri, Sep 18")).toBeInTheDocument();
+  });
+});
+
+describe("TimesheetTable expected hours unavailable", () => {
+  it("keeps the grid editable when expected hours come back null, with the caller's notice", async () => {
+    const api = mockApi({
+      fetchExpectedHours: vi.fn(async () => ({
+        expectedHours: null,
+        ptoHours: 0,
+        timeOffs: [],
+        notice: { variant: "error" as const, message: "Time off couldn't be loaded right now." },
+      })),
+    });
+    renderTable(api);
+    await screen.findByText("Daily Total");
+
+    expect(screen.getByText(/Expected hours unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Time off couldn't be loaded right now.");
+    // Nothing is worked out against a target it doesn't have.
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText(/remaining|over|Complete/)).not.toBeInTheDocument();
+
+    fireEvent.change(cell("Backstage", "Wed, Sep 16, 2026"), { target: { value: "4" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(api.saveTimesheet).toHaveBeenCalledWith([{ contractId: 1, date: "2026-09-16", hours: 4 }]);
+  });
+
+  it("treats a failed expected-hours call as unavailable instead of a failed load", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const api = mockApi({ fetchExpectedHours: vi.fn().mockRejectedValue(new Error("503")) });
+    renderTable(api);
+    await screen.findByText("Daily Total");
+
+    expect(screen.queryByText("Failed to load time entries")).not.toBeInTheDocument();
+    expect(screen.getByText(/Expected hours unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Expected hours couldn't be loaded. You can still log your hours.",
+    );
+    expect(cell("Backstage", "Mon, Sep 14, 2026")).toBeEnabled();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("shows a notice alongside known expected hours", async () => {
+    const api = mockApi({
+      fetchExpectedHours: vi.fn(async () => ({
+        expectedHours: 40,
+        ptoHours: 0,
+        timeOffs: [],
+        notice: { variant: "warning" as const, message: "Your time off isn't subtracted." },
+      })),
+    });
+    renderTable(api);
+    await screen.findByText("Daily Total");
+
+    expect(screen.getByText("Your time off isn't subtracted.").closest('[role="status"]')).toBeInTheDocument();
+    expect(screen.getByText("32h remaining")).toBeInTheDocument();
+    expect(screen.queryByText(/Expected hours unavailable/)).not.toBeInTheDocument();
+  });
+
+  it("clears the notice when the next period loads normally", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchExpectedHours = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("503"))
+      .mockResolvedValue({ expectedHours: 40, ptoHours: 0, timeOffs: [] });
+    renderTable(mockApi({ fetchExpectedHours }));
+    await screen.findByRole("alert");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    });
+    await screen.findByText("Sep 21 – Sep 27, 2026");
+    await screen.findByText("40h remaining");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

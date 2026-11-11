@@ -6165,6 +6165,10 @@ var VIEW_OPTIONS = [
 var AUTOSAVE_DELAY_MS = 15e3;
 var REVERT_WINDOW_MS = 5e3;
 var headClass = cn(eyebrowClass, "px-2 py-3");
+var EXPECTED_HOURS_FAILED_NOTICE = {
+  variant: "error",
+  message: "Expected hours couldn't be loaded. You can still log your hours."
+};
 function weekRangeLabel(monday) {
   const sunday = addDays(monday, 6);
   return `${formatCalendarDate(monday, { month: "short", day: "numeric" })} \u2013 ${formatCalendarDate(sunday, { month: "short", day: "numeric", year: "numeric" })}`;
@@ -6177,6 +6181,21 @@ function HoursSummary({
   expectedHours,
   ptoHours
 }) {
+  if (expectedHours === null) {
+    return /* @__PURE__ */ jsx(Card, { padding: "md", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-3", children: [
+      /* @__PURE__ */ jsxs("p", { className: "text-sm text-text-secondary", children: [
+        /* @__PURE__ */ jsxs("span", { className: "font-semibold tabular-nums text-text-primary", children: [
+          loggedHours,
+          "h"
+        ] }),
+        " logged \xB7 Expected hours unavailable"
+      ] }),
+      ptoHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
+        ptoHours,
+        "h time off"
+      ] })
+    ] }) });
+  }
   const hasExpected = expectedHours > 0;
   const percentage = hasExpected ? Math.min(loggedHours / expectedHours * 100, 100) : 0;
   const isComplete = hasExpected && loggedHours >= expectedHours;
@@ -6273,6 +6292,7 @@ function TimesheetTable({
   const [expectedHours, setExpectedHours] = useState(null);
   const [ptoHours, setPtoHours] = useState(0);
   const [timeOffs, setTimeOffs] = useState([]);
+  const [notice, setNotice] = useState(null);
   const inputRefs = useRef({});
   const [revertSnapshot, setRevertSnapshot] = useState(null);
   const autoSaveTimerRef = useRef(null);
@@ -6301,7 +6321,10 @@ function TimesheetTable({
       const endDate = rangeEnd;
       const [entriesRes, expectedRes] = await Promise.all([
         api.fetchTimeEntries({ userId, startDate, endDate }),
-        api.fetchExpectedHours({ startDate, endDate })
+        api.fetchExpectedHours({ startDate, endDate }).catch((error) => {
+          console.error("Error fetching expected hours:", error);
+          return null;
+        })
       ]);
       const newGrid = {};
       for (const entry of entriesRes.timeEntries) {
@@ -6309,9 +6332,10 @@ function TimesheetTable({
       }
       setGridData(newGrid);
       setOriginalData(newGrid);
-      setExpectedHours(expectedRes.expectedHours);
-      setPtoHours(expectedRes.ptoHours);
-      setTimeOffs(expectedRes.timeOffs || []);
+      setExpectedHours(expectedRes?.expectedHours ?? null);
+      setPtoHours(expectedRes?.ptoHours ?? 0);
+      setTimeOffs(expectedRes?.timeOffs || []);
+      setNotice(expectedRes ? expectedRes.notice ?? null : EXPECTED_HOURS_FAILED_NOTICE);
       setRevertSnapshot(null);
       clearTimer(autoSaveTimerRef);
       clearTimer(revertHideTimerRef);
@@ -6532,14 +6556,8 @@ function TimesheetTable({
       }
     ),
     loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-      /* @__PURE__ */ jsx(
-        HoursSummary,
-        {
-          loggedHours: grandTotal,
-          expectedHours: expectedHours ?? 0,
-          ptoHours
-        }
-      ),
+      /* @__PURE__ */ jsx(HoursSummary, { loggedHours: grandTotal, expectedHours, ptoHours }),
+      notice && /* @__PURE__ */ jsx(Alert, { variant: notice.variant, children: notice.message }),
       viewMode === "weekly" ? /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs(Table, { children: [
         /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
           /* @__PURE__ */ jsx(TableHead, { className: cn(headClass, "min-w-[200px] px-3 text-left text-text-muted"), children: "Contract" }),

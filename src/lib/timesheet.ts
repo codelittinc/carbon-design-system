@@ -32,7 +32,7 @@ export interface TimesheetEntry {
 }
 
 export interface TimesheetTimeOff {
-  id: number;
+  id: number | string;
   type: string;
   startsAt: string;
   /** Exclusive: the day the person is back. */
@@ -49,10 +49,22 @@ export interface TimeEntryResponse {
   }[];
 }
 
+/** A message shown above the grid, with the tone of `Alert`'s variant. */
+export interface TimesheetNotice {
+  variant: "info" | "warning" | "error";
+  message: string;
+}
+
 export interface ExpectedHoursResponse {
-  expectedHours: number;
+  /**
+   * `null` when expected hours can't be worked out: the summary says so and
+   * shows no target, remaining or over/under. The grid stays editable.
+   */
+  expectedHours: number | null;
   ptoHours: number;
   timeOffs: TimesheetTimeOff[];
+  /** Shown above the grid, whether or not `expectedHours` is known. */
+  notice?: TimesheetNotice;
 }
 
 export interface SaveResponse {

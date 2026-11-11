@@ -123,6 +123,24 @@ const withTimeOffApi: TimesheetApi = {
   },
 };
 
+/** The time-off source is down: no expected hours, but hours can still be logged. */
+const expectedHoursUnavailableApi: TimesheetApi = {
+  ...mockApi,
+  async fetchExpectedHours() {
+    await delay(300);
+    return {
+      expectedHours: null,
+      ptoHours: 0,
+      timeOffs: [],
+      notice: {
+        variant: "error",
+        message:
+          "Time off couldn't be loaded right now, so expected hours can't be worked out. You can still log your hours.",
+      },
+    };
+  },
+};
+
 const failingApi: TimesheetApi = {
   ...mockApi,
   async fetchTimeEntries() {
@@ -144,6 +162,8 @@ export const EmptyTimesheet: Story = { args: { ...base, api: emptyApi } };
 export const SingleContract: Story = { args: { ...base, contracts: [CONTRACTS[0]] } };
 
 export const NoContracts: Story = { args: { ...base, contracts: [], api: emptyApi } };
+
+export const ExpectedHoursUnavailable: Story = { args: { ...base, api: expectedHoursUnavailableApi } };
 
 export const LoadError: Story = { args: { ...base, api: failingApi } };
 

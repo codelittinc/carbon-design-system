@@ -8,6 +8,17 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.46.0] - 2026-11-11
+
+### Added
+
+- **`TimesheetTable`**: expected hours can be unavailable without blocking the timesheet. `ExpectedHoursResponse.expectedHours` may be `null`: the summary shows the hours logged and "Expected hours unavailable", with no target, remaining, over/under badge or progress bar, and the grid stays editable. A `fetchExpectedHours` that throws (the default API throws on a non-2xx response) now does the same with a generic error notice, instead of replacing the grid with "Failed to load time entries"; only a failed `fetchTimeEntries` is a failed load.
+- **`ExpectedHoursResponse.notice`** (optional, new `TimesheetNotice` type: `{ variant: "info" | "warning" | "error"; message: string }`): shown as an `Alert` between the summary and the grid, with or without expected hours, so the server can say why they are missing or what they leave out.
+
+### Changed
+
+- **`TimesheetTimeOff.id`** is `number | string`, so time off with uuid ids can be passed through. Existing numeric ids still type-check.
+
 ## [1.45.1] - 2026-11-10
 
 ### Security
