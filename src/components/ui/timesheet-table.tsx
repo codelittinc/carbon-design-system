@@ -30,6 +30,7 @@ import {
   type TimesheetApi,
   type TimesheetContract,
   type TimesheetGridData,
+  type TimesheetNotice,
   type TimesheetTimeOff,
   type TimesheetViewMode,
 } from "@/lib/timesheet";
@@ -62,6 +63,7 @@ export {
   type TimesheetContract,
   type TimesheetEntry,
   type TimesheetGridData,
+  type TimesheetNotice,
   type TimesheetTimeOff,
   type TimesheetViewMode,
 } from "@/lib/timesheet";
@@ -109,6 +111,12 @@ const REVERT_WINDOW_MS = 5000;
 
 const headClass = cn(eyebrowClass, "px-2 py-3");
 
+/** Shown when `fetchExpectedHours` fails: the hours can still be logged. */
+const EXPECTED_HOURS_FAILED_NOTICE: TimesheetNotice = {
+  variant: "error",
+  message: "Expected hours couldn't be loaded. You can still log your hours.",
+};
+
 /** "Sep 14 – Sep 20, 2026". */
 function weekRangeLabel(monday: CalendarDate): string {
   const sunday = addDays(monday, 6);
@@ -125,9 +133,24 @@ function HoursSummary({
   ptoHours,
 }: {
   loggedHours: number;
-  expectedHours: number;
+  /** `null` when unavailable: no target, remaining or over/under. */
+  expectedHours: number | null;
   ptoHours: number;
 }): ReactElement {
+  if (expectedHours === null) {
+    return (
+      <Card padding="md">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-text-secondary">
+            <span className="font-semibold tabular-nums text-text-primary">{loggedHours}h</span> logged
+            · Expected hours unavailable
+          </p>
+          {ptoHours > 0 && <Badge variant="info">{ptoHours}h time off</Badge>}
+        </div>
+      </Card>
+    );
+  }
+
   const hasExpected = expectedHours > 0;
   const percentage = hasExpected ? Math.min((loggedHours / expectedHours) * 100, 100) : 0;
   const isComplete = hasExpected && loggedHours >= expectedHours;
@@ -175,7 +198,9 @@ function HoursSummary({
  * Data comes from `api`; any method not given falls back to
  * `createDefaultApi(baseUrl, apiHeaders)`, which calls the `/api/my-timesheets`
  * routes. A failed load shows inline with a retry and a failed save as an
- * error toast — mount a `ToastProvider` to see it.
+ * error toast — mount a `ToastProvider` to see it. Expected hours that fail to
+ * load, or come back `null`, leave the grid editable: the summary says they
+ * are unavailable, and a notice explains why.
  */
 export function TimesheetTable({
   userId,
@@ -236,6 +261,7 @@ export function TimesheetTable({
   const [expectedHours, setExpectedHours] = useState<number | null>(null);
   const [ptoHours, setPtoHours] = useState<number>(0);
   const [timeOffs, setTimeOffs] = useState<TimesheetTimeOff[]>([]);
+  const [notice, setNotice] = useState<TimesheetNotice | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [revertSnapshot, setRevertSnapshot] = useState<TimesheetGridData | null>(null);
@@ -277,9 +303,14 @@ export function TimesheetTable({
       const startDate = rangeStart;
       const endDate = rangeEnd;
 
+      // Expected hours are not needed to log hours, so their failure is not
+      // a failed load.
       const [entriesRes, expectedRes] = await Promise.all([
         api.fetchTimeEntries({ userId, startDate, endDate }),
-        api.fetchExpectedHours({ startDate, endDate }),
+        api.fetchExpectedHours({ startDate, endDate }).catch((error: unknown) => {
+          console.error("Error fetching expected hours:", error);
+          return null;
+        }),
       ]);
 
       const newGrid: TimesheetGridData = {};
@@ -289,9 +320,10 @@ export function TimesheetTable({
 
       setGridData(newGrid);
       setOriginalData(newGrid);
-      setExpectedHours(expectedRes.expectedHours);
-      setPtoHours(expectedRes.ptoHours);
-      setTimeOffs(expectedRes.timeOffs || []);
+      setExpectedHours(expectedRes?.expectedHours ?? null);
+      setPtoHours(expectedRes?.ptoHours ?? 0);
+      setTimeOffs(expectedRes?.timeOffs || []);
+      setNotice(expectedRes ? (expectedRes.notice ?? null) : EXPECTED_HOURS_FAILED_NOTICE);
       setRevertSnapshot(null);
       clearTimer(autoSaveTimerRef);
       clearTimer(revertHideTimerRef);
@@ -574,11 +606,9 @@ export function TimesheetTable({
         </Alert>
       ) : (
         <>
-          <HoursSummary
-            loggedHours={grandTotal}
-            expectedHours={expectedHours ?? 0}
-            ptoHours={ptoHours}
-          />
+          <HoursSummary loggedHours={grandTotal} expectedHours={expectedHours} ptoHours={ptoHours} />
+
+          {notice && <Alert variant={notice.variant}>{notice.message}</Alert>}
 
           {viewMode === "weekly" ? (
             <Card padding="sm">
