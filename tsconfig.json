@@ -15,7 +15,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
+    "types": ["google.maps"],
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { addons, types } from "@storybook/manager-api";
+import { addons, types } from "storybook/manager-api";
 import { ClerkProvider } from "@clerk/react";
 
 // Keep Clerk's session cookie refreshed while Storybook is open. The server still
