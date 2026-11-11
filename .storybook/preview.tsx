@@ -43,7 +43,7 @@ const preview: Preview = {
     },
   },
   parameters: {
-    backgrounds: { disabled: true },
+    backgrounds: { disable: true },
     controls: {
       matchers: {
         color: /(background|color)$/i,
