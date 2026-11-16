@@ -102,8 +102,9 @@ export interface RichTextEditorProps {
   /**
    * Adds tables: an Insert table button (three by three, with a header row),
    * and, while the caret is in a table, controls to add or remove a row or a
-   * column, turn the header row on or off, and delete the table. Tab moves to
-   * the next cell. With `formatting="extended"`, a table pasted from a web
+   * column, turn the header row on or off, and delete the table. Arrow keys
+   * move between cells; Tab leaves the editor, as everywhere else in it. With
+   * `formatting="extended"`, a table pasted from a web
    * page or a document comes in as a table. Sanitize with `tables: true`.
    */
   tables?: boolean;

@@ -119,8 +119,9 @@ export interface RichTextSanitizeOptions {
   /**
    * Keeps tables: `table`, `thead`, `tbody`, `tr`, `th` and `td`, with a
    * cell's `colspan` and `rowspan` (`safeTableSpan`) and nothing else — no
-   * widths, styles or captions. A row or cell outside a table is dropped and
-   * its text kept.
+   * widths, styles or captions. Cells, rows and sections close and open as a
+   * browser does: a cell with no row gets one. A row or cell outside any table
+   * is dropped and its text kept.
    */
   tables?: boolean;
   /**
@@ -406,8 +407,12 @@ export function safeImageWidth(raw: unknown): number | null {
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
 
-/** The widest or tallest a table cell may span. */
-export const MAX_TABLE_SPAN = 1000;
+/**
+ * The widest or tallest a table cell may span. Small on purpose: the editor
+ * pads every other row out to a spanned width, so a pasted span of 1000 would
+ * add 1000 empty cells to each row.
+ */
+export const MAX_TABLE_SPAN = 50;
 
 /**
  * A cell's `colspan` or `rowspan`: a whole number from 1 to `MAX_TABLE_SPAN`,
@@ -416,7 +421,7 @@ export const MAX_TABLE_SPAN = 1000;
  */
 export function safeTableSpan(raw: unknown): number | null {
   const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
-  if (!/^\d{1,4}$/.test(text)) return null;
+  if (!/^\d{1,3}$/.test(text)) return null;
   const span = Number(text);
   return span >= 1 && span <= MAX_TABLE_SPAN ? span : null;
 }
@@ -547,6 +552,17 @@ export function sanitizeRichText(
     return null;
   };
 
+  /** Close every open tag above the nearest `name`, leaving `name` open. */
+  const closeAbove = (name: string): void => {
+    for (let d = stack.length - 1; d >= 0; d--) {
+      if (stack[d].name === name) {
+        for (let e = stack.length - 1; e > d; e--) out.push(`</${stack[e].name}>`);
+        stack.length = d + 1;
+        return;
+      }
+    }
+  };
+
   const closeThrough = (name: string): void => {
     // Scanned by hand rather than with `findLastIndex`, which needs a newer
     // `lib` than this package targets.
@@ -652,7 +668,7 @@ export function sanitizeRichText(
       // it meets the inner, so leaving both open would store a string whose DOM
       // is not the tree it describes — and a later `closeThrough("a")` would
       // then close the wrong one.
-      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+      if (innermost(ANCHOR_SCOPE) === "a") closeThrough("a");
 
       const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       // No usable href: keep the words, drop the anchor. A link to
@@ -672,8 +688,23 @@ export function sanitizeRichText(
     // Outside a table the tag goes and its text stays, as for any other.
     if (TABLE_PARTS.has(canonical)) {
       const scope = innermost(TABLE_SCOPE[canonical]);
-      if (scope === null || scope === "table" && CELLS.has(canonical)) continue;
-      if (scope === canonical || (CELLS.has(canonical) && CELLS.has(scope)) || (SECTIONS.has(canonical) && SECTIONS.has(scope))) closeThrough(scope);
+      if (scope === null) continue;
+      if (SECTIONS.has(canonical)) {
+        // A section ends the open section, or the open row and cell.
+        if (SECTIONS.has(scope)) closeThrough(scope);
+        else closeAbove("table");
+      } else if (canonical === "tr") {
+        // A row ends the open row, and the cell in it.
+        if (scope === "tr" || CELLS.has(scope)) closeThrough("tr");
+      } else {
+        if (CELLS.has(scope)) closeThrough(scope);
+        // A cell straight inside a table or section gets the row a browser
+        // would give it.
+        if (innermost(ROW_OR_GROUP) !== "tr") {
+          out.push("<tr>");
+          stack.push({ name: "tr" });
+        }
+      }
       if (CELLS.has(canonical)) {
         const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
         const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
@@ -718,12 +749,15 @@ const TABLE_PARTS = new Set(["thead", "tbody", "tr", "td", "th"]);
  * the stack. No `table` among the open tags at all means it is outside one.
  */
 const TABLE_SCOPE: Record<string, ReadonlySet<string>> = {
-  thead: new Set(["table", "thead", "tbody"]),
-  tbody: new Set(["table", "thead", "tbody"]),
-  tr: new Set(["table", "thead", "tbody", "tr"]),
-  td: new Set(["table", "tr", "td", "th"]),
-  th: new Set(["table", "tr", "td", "th"]),
+  thead: new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tbody: new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tr: new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  td: new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  th: new Set(["table", "thead", "tbody", "tr", "td", "th"]),
 };
+const ROW_OR_GROUP = new Set(["table", "thead", "tbody", "tr"]);
+/** A link's reach: a cell is a new block, so an anchor opened outside it is not the one to close. */
+const ANCHOR_SCOPE = new Set(["a", "td", "th"]);
 
 /**
  * Drop elements left holding nothing.
@@ -761,7 +795,8 @@ export function isRichTextEmpty(html: string | null | undefined): boolean {
   // sanitizer keeps is content with no text, so a screenshot-only note is not
   // empty.
   const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
-  if (/<img\b/.test(stored)) return false;
+  // A table is content even with every cell blank: somebody inserted it.
+  if (/<(img|table)\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }

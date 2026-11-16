@@ -11,6 +11,7 @@ import { Link } from '@tiptap/extension-link';
 import { ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { StarterKit } from '@tiptap/starter-kit';
+import { isInTable, selectedRect } from '@tiptap/pm/tables';
 import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, WrapText, PanelTop, Link2, Table as Table$1, BetweenHorizontalEnd, BetweenVerticalEnd, Rows2, Columns2, Grid2x2X, Unlink, X } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -179,10 +180,10 @@ function safeImageWidth(raw) {
   const width = Number(text);
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
-var MAX_TABLE_SPAN = 1e3;
+var MAX_TABLE_SPAN = 50;
 function safeTableSpan(raw) {
   const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
-  if (!/^\d{1,4}$/.test(text)) return null;
+  if (!/^\d{1,3}$/.test(text)) return null;
   const span = Number(text);
   return span >= 1 && span <= MAX_TABLE_SPAN ? span : null;
 }
@@ -248,6 +249,15 @@ function sanitizeRichText(html, options) {
   const innermost = (names) => {
     for (let d = stack.length - 1; d >= 0; d--) if (names.has(stack[d].name)) return stack[d].name;
     return null;
+  };
+  const closeAbove = (name) => {
+    for (let d = stack.length - 1; d >= 0; d--) {
+      if (stack[d].name === name) {
+        for (let e = stack.length - 1; e > d; e--) out.push(`</${stack[e].name}>`);
+        stack.length = d + 1;
+        return;
+      }
+    }
   };
   const closeThrough = (name) => {
     let depth = -1;
@@ -323,7 +333,7 @@ function sanitizeRichText(html, options) {
       continue;
     }
     if (canonical === "a") {
-      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+      if (innermost(ANCHOR_SCOPE) === "a") closeThrough("a");
       const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
@@ -332,8 +342,19 @@ function sanitizeRichText(html, options) {
     }
     if (TABLE_PARTS.has(canonical)) {
       const scope = innermost(TABLE_SCOPE[canonical]);
-      if (scope === null || scope === "table" && CELLS.has(canonical)) continue;
-      if (scope === canonical || CELLS.has(canonical) && CELLS.has(scope) || SECTIONS.has(canonical) && SECTIONS.has(scope)) closeThrough(scope);
+      if (scope === null) continue;
+      if (SECTIONS.has(canonical)) {
+        if (SECTIONS.has(scope)) closeThrough(scope);
+        else closeAbove("table");
+      } else if (canonical === "tr") {
+        if (scope === "tr" || CELLS.has(scope)) closeThrough("tr");
+      } else {
+        if (CELLS.has(scope)) closeThrough(scope);
+        if (innermost(ROW_OR_GROUP) !== "tr") {
+          out.push("<tr>");
+          stack.push({ name: "tr" });
+        }
+      }
       if (CELLS.has(canonical)) {
         const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
         const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
@@ -356,12 +377,14 @@ var CELLS = /* @__PURE__ */ new Set(["td", "th"]);
 var SECTIONS = /* @__PURE__ */ new Set(["thead", "tbody"]);
 var TABLE_PARTS = /* @__PURE__ */ new Set(["thead", "tbody", "tr", "td", "th"]);
 var TABLE_SCOPE = {
-  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
-  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
-  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]),
-  td: /* @__PURE__ */ new Set(["table", "tr", "td", "th"]),
-  th: /* @__PURE__ */ new Set(["table", "tr", "td", "th"])
+  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  td: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  th: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"])
 };
+var ROW_OR_GROUP = /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]);
+var ANCHOR_SCOPE = /* @__PURE__ */ new Set(["a", "td", "th"]);
 function collapseEmpty(html, empty) {
   let previous;
   let current = html;
@@ -374,7 +397,7 @@ function collapseEmpty(html, empty) {
 function isRichTextEmpty(html) {
   if (!html) return true;
   const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
-  if (/<img\b/.test(stored)) return false;
+  if (/<(img|table)\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
@@ -526,6 +549,15 @@ var CarbonImage = Image.extend({
 var CarbonTable = Table.extend({
   addAttributes() {
     return {};
+  },
+  // Tab and Shift-Tab are left to the browser, as in a list: TipTap's would
+  // move between cells and add a row from the last one, so Tab could never
+  // leave the editor. Arrow keys move between cells.
+  addKeyboardShortcuts() {
+    const shortcuts = { ...this.parent?.() };
+    delete shortcuts.Tab;
+    delete shortcuts["Shift-Tab"];
+    return shortcuts;
   },
   renderHTML({ HTMLAttributes }) {
     return ["table", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), ["tbody", 0]];
@@ -1410,8 +1442,18 @@ var INACTIVE = {
   image: false,
   imageAlignment: "center",
   table: false,
-  headerRow: false
+  headerRow: false,
+  canDeleteRow: false,
+  canDeleteColumn: false
 };
+function deletable(state) {
+  if (!isInTable(state)) return { row: false, column: false };
+  const rect = selectedRect(state);
+  return {
+    row: !(rect.top === 0 && rect.bottom === rect.map.height),
+    column: !(rect.left === 0 && rect.right === rect.map.width)
+  };
+}
 function inHeaderedTable(state) {
   const { $from } = state.selection;
   for (let depth = $from.depth; depth > 0; depth--) {
@@ -1458,7 +1500,9 @@ function RichTextToolbar({
       image: images && e.isActive("image"),
       imageAlignment: images && e.getAttributes("image").alignment || "center",
       table: tables && e.isActive("table"),
-      headerRow: tables && inHeaderedTable(e.state)
+      headerRow: tables && inHeaderedTable(e.state),
+      canDeleteRow: tables && deletable(e.state).row,
+      canDeleteColumn: tables && deletable(e.state).column
     } : INACTIVE
   }) ?? INACTIVE;
   const toggle = (key, label, icon, shortcut, isActive, run) => ({ key, label, icon, shortcut, active: isActive, run });
@@ -1583,22 +1627,28 @@ function RichTextToolbar({
       void 0,
       (e) => e.chain().focus().addColumnAfter().run()
     ),
-    toggle(
-      "table-delete-row",
-      "Delete row",
-      Rows2,
-      void 0,
-      void 0,
-      (e) => e.chain().focus().deleteRow().run()
-    ),
-    toggle(
-      "table-delete-column",
-      "Delete column",
-      Columns2,
-      void 0,
-      void 0,
-      (e) => e.chain().focus().deleteColumn().run()
-    ),
+    {
+      ...toggle(
+        "table-delete-row",
+        "Delete row",
+        Rows2,
+        void 0,
+        void 0,
+        (e) => e.chain().focus().deleteRow().run()
+      ),
+      unavailable: !active.canDeleteRow
+    },
+    {
+      ...toggle(
+        "table-delete-column",
+        "Delete column",
+        Columns2,
+        void 0,
+        void 0,
+        (e) => e.chain().focus().deleteColumn().run()
+      ),
+      unavailable: !active.canDeleteColumn
+    },
     toggle(
       "table-header",
       "Header row",
@@ -1617,7 +1667,7 @@ function RichTextToolbar({
     )
   ] : [];
   const order = [
-    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert && !t.unavailable })),
     { key: "link", enabled: !inert },
     ...images ? [{ key: "image", enabled: !inert }] : [],
     // A table inside a table is not offered.
@@ -1649,7 +1699,7 @@ function RichTextToolbar({
       shortcut: t.shortcut,
       pressed: t.active,
       apple,
-      disabled: inert,
+      disabled: inert || t.unavailable,
       onClick: () => editor && t.run(editor),
       ...roving(t.key)
     },

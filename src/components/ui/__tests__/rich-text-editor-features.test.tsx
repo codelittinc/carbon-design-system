@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { richTextTags, sanitizeRichText, type RichTextSanitizeOptions } from "@/lib/rich-text";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
 import type { RichTextEditorHandle } from "../rich-text-editor";
-import { Harness, canonical, edit, editorOf, paste, surface as editor, tagsIn, typeText } from "./rich-text-editor.helpers";
+import { Harness, canonical, edit, editorOf, paste, press, surface as editor, tagsIn, typeText } from "./rich-text-editor.helpers";
 
 /**
  * The opt-in capabilities: `formatting="extended"`, `uploadImage`,
@@ -612,5 +612,35 @@ describe("RichTextEditor — tables", () => {
     render(<Harness formatting="extended" tables initial={TABLE} onChange={onChange} />);
     edit(() => editorOf(editor()).commands.insertContentAt(editorOf(editor()).state.doc.content.size, "<p>After</p>"));
     expect(onChange.mock.lastCall?.[0]).toBe(`${TABLE}<p>After</p>`);
+  });
+
+  it("leaves Tab to the browser in a table, so it never traps the keyboard or adds rows", () => {
+    render(<Harness formatting="extended" tables initial={TABLE} />);
+    const tiptap = editorOf(editor());
+    let cell = -1;
+    tiptap.state.doc.descendants((node, pos) => {
+      if (cell === -1 && node.isText && node.text === "Income") cell = pos;
+    });
+    edit(() => tiptap.commands.setTextSelection(cell + 1));
+    expect(press(editor(), "Tab")).toBe(true);
+    expect(press(editor(), "Tab", { shift: true })).toBe(true);
+    expect(tiptap.getHTML().match(/<tr>/g)).toHaveLength(2);
+  });
+
+  it("disables deleting a table's only row or only column", () => {
+    render(<Harness formatting="extended" tables initial="<table><tbody><tr><td><p>only</p></td></tr></tbody></table>" />);
+    const tiptap = editorOf(editor());
+    edit(() => tiptap.commands.setTextSelection(4));
+    expect(screen.getByRole("button", { name: "Delete row" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete column" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete table" })).toBeEnabled();
+  });
+
+  it("emits a freshly inserted blank table, rather than an empty document", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" tables onChange={onChange} />);
+    edit(() => editorOf(editor()).commands.focus());
+    fireEvent.click(screen.getByRole("button", { name: "Insert table" }));
+    expect(onChange.mock.lastCall?.[0]).toContain("<table>");
   });
 });

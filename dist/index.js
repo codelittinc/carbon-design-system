@@ -312,10 +312,10 @@ function safeImageWidth(raw) {
   const width = Number(text);
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
-var MAX_TABLE_SPAN = 1e3;
+var MAX_TABLE_SPAN = 50;
 function safeTableSpan(raw) {
   const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
-  if (!/^\d{1,4}$/.test(text)) return null;
+  if (!/^\d{1,3}$/.test(text)) return null;
   const span2 = Number(text);
   return span2 >= 1 && span2 <= MAX_TABLE_SPAN ? span2 : null;
 }
@@ -381,6 +381,15 @@ function sanitizeRichText(html, options) {
   const innermost = (names) => {
     for (let d = stack.length - 1; d >= 0; d--) if (names.has(stack[d].name)) return stack[d].name;
     return null;
+  };
+  const closeAbove = (name) => {
+    for (let d = stack.length - 1; d >= 0; d--) {
+      if (stack[d].name === name) {
+        for (let e = stack.length - 1; e > d; e--) out.push(`</${stack[e].name}>`);
+        stack.length = d + 1;
+        return;
+      }
+    }
   };
   const closeThrough = (name) => {
     let depth = -1;
@@ -456,7 +465,7 @@ function sanitizeRichText(html, options) {
       continue;
     }
     if (canonical === "a") {
-      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+      if (innermost(ANCHOR_SCOPE) === "a") closeThrough("a");
       const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
@@ -465,8 +474,19 @@ function sanitizeRichText(html, options) {
     }
     if (TABLE_PARTS.has(canonical)) {
       const scope = innermost(TABLE_SCOPE[canonical]);
-      if (scope === null || scope === "table" && CELLS.has(canonical)) continue;
-      if (scope === canonical || CELLS.has(canonical) && CELLS.has(scope) || SECTIONS.has(canonical) && SECTIONS.has(scope)) closeThrough(scope);
+      if (scope === null) continue;
+      if (SECTIONS.has(canonical)) {
+        if (SECTIONS.has(scope)) closeThrough(scope);
+        else closeAbove("table");
+      } else if (canonical === "tr") {
+        if (scope === "tr" || CELLS.has(scope)) closeThrough("tr");
+      } else {
+        if (CELLS.has(scope)) closeThrough(scope);
+        if (innermost(ROW_OR_GROUP) !== "tr") {
+          out.push("<tr>");
+          stack.push({ name: "tr" });
+        }
+      }
       if (CELLS.has(canonical)) {
         const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
         const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
@@ -489,12 +509,14 @@ var CELLS = /* @__PURE__ */ new Set(["td", "th"]);
 var SECTIONS = /* @__PURE__ */ new Set(["thead", "tbody"]);
 var TABLE_PARTS = /* @__PURE__ */ new Set(["thead", "tbody", "tr", "td", "th"]);
 var TABLE_SCOPE = {
-  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
-  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
-  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]),
-  td: /* @__PURE__ */ new Set(["table", "tr", "td", "th"]),
-  th: /* @__PURE__ */ new Set(["table", "tr", "td", "th"])
+  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  td: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  th: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"])
 };
+var ROW_OR_GROUP = /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]);
+var ANCHOR_SCOPE = /* @__PURE__ */ new Set(["a", "td", "th"]);
 function collapseEmpty(html, empty) {
   let previous;
   let current = html;
@@ -507,7 +529,7 @@ function collapseEmpty(html, empty) {
 function isRichTextEmpty(html) {
   if (!html) return true;
   const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
-  if (/<img\b/.test(stored)) return false;
+  if (/<(img|table)\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
@@ -2277,7 +2299,7 @@ function selectionHtml(range, root) {
   return holder.innerHTML;
 }
 var RichTextView = forwardRef(
-  ({ html, formatting = "extended", images = true, tables = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
+  ({ html, formatting = "extended", images = true, tables = false, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
     const options = useMemo(() => ({ formatting, images, tables, rootRelative }), [formatting, images, tables, rootRelative]);
     const clean2 = useMemo(() => sanitizeRichText(html, options), [html, options]);
     function copy(event) {

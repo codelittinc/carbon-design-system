@@ -35,7 +35,7 @@ declare function AddressAutocomplete$1({ value, onChange, onBlur, placeholder, c
 
 declare const buttonVariants: (props?: ({
     variant?: "default" | "destructive" | "outline" | "ghost" | "link" | null | undefined;
-    size?: "sm" | "lg" | "default" | "icon" | null | undefined;
+    size?: "default" | "sm" | "lg" | "icon" | null | undefined;
     tone?: "default" | "destructive" | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
@@ -83,7 +83,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
 declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
-    padding?: "none" | "sm" | "md" | "lg" | null | undefined;
+    padding?: "sm" | "lg" | "none" | "md" | null | undefined;
     hoverable?: boolean | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
@@ -674,8 +674,9 @@ interface RichTextEditorProps {
     /**
      * Adds tables: an Insert table button (three by three, with a header row),
      * and, while the caret is in a table, controls to add or remove a row or a
-     * column, turn the header row on or off, and delete the table. Tab moves to
-     * the next cell. With `formatting="extended"`, a table pasted from a web
+     * column, turn the header row on or off, and delete the table. Arrow keys
+     * move between cells; Tab leaves the editor, as everywhere else in it. With
+     * `formatting="extended"`, a table pasted from a web
      * page or a document comes in as a table. Sanitize with `tables: true`.
      */
     tables?: boolean;
@@ -712,7 +713,10 @@ interface RichTextViewProps extends Omit<HTMLAttributes<HTMLDivElement>, "childr
     formatting?: RichTextFormatting;
     /** Keep images. Default `true`. */
     images?: boolean;
-    /** Keep tables. Default `true`. */
+    /**
+     * Keep tables. Default `false`, so markup that never went through a table
+     * editor renders as it always has; turn it on where the editor has `tables`.
+     */
     tables?: boolean;
     /**
      * Keep root-relative links and image sources (`/handbook/…`, `/api/files/…`),

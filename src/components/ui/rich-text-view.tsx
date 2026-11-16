@@ -15,7 +15,10 @@ export interface RichTextViewProps
   formatting?: RichTextFormatting;
   /** Keep images. Default `true`. */
   images?: boolean;
-  /** Keep tables. Default `true`. */
+  /**
+   * Keep tables. Default `false`, so markup that never went through a table
+   * editor renders as it always has; turn it on where the editor has `tables`.
+   */
   tables?: boolean;
   /**
    * Keep root-relative links and image sources (`/handbook/…`, `/api/files/…`),
@@ -64,7 +67,7 @@ function selectionHtml(range: Range, root: HTMLElement): string {
  * Size and colour of the body text are the caller's, through `className`.
  */
 export const RichTextView = forwardRef<HTMLDivElement, RichTextViewProps>(
-  ({ html, formatting = "extended", images = true, tables = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
+  ({ html, formatting = "extended", images = true, tables = false, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
     const options = useMemo(() => ({ formatting, images, tables, rootRelative }), [formatting, images, tables, rootRelative]);
     const clean = useMemo(() => sanitizeRichText(html, options), [html, options]);
 

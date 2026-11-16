@@ -4,6 +4,7 @@ import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
+import { isInTable, selectedRect } from "@tiptap/pm/tables";
 import {
   AlignCenter,
   AlignLeft,
@@ -71,6 +72,8 @@ interface Toggle {
   /** `undefined` for an action rather than a toggle: no pressed state. */
   active: boolean | undefined;
   run: (editor: Editor) => void;
+  /** An action that cannot run here, such as deleting a table's only column. */
+  unavailable?: boolean;
 }
 
 const INACTIVE = {
@@ -90,7 +93,23 @@ const INACTIVE = {
   imageAlignment: "center" as ImageAlignment,
   table: false,
   headerRow: false,
+  canDeleteRow: false,
+  canDeleteColumn: false,
 };
+
+/**
+ * Whether deleting the selected rows, or columns, would leave the table any.
+ * prosemirror-tables refuses to delete them all, but only when it runs, so
+ * `editor.can()` says yes and the button would do nothing.
+ */
+function deletable(state: EditorState): { row: boolean; column: boolean } {
+  if (!isInTable(state)) return { row: false, column: false };
+  const rect = selectedRect(state);
+  return {
+    row: !(rect.top === 0 && rect.bottom === rect.map.height),
+    column: !(rect.left === 0 && rect.right === rect.map.width),
+  };
+}
 
 /** Whether the table holding the selection starts with a header row. */
 function inHeaderedTable(state: EditorState): boolean {
@@ -160,6 +179,8 @@ export function RichTextToolbar({
               imageAlignment: ((images && e.getAttributes("image").alignment) || "center") as ImageAlignment,
               table: tables && e.isActive("table"),
               headerRow: tables && inHeaderedTable(e.state),
+              canDeleteRow: tables && deletable(e.state).row,
+              canDeleteColumn: tables && deletable(e.state).column,
             }
           : INACTIVE,
     }) ?? INACTIVE;
@@ -248,12 +269,18 @@ export function RichTextToolbar({
           toggle("table-column", "Add column to the right", BetweenVerticalEnd, undefined, undefined, (e) =>
             e.chain().focus().addColumnAfter().run(),
           ),
-          toggle("table-delete-row", "Delete row", Rows2, undefined, undefined, (e) =>
-            e.chain().focus().deleteRow().run(),
-          ),
-          toggle("table-delete-column", "Delete column", Columns2, undefined, undefined, (e) =>
-            e.chain().focus().deleteColumn().run(),
-          ),
+          {
+            ...toggle("table-delete-row", "Delete row", Rows2, undefined, undefined, (e) =>
+              e.chain().focus().deleteRow().run(),
+            ),
+            unavailable: !active.canDeleteRow,
+          },
+          {
+            ...toggle("table-delete-column", "Delete column", Columns2, undefined, undefined, (e) =>
+              e.chain().focus().deleteColumn().run(),
+            ),
+            unavailable: !active.canDeleteColumn,
+          },
           toggle("table-header", "Header row", PanelTop, undefined, active.headerRow, (e) =>
             e.chain().focus().toggleHeaderRow().run(),
           ),
@@ -267,7 +294,7 @@ export function RichTextToolbar({
   // take focus; the one somebody last focused keeps the Tab stop, or the first
   // enabled one when that is gone (disabled mid-upload, say).
   const order: { key: string; enabled: boolean }[] = [
-    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert && !t.unavailable })),
     { key: "link", enabled: !inert },
     ...(images ? [{ key: "image", enabled: !inert }] : []),
     // A table inside a table is not offered.
@@ -311,7 +338,7 @@ export function RichTextToolbar({
       shortcut={t.shortcut}
       pressed={t.active}
       apple={apple}
-      disabled={inert}
+      disabled={inert || t.unavailable}
       onClick={() => editor && t.run(editor)}
       {...roving(t.key)}
     />

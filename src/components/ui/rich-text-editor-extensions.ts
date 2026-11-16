@@ -161,6 +161,15 @@ const CarbonTable = Table.extend({
   addAttributes() {
     return {};
   },
+  // Tab and Shift-Tab are left to the browser, as in a list: TipTap's would
+  // move between cells and add a row from the last one, so Tab could never
+  // leave the editor. Arrow keys move between cells.
+  addKeyboardShortcuts() {
+    const shortcuts = { ...this.parent?.() };
+    delete shortcuts.Tab;
+    delete shortcuts["Shift-Tab"];
+    return shortcuts;
+  },
   renderHTML({ HTMLAttributes }) {
     return ["table", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), ["tbody", 0]];
   },
