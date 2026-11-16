@@ -98,6 +98,9 @@ export const RICH_TEXT_EXTENDED_TAGS = [
 /** What `RichTextEditor` adds when it is given `uploadImage`. */
 export const RICH_TEXT_IMAGE_TAGS = ["img"] as const;
 
+/** What `RichTextEditor` adds with `tables`. A header row is a row of `th`. */
+export const RICH_TEXT_TABLE_TAGS = ["table", "thead", "tbody", "tr", "th", "td"] as const;
+
 /**
  * Which editor configuration a call is sanitizing for. `basic` (the default) is
  * `RichTextEditor` with no opt-ins; `extended` matches `formatting="extended"`.
@@ -113,6 +116,13 @@ export interface RichTextSanitizeOptions {
   formatting?: RichTextFormatting;
   /** Keeps `<img>`, with an http(s) `src`, an `alt`, a pixel `width` and an alignment, and nothing else. */
   images?: boolean;
+  /**
+   * Keeps tables: `table`, `thead`, `tbody`, `tr`, `th` and `td`, with a
+   * cell's `colspan` and `rowspan` (`safeTableSpan`) and nothing else — no
+   * widths, styles or captions. A row or cell outside a table is dropped and
+   * its text kept.
+   */
+  tables?: boolean;
   /**
    * Also keeps a root-relative `href` or image `src` (`/handbook/…`,
    * `/api/files/…`): a path on the page's own origin. Off by default, because
@@ -132,6 +142,7 @@ export function richTextTags(options: RichTextSanitizeOptions = {}): readonly st
   return [
     ...(options.formatting === "extended" ? RICH_TEXT_EXTENDED_TAGS : RICH_TEXT_TAGS),
     ...(options.images ? RICH_TEXT_IMAGE_TAGS : []),
+    ...(options.tables ? RICH_TEXT_TABLE_TAGS : []),
   ];
 }
 
@@ -152,8 +163,25 @@ const EXTENDED_ALIASES: Record<string, string> = {
   pre: "pre",
 };
 
+/** `tfoot` folds to `tbody`: the editor has no footer row, and its cells are still rows of the table. */
+const TABLE_ALIASES: Record<string, string> = {
+  table: "table",
+  thead: "thead",
+  tbody: "tbody",
+  tfoot: "tbody",
+  tr: "tr",
+  th: "th",
+  td: "td",
+};
+
 /** Emitted self-closing and never pushed onto the open-tag stack. */
 const VOID_TAGS = new Set(["br", "img"]);
+
+/**
+ * Never collapsed when empty: an empty cell still holds its place in the grid,
+ * and dropping it would move every cell after it one column to the left.
+ */
+const KEEP_EMPTY = new Set(["td", "th"]);
 
 /** The alias table and the collapsible tags for one set of options. */
 interface Grammar {
@@ -163,13 +191,14 @@ interface Grammar {
 
 function grammarFor(options: RichTextSanitizeOptions | undefined): Grammar {
   const extended = options?.formatting === "extended";
-  if (!extended && !options?.images) return DEFAULT_GRAMMAR;
+  if (!extended && !options?.images && !options?.tables) return DEFAULT_GRAMMAR;
   const aliases = {
     ...TAG_ALIASES,
     ...(extended ? EXTENDED_ALIASES : {}),
     ...(options?.images ? { img: "img" } : {}),
+    ...(options?.tables ? TABLE_ALIASES : {}),
   };
-  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag));
+  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag) && !KEEP_EMPTY.has(tag));
   return { aliases, empty: emptyElement(collapsible) };
 }
 
@@ -377,6 +406,21 @@ export function safeImageWidth(raw: unknown): number | null {
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
 
+/** The widest or tallest a table cell may span. */
+export const MAX_TABLE_SPAN = 1000;
+
+/**
+ * A cell's `colspan` or `rowspan`: a whole number from 1 to `MAX_TABLE_SPAN`,
+ * or `null` to drop it. Digits only, like `safeImageWidth`. A span of 1 is the
+ * default, so the sanitizer writes only spans above it.
+ */
+export function safeTableSpan(raw: unknown): number | null {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const span = Number(text);
+  return span >= 1 && span <= MAX_TABLE_SPAN ? span : null;
+}
+
 interface OpenTag {
   /** The canonical name that was emitted. */
   name: string;
@@ -496,6 +540,12 @@ export function sanitizeRichText(
   const out: string[] = [];
   const stack: OpenTag[] = [];
   let i = 0;
+
+  /** The open tag nearest the top of the stack whose name is in `names`, or null. */
+  const innermost = (names: ReadonlySet<string>): string | null => {
+    for (let d = stack.length - 1; d >= 0; d--) if (names.has(stack[d].name)) return stack[d].name;
+    return null;
+  };
 
   const closeThrough = (name: string): void => {
     // Scanned by hand rather than with `findLastIndex`, which needs a newer
@@ -617,6 +667,22 @@ export function sanitizeRichText(
       continue;
     }
 
+    // Table parts only inside a table, closing what a browser closes: a row
+    // ends the open row, a cell the open cell, a section the open section.
+    // Outside a table the tag goes and its text stays, as for any other.
+    if (TABLE_PARTS.has(canonical)) {
+      const scope = innermost(TABLE_SCOPE[canonical]);
+      if (scope === null || scope === "table" && CELLS.has(canonical)) continue;
+      if (scope === canonical || (CELLS.has(canonical) && CELLS.has(scope)) || (SECTIONS.has(canonical) && SECTIONS.has(scope))) closeThrough(scope);
+      if (CELLS.has(canonical)) {
+        const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
+        const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
+        out.push(`<${canonical}${colspan && colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan && rowspan > 1 ? ` rowspan="${rowspan}"` : ""}>`);
+        stack.push({ name: canonical });
+        continue;
+      }
+    }
+
     // `<li>` implicitly closes an open `<li>`: browsers allow the shorthand and
     // a paste is full of it, and nesting them would indent every line one step
     // further than the last.
@@ -641,7 +707,23 @@ export function sanitizeRichText(
   return collapseEmpty(out.join(""), empty);
 }
 
-const CLOSES_PARAGRAPH = new Set(["blockquote", "pre", "h1", "h2", "h3"]);
+const CLOSES_PARAGRAPH = new Set(["blockquote", "pre", "h1", "h2", "h3", "table"]);
+
+const CELLS = new Set(["td", "th"]);
+const SECTIONS = new Set(["thead", "tbody"]);
+/** Every table tag but `table` itself, which may open anywhere a block may. */
+const TABLE_PARTS = new Set(["thead", "tbody", "tr", "td", "th"]);
+/**
+ * For each part, the tags that decide where it lands: the nearest of them on
+ * the stack. No `table` among the open tags at all means it is outside one.
+ */
+const TABLE_SCOPE: Record<string, ReadonlySet<string>> = {
+  thead: new Set(["table", "thead", "tbody"]),
+  tbody: new Set(["table", "thead", "tbody"]),
+  tr: new Set(["table", "thead", "tbody", "tr"]),
+  td: new Set(["table", "tr", "td", "th"]),
+  th: new Set(["table", "tr", "td", "th"]),
+};
 
 /**
  * Drop elements left holding nothing.
@@ -678,7 +760,7 @@ export function isRichTextEmpty(html: string | null | undefined): boolean {
   // required-field check on the raw post has to see that. An image the
   // sanitizer keeps is content with no text, so a screenshot-only note is not
   // empty.
-  const stored = sanitizeRichText(html, { formatting: "extended", images: true });
+  const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
   if (/<img\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";

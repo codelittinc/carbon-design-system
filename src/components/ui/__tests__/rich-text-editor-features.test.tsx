@@ -118,6 +118,8 @@ describe("RichTextEditor — output fits the sanitizer, per configuration", () =
     ["basic + images", { uploadImage: async () => null }, { images: true }],
     ["extended + images", { formatting: "extended", uploadImage: async () => null }, { formatting: "extended", images: true }],
     ["extended + link panel", { formatting: "extended", linkPanel: true }, { formatting: "extended" }],
+    ["extended + tables", { formatting: "extended", tables: true }, { formatting: "extended", tables: true }],
+    ["basic + tables", { tables: true }, { tables: true }],
   ];
 
   it.each(configs)("%s", (_name, props, options) => {
@@ -536,5 +538,79 @@ describe("RichTextEditor — insert actions and the insert handle", () => {
     act(() => ref.current?.focus());
     // TipTap focuses on the next animation frame.
     await waitFor(() => expect(editor()).toHaveFocus());
+  });
+});
+
+describe("RichTextEditor — tables", () => {
+  const TABLE = "<table><tbody><tr><th><p>Tool</p></th><th><p>Use</p></th></tr><tr><td><p>Snappt</p></td><td><p>Income</p></td></tr></tbody></table>";
+
+  it("adds an Insert table button only with tables", () => {
+    const { unmount } = render(<Harness formatting="extended" />);
+    expect(screen.queryByRole("button", { name: "Insert table" })).toBeNull();
+    unmount();
+    render(<Harness formatting="extended" tables />);
+    expect(screen.getByRole("button", { name: "Insert table" })).toBeInTheDocument();
+  });
+
+  it("inserts a three-by-three table with a header row, which the sanitizer keeps", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" tables initial="<p>Before</p>" onChange={onChange} />);
+    edit(() => editorOf(editor()).commands.focus("end"));
+    fireEvent.click(screen.getByRole("button", { name: "Insert table" }));
+    const out = onChange.mock.lastCall?.[0] as string;
+    expect(out.match(/<tr>/g)).toHaveLength(3);
+    expect(out.match(/<th>/g)).toHaveLength(3);
+    expect(out.match(/<td>/g)).toHaveLength(6);
+    expect(out).not.toMatch(/colgroup|style=|colwidth/);
+    const options = { formatting: "extended", tables: true } as const;
+    expect(canonical(sanitizeRichText(out, options))).toBe(canonical(out));
+  });
+
+  it("shows the table controls only in a table, and each one edits it", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" tables initial={`<p>Intro</p>${TABLE}`} onChange={onChange} />);
+    const tiptap = editorOf(editor());
+    expect(screen.queryByRole("button", { name: "Add row below" })).toBeNull();
+
+    // Into the first body cell, "Snappt".
+    let cell = -1;
+    tiptap.state.doc.descendants((node, pos) => {
+      if (cell === -1 && node.isText && node.text === "Snappt") cell = pos;
+    });
+    edit(() => tiptap.commands.setTextSelection(cell + 1));
+    expect(screen.getByRole("button", { name: "Insert table" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Header row" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add row below" }));
+    expect((onChange.mock.lastCall?.[0] as string).match(/<tr>/g)).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Add column to the right" }));
+    expect((onChange.mock.lastCall?.[0] as string).match(/<th>/g)).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Delete column" }));
+    expect((onChange.mock.lastCall?.[0] as string).match(/<th>/g)).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Delete row" }));
+    expect((onChange.mock.lastCall?.[0] as string).match(/<tr>/g)).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Header row" }));
+    expect(onChange.mock.lastCall?.[0]).not.toContain("<th>");
+    fireEvent.click(screen.getByRole("button", { name: "Delete table" }));
+    expect(onChange.mock.lastCall?.[0]).toBe("<p>Intro</p>");
+  });
+
+  it("pastes a table from a web page as a table, keeping spans and dropping styles", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" tables onChange={onChange} />);
+    paste(editor(), {
+      "text/html": '<table style="width:100%"><tr><td colspan="2" style="color:red">Wide</td></tr><tr><td>a</td><td>b</td></tr></table>',
+      "text/plain": "Wide\na\tb",
+    });
+    const out = onChange.mock.lastCall?.[0] as string;
+    expect(out).toContain('<td colspan="2"><p>Wide</p></td>');
+    expect(out).not.toContain("style=");
+  });
+
+  it("loads a stored table and emits it unchanged", () => {
+    const onChange = vi.fn();
+    render(<Harness formatting="extended" tables initial={TABLE} onChange={onChange} />);
+    edit(() => editorOf(editor()).commands.insertContentAt(editorOf(editor()).state.doc.content.size, "<p>After</p>"));
+    expect(onChange.mock.lastCall?.[0]).toBe(`${TABLE}<p>After</p>`);
   });
 });

@@ -253,6 +253,25 @@ export const ExtendedFormatting: StoryObj<typeof RichTextEditor> = {
 };
 
 /**
+ * `tables`: Insert table, and while the caret is in a table, controls to add
+ * or remove rows and columns, toggle the header row and delete the table.
+ */
+export const Tables: StoryObj<typeof RichTextEditor> = {
+  render: () => {
+    const { t } = useTranslation("richTextEditor");
+    const [value, setValue] = useState(
+      "<p>Response standards</p><table><tbody><tr><th><p>Timeline</p></th><th><p>Action</p></th></tr>" +
+        "<tr><td><p>2 hours</p></td><td><p>Respond to all new leads</p></td></tr></tbody></table>",
+    );
+    return (
+      <div className="w-[36rem]">
+        <RichTextEditor value={value} onChange={setValue} formatting="extended" tables ariaLabel={t("notesLabel")} />
+      </div>
+    );
+  },
+};
+
+/**
  * `linkPanel`: a popover to add, edit and remove a link, with optional text to
  * show and an inline error. What is typed is normalised: `example.com` gains
  * `https://`, `ana@example.com` becomes a mailto link.

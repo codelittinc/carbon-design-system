@@ -42,3 +42,19 @@ export const ImageAlignment: Story = {
   },
   render: Default.render,
 };
+
+/** Tables: a header row, a spanned cell, and a table wider than the text scrolling sideways. */
+export const Tables: Story = {
+  args: {
+    html: [
+      "<h3>Response standards</h3>",
+      "<table><tbody>",
+      "<tr><th><p>Timeline</p></th><th><p>Action</p></th></tr>",
+      "<tr><td><p>2 hours</p></td><td><p>Respond to all new leads</p></td></tr>",
+      "<tr><td><p>24 hours</p></td><td><p>Tour confirmation call; Snappt follow-ups</p></td></tr>",
+      '<tr><td colspan="2"><p><strong>After hours:</strong> within 2 hours of business open</p></td></tr>',
+      "</tbody></table>",
+    ].join(""),
+  },
+  render: Default.render,
+};

@@ -3,12 +3,17 @@
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
+import type { EditorState } from "@tiptap/pm/state";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  BetweenHorizontalEnd,
+  BetweenVerticalEnd,
   Bold,
   Code,
+  Columns2,
+  Grid2x2X,
   Heading1,
   Heading2,
   Heading3,
@@ -16,8 +21,11 @@ import {
   Link2,
   List,
   ListOrdered,
+  PanelTop,
+  Rows2,
   SquareCode,
   Strikethrough,
+  Table,
   TextQuote,
   WrapText,
   type LucideIcon,
@@ -42,6 +50,7 @@ export interface RichTextToolbarProps {
   editor: Editor | null;
   formatting: RichTextFormatting;
   images: boolean;
+  tables: boolean;
   linkPanel: boolean;
   targets: readonly LinkPanelTarget[];
   insertActions: readonly ToolbarInsertAction[];
@@ -59,7 +68,8 @@ interface Toggle {
   label: string;
   icon: LucideIcon;
   shortcut?: Shortcut;
-  active: boolean;
+  /** `undefined` for an action rather than a toggle: no pressed state. */
+  active: boolean | undefined;
   run: (editor: Editor) => void;
 }
 
@@ -78,14 +88,27 @@ const INACTIVE = {
   link: false,
   image: false,
   imageAlignment: "center" as ImageAlignment,
+  table: false,
+  headerRow: false,
 };
+
+/** Whether the table holding the selection starts with a header row. */
+function inHeaderedTable(state: EditorState): boolean {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    if (node.type.name === "table") return node.firstChild?.firstChild?.type.name === "tableHeader";
+  }
+  return false;
+}
 
 /**
  * The editor's toolbar: `role="toolbar"` with one Tab stop, Left/Right/Home/End
  * between controls (the ARIA toolbar pattern), and Tab on to the text.
  *
  * Controls come in fixed groups — inline, blocks, lists, image alignment (only
- * while an image is selected), insert, actions — so
+ * while an image is selected), table editing (only while the caret is in a
+ * table), insert, actions — so
  * Bold is in the same place in every configuration. The default editor has no
  * separators, so it looks as it always has; once an opt-in adds a control, a
  * separator goes between every pair of non-empty groups.
@@ -94,6 +117,7 @@ export function RichTextToolbar({
   editor,
   formatting,
   images,
+  tables,
   linkPanel,
   targets,
   insertActions,
@@ -134,6 +158,8 @@ export function RichTextToolbar({
               link: e.isActive("link"),
               image: images && e.isActive("image"),
               imageAlignment: ((images && e.getAttributes("image").alignment) || "center") as ImageAlignment,
+              table: tables && e.isActive("table"),
+              headerRow: tables && inHeaderedTable(e.state),
             }
           : INACTIVE,
     }) ?? INACTIVE;
@@ -143,7 +169,7 @@ export function RichTextToolbar({
     label: string,
     icon: LucideIcon,
     shortcut: Shortcut | undefined,
-    isActive: boolean,
+    isActive: boolean | undefined,
     run: (editor: Editor) => void,
   ): Toggle => ({ key, label, icon, shortcut, active: isActive, run });
 
@@ -211,13 +237,41 @@ export function RichTextToolbar({
         )
       : [];
 
+  // Shown while the caret is in a table. The header row is a toggle; the rest
+  // are actions.
+  const tableControls: Toggle[] =
+    tables && active.table
+      ? [
+          toggle("table-row", "Add row below", BetweenHorizontalEnd, undefined, undefined, (e) =>
+            e.chain().focus().addRowAfter().run(),
+          ),
+          toggle("table-column", "Add column to the right", BetweenVerticalEnd, undefined, undefined, (e) =>
+            e.chain().focus().addColumnAfter().run(),
+          ),
+          toggle("table-delete-row", "Delete row", Rows2, undefined, undefined, (e) =>
+            e.chain().focus().deleteRow().run(),
+          ),
+          toggle("table-delete-column", "Delete column", Columns2, undefined, undefined, (e) =>
+            e.chain().focus().deleteColumn().run(),
+          ),
+          toggle("table-header", "Header row", PanelTop, undefined, active.headerRow, (e) =>
+            e.chain().focus().toggleHeaderRow().run(),
+          ),
+          toggle("table-delete", "Delete table", Grid2x2X, undefined, undefined, (e) =>
+            e.chain().focus().deleteTable().run(),
+          ),
+        ]
+      : [];
+
   // Roving tabindex. Every control is listed in DOM order with whether it can
   // take focus; the one somebody last focused keeps the Tab stop, or the first
   // enabled one when that is gone (disabled mid-upload, say).
   const order: { key: string; enabled: boolean }[] = [
-    ...[...inline, ...blocks, ...lists, ...imageAlignment].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert })),
     { key: "link", enabled: !inert },
     ...(images ? [{ key: "image", enabled: !inert }] : []),
+    // A table inside a table is not offered.
+    ...(tables ? [{ key: "table", enabled: !inert && !active.table }] : []),
     ...insertActions.map((_, index) => ({ key: `action-${index}`, enabled: !inert })),
   ];
   const enabledKeys = order.filter((item) => item.enabled).map((item) => item.key);
@@ -304,6 +358,19 @@ export function RichTextToolbar({
           />,
         ]
       : []),
+    ...(tables
+      ? [
+          <ToolbarButton
+            key="table"
+            label="Insert table"
+            icon={Table}
+            apple={apple}
+            disabled={inert || active.table}
+            onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            {...roving("table")}
+          />,
+        ]
+      : []),
   ];
 
   const actionGroup: ReactNode[] = insertActions.map((action, index) => {
@@ -333,9 +400,9 @@ export function RichTextToolbar({
     );
   });
 
-  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), insertGroup, actionGroup]
+  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), tableControls.map(renderToggle), insertGroup, actionGroup]
     .filter((group) => group.length > 0);
-  const separated = extended || images || linkPanel || insertActions.length > 0;
+  const separated = extended || images || tables || linkPanel || insertActions.length > 0;
 
   return (
     <div

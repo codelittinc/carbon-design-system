@@ -9,8 +9,9 @@ import { CodeBlock } from '@tiptap/extension-code-block';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { StarterKit } from '@tiptap/starter-kit';
-import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, WrapText, Link2, Unlink, X } from 'lucide-react';
+import { LoaderCircle, ImagePlus, ChevronDown, Check, Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3, TextQuote, SquareCode, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, WrapText, PanelTop, Link2, Table as Table$1, BetweenHorizontalEnd, BetweenVerticalEnd, Rows2, Columns2, Grid2x2X, Unlink, X } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
@@ -52,10 +53,12 @@ var RICH_TEXT_EXTENDED_TAGS = [
   "pre"
 ];
 var RICH_TEXT_IMAGE_TAGS = ["img"];
+var RICH_TEXT_TABLE_TAGS = ["table", "thead", "tbody", "tr", "th", "td"];
 function richTextTags(options = {}) {
   return [
     ...options.formatting === "extended" ? RICH_TEXT_EXTENDED_TAGS : RICH_TEXT_TAGS,
-    ...options.images ? RICH_TEXT_IMAGE_TAGS : []
+    ...options.images ? RICH_TEXT_IMAGE_TAGS : [],
+    ...options.tables ? RICH_TEXT_TABLE_TAGS : []
   ];
 }
 var EXTENDED_ALIASES = {
@@ -69,14 +72,25 @@ var EXTENDED_ALIASES = {
   code: "code",
   pre: "pre"
 };
+var TABLE_ALIASES = {
+  table: "table",
+  thead: "thead",
+  tbody: "tbody",
+  tfoot: "tbody",
+  tr: "tr",
+  th: "th",
+  td: "td"
+};
 var VOID_TAGS = /* @__PURE__ */ new Set(["br", "img"]);
+var KEEP_EMPTY = /* @__PURE__ */ new Set(["td", "th"]);
 function grammarFor(options) {
   const aliases = {
     ...TAG_ALIASES,
     ...EXTENDED_ALIASES ,
-    ...{ img: "img" } 
+    ...{ img: "img" } ,
+    ...TABLE_ALIASES 
   };
-  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag));
+  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag) && !KEEP_EMPTY.has(tag));
   return { aliases, empty: emptyElement(collapsible) };
 }
 function emptyElement(tags) {
@@ -165,6 +179,13 @@ function safeImageWidth(raw) {
   const width = Number(text);
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
+var MAX_TABLE_SPAN = 1e3;
+function safeTableSpan(raw) {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,4}$/.test(text)) return null;
+  const span = Number(text);
+  return span >= 1 && span <= MAX_TABLE_SPAN ? span : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -224,6 +245,10 @@ function sanitizeRichText(html, options) {
   const out = [];
   const stack = [];
   let i = 0;
+  const innermost = (names) => {
+    for (let d = stack.length - 1; d >= 0; d--) if (names.has(stack[d].name)) return stack[d].name;
+    return null;
+  };
   const closeThrough = (name) => {
     let depth = -1;
     for (let d = stack.length - 1; d >= 0; d--) {
@@ -305,6 +330,18 @@ function sanitizeRichText(html, options) {
       stack.push({ name: "a" });
       continue;
     }
+    if (TABLE_PARTS.has(canonical)) {
+      const scope = innermost(TABLE_SCOPE[canonical]);
+      if (scope === null || scope === "table" && CELLS.has(canonical)) continue;
+      if (scope === canonical || CELLS.has(canonical) && CELLS.has(scope) || SECTIONS.has(canonical) && SECTIONS.has(scope)) closeThrough(scope);
+      if (CELLS.has(canonical)) {
+        const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
+        const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
+        out.push(`<${canonical}${colspan && colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan && rowspan > 1 ? ` rowspan="${rowspan}"` : ""}>`);
+        stack.push({ name: canonical });
+        continue;
+      }
+    }
     if (canonical === "li" && stack.at(-1)?.name === "li") closeThrough("li");
     if (canonical === "p" && stack.some((tag) => tag.name === "p")) closeThrough("p");
     if (CLOSES_PARAGRAPH.has(canonical) && stack.some((tag) => tag.name === "p")) closeThrough("p");
@@ -314,7 +351,17 @@ function sanitizeRichText(html, options) {
   for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
   return collapseEmpty(out.join(""), empty);
 }
-var CLOSES_PARAGRAPH = /* @__PURE__ */ new Set(["blockquote", "pre", "h1", "h2", "h3"]);
+var CLOSES_PARAGRAPH = /* @__PURE__ */ new Set(["blockquote", "pre", "h1", "h2", "h3", "table"]);
+var CELLS = /* @__PURE__ */ new Set(["td", "th"]);
+var SECTIONS = /* @__PURE__ */ new Set(["thead", "tbody"]);
+var TABLE_PARTS = /* @__PURE__ */ new Set(["thead", "tbody", "tr", "td", "th"]);
+var TABLE_SCOPE = {
+  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
+  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody"]),
+  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]),
+  td: /* @__PURE__ */ new Set(["table", "tr", "td", "th"]),
+  th: /* @__PURE__ */ new Set(["table", "tr", "td", "th"])
+};
 function collapseEmpty(html, empty) {
   let previous;
   let current = html;
@@ -326,11 +373,19 @@ function collapseEmpty(html, empty) {
 }
 function isRichTextEmpty(html) {
   if (!html) return true;
-  const stored = sanitizeRichText(html, { formatting: "extended", images: true });
+  const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
   if (/<img\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
+
+// src/lib/rich-text-prose.ts
+var RICH_TEXT_TABLE_PROSE = [
+  "[&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse",
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top [&_td]:min-w-16",
+  "[&_th]:border [&_th]:border-border [&_th]:bg-surface-overlay [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:align-top [&_th]:font-semibold [&_th]:text-text-primary [&_th]:min-w-16",
+  "[&_td_p]:my-0 [&_th_p]:my-0"
+].join(" ");
 
 // src/lib/link-href.ts
 var TARGET_ONLY = /^\{\{\s*([a-z0-9_]+)\s*\}\}$/i;
@@ -468,6 +523,26 @@ var CarbonImage = Image.extend({
     ];
   }
 });
+var CarbonTable = Table.extend({
+  addAttributes() {
+    return {};
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["table", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), ["tbody", 0]];
+  }
+});
+var spanAttributes = () => ({
+  colspan: {
+    default: 1,
+    parseHTML: (element) => safeTableSpan(element.getAttribute("colspan")) ?? 1
+  },
+  rowspan: {
+    default: 1,
+    parseHTML: (element) => safeTableSpan(element.getAttribute("rowspan")) ?? 1
+  }
+});
+var CarbonTableCell = TableCell.extend({ addAttributes: spanAttributes });
+var CarbonTableHeader = TableHeader.extend({ addAttributes: spanAttributes });
 var MIN_IMAGE_RESIZE_WIDTH = 48;
 var HANDLES = ["top-left", "top-right", "bottom-left", "bottom-right"];
 var imageNodeView = ({ node: initial, getPos, editor }) => {
@@ -595,6 +670,9 @@ function buildExtensions(config) {
   if (extended) extensions.push(CarbonCodeBlock);
   if (config.images) {
     extensions.push(CarbonImage.configure({ inline: false, allowBase64: false, resize: false }));
+  }
+  if (config.tables) {
+    extensions.push(CarbonTable.configure({ resizable: false, View: null }), TableRow, CarbonTableHeader, CarbonTableCell);
   }
   return extensions;
 }
@@ -1330,12 +1408,23 @@ var INACTIVE = {
   orderedList: false,
   link: false,
   image: false,
-  imageAlignment: "center"
+  imageAlignment: "center",
+  table: false,
+  headerRow: false
 };
+function inHeaderedTable(state) {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    if (node.type.name === "table") return node.firstChild?.firstChild?.type.name === "tableHeader";
+  }
+  return false;
+}
 function RichTextToolbar({
   editor,
   formatting,
   images,
+  tables,
   linkPanel,
   targets,
   insertActions,
@@ -1367,7 +1456,9 @@ function RichTextToolbar({
       orderedList: e.isActive("orderedList"),
       link: e.isActive("link"),
       image: images && e.isActive("image"),
-      imageAlignment: images && e.getAttributes("image").alignment || "center"
+      imageAlignment: images && e.getAttributes("image").alignment || "center",
+      table: tables && e.isActive("table"),
+      headerRow: tables && inHeaderedTable(e.state)
     } : INACTIVE
   }) ?? INACTIVE;
   const toggle = (key, label, icon, shortcut, isActive, run) => ({ key, label, icon, shortcut, active: isActive, run });
@@ -1475,10 +1566,62 @@ function RichTextToolbar({
       (e) => e.chain().focus().updateAttributes("image", { alignment }).run()
     )
   ) : [];
+  const tableControls = tables && active.table ? [
+    toggle(
+      "table-row",
+      "Add row below",
+      BetweenHorizontalEnd,
+      void 0,
+      void 0,
+      (e) => e.chain().focus().addRowAfter().run()
+    ),
+    toggle(
+      "table-column",
+      "Add column to the right",
+      BetweenVerticalEnd,
+      void 0,
+      void 0,
+      (e) => e.chain().focus().addColumnAfter().run()
+    ),
+    toggle(
+      "table-delete-row",
+      "Delete row",
+      Rows2,
+      void 0,
+      void 0,
+      (e) => e.chain().focus().deleteRow().run()
+    ),
+    toggle(
+      "table-delete-column",
+      "Delete column",
+      Columns2,
+      void 0,
+      void 0,
+      (e) => e.chain().focus().deleteColumn().run()
+    ),
+    toggle(
+      "table-header",
+      "Header row",
+      PanelTop,
+      void 0,
+      active.headerRow,
+      (e) => e.chain().focus().toggleHeaderRow().run()
+    ),
+    toggle(
+      "table-delete",
+      "Delete table",
+      Grid2x2X,
+      void 0,
+      void 0,
+      (e) => e.chain().focus().deleteTable().run()
+    )
+  ] : [];
   const order = [
-    ...[...inline, ...blocks, ...lists, ...imageAlignment].map((t) => ({ key: t.key, enabled: !inert })),
+    ...[...inline, ...blocks, ...lists, ...imageAlignment, ...tableControls].map((t) => ({ key: t.key, enabled: !inert })),
     { key: "link", enabled: !inert },
     ...images ? [{ key: "image", enabled: !inert }] : [],
+    // A table inside a table is not offered.
+    ...tables ? [{ key: "table", enabled: !inert && !active.table }] : [],
     ...insertActions.map((_, index) => ({ key: `action-${index}`, enabled: !inert }))
   ];
   const enabledKeys = order.filter((item) => item.enabled).map((item) => item.key);
@@ -1552,6 +1695,20 @@ function RichTextToolbar({
         },
         "image"
       )
+    ] : [],
+    ...tables ? [
+      /* @__PURE__ */ jsx(
+        ToolbarButton,
+        {
+          label: "Insert table",
+          icon: Table$1,
+          apple,
+          disabled: inert || active.table,
+          onClick: () => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+          ...roving("table")
+        },
+        "table"
+      )
     ] : []
   ];
   const actionGroup = insertActions.map((action, index) => {
@@ -1576,8 +1733,8 @@ function RichTextToolbar({
       /* @__PURE__ */ jsx(TooltipContent, { side: "top", className: "max-w-xs break-words", children: action.title })
     ] }, `action-${index}`);
   });
-  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), insertGroup, actionGroup].filter((group) => group.length > 0);
-  const separated = extended || images || linkPanel || insertActions.length > 0;
+  const groups = [inline.map(renderToggle), blocks.map(renderToggle), lists.map(renderToggle), imageAlignment.map(renderToggle), tableControls.map(renderToggle), insertGroup, actionGroup].filter((group) => group.length > 0);
+  const separated = extended || images || tables || linkPanel || insertActions.length > 0;
   return /* @__PURE__ */ jsx(
     "div",
     {
@@ -1646,7 +1803,10 @@ var SURFACE = cn(
   "[&_[data-resize-handle=bottom-right]]:translate-x-1/2 [&_[data-resize-handle=bottom-right]]:translate-y-1/2 [&_[data-resize-handle=bottom-right]]:cursor-nwse-resize",
   "[&_[data-resize-container]:hover_[data-resize-handle]]:opacity-100 [&_.ProseMirror-selectednode_[data-resize-handle]]:opacity-100 [&_[data-resize-state=true]_[data-resize-handle]]:opacity-100",
   // The handles stay in the DOM; a surface that is not editable hides them.
-  "[&[contenteditable=false]_[data-resize-handle]]:hidden"
+  "[&[contenteditable=false]_[data-resize-handle]]:hidden",
+  // Tables as RICH_TEXT_PROSE draws them, plus the cells a drag selects.
+  RICH_TEXT_TABLE_PROSE,
+  "[&_.selectedCell]:bg-accent/10"
 );
 function onlyFiles(data) {
   if (!data || data.files.length === 0) return false;
@@ -1693,6 +1853,7 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
   invalid = false,
   formatting = "basic",
   uploadImage,
+  tables = false,
   linkPanel,
   insertActions,
   acceptPlainText = false
@@ -1700,6 +1861,7 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
   const [capabilities] = useState(() => ({
     formatting,
     images: uploadImage !== void 0,
+    tables,
     linkPanel: linkPanel !== void 0 && linkPanel !== false,
     targets: (typeof linkPanel === "object" ? linkPanel.targets : void 0) ?? []
   }));
@@ -1720,6 +1882,7 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
     () => buildExtensions({
       formatting: capabilities.formatting,
       images: capabilities.images,
+      tables: capabilities.tables,
       linkPanel: capabilities.linkPanel,
       onLinkShortcut: () => openLinkRef.current()
     })
@@ -1832,6 +1995,7 @@ var RichTextEditorImpl = forwardRef(function RichTextEditor({
             editor,
             formatting: capabilities.formatting,
             images: capabilities.images,
+            tables: capabilities.tables,
             linkPanel: capabilities.linkPanel,
             targets: capabilities.targets,
             insertActions: insertActions ?? [],

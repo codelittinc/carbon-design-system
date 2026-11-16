@@ -15,6 +15,8 @@ export interface RichTextViewProps
   formatting?: RichTextFormatting;
   /** Keep images. Default `true`. */
   images?: boolean;
+  /** Keep tables. Default `true`. */
+  tables?: boolean;
   /**
    * Keep root-relative links and image sources (`/handbook/…`, `/api/files/…`),
    * for markup an app sanitized on its server and resolved to its own routes.
@@ -62,8 +64,8 @@ function selectionHtml(range: Range, root: HTMLElement): string {
  * Size and colour of the body text are the caller's, through `className`.
  */
 export const RichTextView = forwardRef<HTMLDivElement, RichTextViewProps>(
-  ({ html, formatting = "extended", images = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
-    const options = useMemo(() => ({ formatting, images, rootRelative }), [formatting, images, rootRelative]);
+  ({ html, formatting = "extended", images = true, tables = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
+    const options = useMemo(() => ({ formatting, images, tables, rootRelative }), [formatting, images, tables, rootRelative]);
     const clean = useMemo(() => sanitizeRichText(html, options), [html, options]);
 
     function copy(event: ClipboardEvent<HTMLDivElement>) {
@@ -78,7 +80,7 @@ export const RichTextView = forwardRef<HTMLDivElement, RichTextViewProps>(
         return;
       // Absolute URLs by now, so the copy is sanitized without `rootRelative`.
       const markup = selectionHtml(selection.getRangeAt(0), root);
-      event.clipboardData.setData("text/html", sanitizeRichText(markup, { formatting, images }));
+      event.clipboardData.setData("text/html", sanitizeRichText(markup, { formatting, images, tables }));
       event.clipboardData.setData("text/plain", selection.toString());
       event.preventDefault();
     }

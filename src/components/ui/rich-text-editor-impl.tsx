@@ -6,6 +6,7 @@ import { Fragment as PMFragment, Slice, type Node as PMNode } from "@tiptap/pm/m
 import type { EditorView } from "@tiptap/pm/view";
 import { cn } from "@/lib/cn";
 import { isRichTextEmpty, type RichTextFormatting } from "@/lib/rich-text";
+import { RICH_TEXT_TABLE_PROSE } from "@/lib/rich-text-prose";
 import { buildExtensions } from "./rich-text-editor-extensions";
 import { RichTextToolbar } from "./rich-text-editor-toolbar";
 import { dropPlaceholderBreaks, fromEditorHtml, toEditorHtml } from "./rich-text-editor-value";
@@ -99,6 +100,14 @@ export interface RichTextEditorProps {
    */
   uploadImage?: (file: File) => Promise<string | null>;
   /**
+   * Adds tables: an Insert table button (three by three, with a header row),
+   * and, while the caret is in a table, controls to add or remove a row or a
+   * column, turn the header row on or off, and delete the table. Tab moves to
+   * the next cell. With `formatting="extended"`, a table pasted from a web
+   * page or a document comes in as a table. Sanitize with `tables: true`.
+   */
+  tables?: boolean;
+  /**
    * The full link panel instead of the inline link row: a "Text to show" field,
    * an inline error, URL normalisation (`normalizeLinkHref`), autolink as you
    * type, and optional link `targets`.
@@ -144,6 +153,9 @@ const SURFACE = cn(
   "[&_[data-resize-container]:hover_[data-resize-handle]]:opacity-100 [&_.ProseMirror-selectednode_[data-resize-handle]]:opacity-100 [&_[data-resize-state=true]_[data-resize-handle]]:opacity-100",
   // The handles stay in the DOM; a surface that is not editable hides them.
   "[&[contenteditable=false]_[data-resize-handle]]:hidden",
+  // Tables as RICH_TEXT_PROSE draws them, plus the cells a drag selects.
+  RICH_TEXT_TABLE_PROSE,
+  "[&_.selectedCell]:bg-accent/10",
 );
 
 /** Has the clipboard or drop got files and nothing to read as text? */
@@ -224,7 +236,7 @@ function pastePlainText(view: EditorView, text: string): void {
  * and it is a separate server-safe entry precisely so the *server* can call it.
  * The full contract is documented there. The one thing to carry over here: the
  * editor's schema produces exactly the tags `sanitizeRichText` allows for the
- * same `formatting` and `images` options, so nothing a user types through this
+ * same `formatting`, `images` and `tables` options, so nothing a user types through this
  * UI is lost on the way to the database.
  *
  * ## Built on TipTap
@@ -256,6 +268,7 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
     invalid = false,
     formatting = "basic",
     uploadImage,
+    tables = false,
     linkPanel,
     insertActions,
     acceptPlainText = false,
@@ -266,6 +279,7 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
   const [capabilities] = useState(() => ({
     formatting,
     images: uploadImage !== undefined,
+    tables,
     linkPanel: linkPanel !== undefined && linkPanel !== false,
     targets: (typeof linkPanel === "object" ? linkPanel.targets : undefined) ?? [],
   }));
@@ -299,6 +313,7 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
     buildExtensions({
       formatting: capabilities.formatting,
       images: capabilities.images,
+      tables: capabilities.tables,
       linkPanel: capabilities.linkPanel,
       onLinkShortcut: () => openLinkRef.current(),
     }),
@@ -420,6 +435,7 @@ export const RichTextEditorImpl = forwardRef<RichTextEditorHandle, RichTextEdito
           editor={editor}
           formatting={capabilities.formatting}
           images={capabilities.images}
+          tables={capabilities.tables}
           linkPanel={capabilities.linkPanel}
           targets={capabilities.targets}
           insertActions={insertActions ?? []}
