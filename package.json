@@ -1,6 +1,6 @@
 {
   "name": "@codelittinc/carbon-design-system",
-  "version": "1.46.0",
+  "version": "1.47.0",
   "description": "CarbonOS Design System — Refined Carbon. Shared React UI components and design tokens.",
   "type": "module",
   "license": "MIT",
@@ -83,6 +83,7 @@
     "@tiptap/extension-image": "^3.33.1",
     "@tiptap/extension-link": "^3.33.1",
     "@tiptap/extension-list": "^3.33.1",
+    "@tiptap/extension-table": "^3.33.1",
     "@tiptap/pm": "^3.33.1",
     "@tiptap/react": "^3.33.1",
     "@tiptap/starter-kit": "^3.33.1",

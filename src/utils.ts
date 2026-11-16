@@ -42,6 +42,9 @@ export {
   RICH_TEXT_TAGS,
   RICH_TEXT_EXTENDED_TAGS,
   RICH_TEXT_IMAGE_TAGS,
+  RICH_TEXT_TABLE_TAGS,
+  MAX_TABLE_SPAN,
+  safeTableSpan,
   isRichTextEmpty,
   richTextTags,
   safeHref,
@@ -53,7 +56,7 @@ export {
   type RichTextFormatting,
   type RichTextSanitizeOptions,
 } from "./lib/rich-text";
-export { RICH_TEXT_PROSE } from "./lib/rich-text-prose";
+export { RICH_TEXT_PROSE, RICH_TEXT_TABLE_PROSE } from "./lib/rich-text-prose";
 export {
   isAllowedEditorHref,
   linkHrefErrorMessage,

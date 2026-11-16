@@ -21,6 +21,14 @@ describe("RichTextView", () => {
     expect(img.style.cssFloat).toBe("left");
   });
 
+  it("keeps tables only when asked, so markup from other editors renders as before", () => {
+    const html = "<table><tr><td>a</td><td>b</td></tr></table>";
+    const { container, rerender } = render(<RichTextView html={html} />);
+    expect(container.firstElementChild?.innerHTML).toBe("ab");
+    rerender(<RichTextView html={html} tables />);
+    expect(container.querySelector("table")).not.toBeNull();
+  });
+
   it("drops images and extended tags when the configuration says so", () => {
     const { container } = render(
       <RichTextView formatting="basic" images={false} html={'<h2>T</h2><img src="https://x.com/a.png" alt="">'} />,

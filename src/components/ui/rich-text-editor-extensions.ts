@@ -3,6 +3,7 @@ import { CodeBlock } from "@tiptap/extension-code-block";
 import { Image } from "@tiptap/extension-image";
 import { Link } from "@tiptap/extension-link";
 import { ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
+import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import { StarterKit } from "@tiptap/starter-kit";
 import { isAllowedEditorHref } from "@/lib/link-href";
 import {
@@ -11,6 +12,7 @@ import {
   safeImageAlignment,
   safeImageSrc,
   safeImageWidth,
+  safeTableSpan,
   type RichTextFormatting,
 } from "@/lib/rich-text";
 
@@ -27,6 +29,7 @@ import {
 export interface EditorSchemaConfig {
   formatting: RichTextFormatting;
   images: boolean;
+  tables: boolean;
   /** The full link panel: autolink as you type and link-on-paste come with it. */
   linkPanel: boolean;
   /** Cmd/Ctrl+K. Read through a ref by the caller, so it is always current. */
@@ -148,6 +151,47 @@ const CarbonImage = Image.extend({
     ];
   },
 });
+
+/**
+ * A table is `<table><tbody>` and rows of cells, nothing else: no `<colgroup>`,
+ * no inline width and no node view (which would draw both), since every
+ * sanitizer drops them. A header row is a row of `<th>`.
+ */
+const CarbonTable = Table.extend({
+  addAttributes() {
+    return {};
+  },
+  // Tab and Shift-Tab are left to the browser, as in a list: TipTap's would
+  // move between cells and add a row from the last one, so Tab could never
+  // leave the editor. Arrow keys move between cells.
+  addKeyboardShortcuts() {
+    const shortcuts = { ...this.parent?.() };
+    delete shortcuts.Tab;
+    delete shortcuts["Shift-Tab"];
+    return shortcuts;
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["table", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), ["tbody", 0]];
+  },
+});
+
+/**
+ * A cell keeps its spans, as `safeTableSpan` keeps them, and nothing else: no
+ * column width (resizing is off) and no alignment style. TipTap leaves a span
+ * of 1 out of the markup, as the sanitizer does.
+ */
+const spanAttributes = () => ({
+  colspan: {
+    default: 1,
+    parseHTML: (element: HTMLElement) => safeTableSpan(element.getAttribute("colspan")) ?? 1,
+  },
+  rowspan: {
+    default: 1,
+    parseHTML: (element: HTMLElement) => safeTableSpan(element.getAttribute("rowspan")) ?? 1,
+  },
+});
+const CarbonTableCell = TableCell.extend({ addAttributes: spanAttributes });
+const CarbonTableHeader = TableHeader.extend({ addAttributes: spanAttributes });
 
 /** The narrowest an image can be dragged to, in CSS pixels. */
 export const MIN_IMAGE_RESIZE_WIDTH = 48;
@@ -310,6 +354,9 @@ export function buildExtensions(config: EditorSchemaConfig): AnyExtension[] {
   if (extended) extensions.push(CarbonCodeBlock);
   if (config.images) {
     extensions.push(CarbonImage.configure({ inline: false, allowBase64: false, resize: false }));
+  }
+  if (config.tables) {
+    extensions.push(CarbonTable.configure({ resizable: false, View: null }), TableRow, CarbonTableHeader, CarbonTableCell);
   }
   return extensions;
 }

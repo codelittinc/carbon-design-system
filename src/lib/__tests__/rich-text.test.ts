@@ -5,6 +5,8 @@ import {
   RICH_TEXT_TAGS,
   isRichTextEmpty,
   richTextTags,
+  RICH_TEXT_TABLE_TAGS,
+  safeTableSpan,
   safeHref,
   sanitizeRichText,
   type RichTextSanitizeOptions,
@@ -473,6 +475,8 @@ describe("sanitizeRichText options", () => {
     ["extended", EXTENDED],
     ["images", IMAGES],
     ["extended + images", { ...EXTENDED, ...IMAGES }],
+    ["tables", { tables: true }],
+    ["extended + images + tables", { ...EXTENDED, ...IMAGES, tables: true }],
   ])("keeps only the tags of its configuration (%s)", (_name, options) => {
     const allowed = new Set(richTextTags(options));
     for (const tag of tagsOf(sanitizeRichText(EVERYTHING, options))) {
@@ -597,6 +601,8 @@ describe("sanitizeRichText options", () => {
     ["extended", EXTENDED],
     ["images", IMAGES],
     ["both", { ...EXTENDED, ...IMAGES }],
+    ["tables", { tables: true }],
+    ["all three", { ...EXTENDED, ...IMAGES, tables: true }],
   ])("is idempotent with options (%s)", (_name, options) => {
     const once = sanitizeRichText(EVERYTHING, options);
     expect(sanitizeRichText(once, options)).toBe(once);
@@ -610,6 +616,7 @@ describe("sanitizeRichText options", () => {
     expect(richTextTags()).toEqual([...RICH_TEXT_TAGS]);
     expect(richTextTags(EXTENDED)).toEqual([...RICH_TEXT_EXTENDED_TAGS]);
     expect(richTextTags({ ...EXTENDED, ...IMAGES })).toEqual([...RICH_TEXT_EXTENDED_TAGS, ...RICH_TEXT_IMAGE_TAGS]);
+    expect(richTextTags({ ...EXTENDED, tables: true })).toEqual([...RICH_TEXT_EXTENDED_TAGS, ...RICH_TEXT_TABLE_TAGS]);
   });
 
   it("counts an image as content, so an image-only note is not saved as empty", () => {
@@ -632,3 +639,99 @@ describe("sanitizeRichText options", () => {
   });
 });
 
+
+describe("sanitizeRichText tables", () => {
+  const TABLES = { formatting: "extended", tables: true } as const;
+
+  it("keeps a table with a header row, as the editor writes it", () => {
+    const html =
+      "<table><tbody><tr><th><p>Tool</p></th><th><p>Use</p></th></tr>" +
+      "<tr><td><p>Snappt</p></td><td><p>Verifies <strong>income</strong></p></td></tr></tbody></table>";
+    expect(sanitizeRichText(html, TABLES)).toBe(html);
+  });
+
+  it("keeps spans above 1 and nothing else from a cell or the table", () => {
+    expect(
+      sanitizeRichText(
+        '<table style="width:900px" class="x" border="1"><colgroup><col width="40"></colgroup><tbody>' +
+          '<tr><td colspan="2" rowspan="1" style="color:red" data-colwidth="40" onclick="x()">a</td><th colspan="0" rowspan="1e3">b</th></tr>' +
+          "</tbody></table>",
+        TABLES,
+      ),
+    ).toBe('<table><tbody><tr><td colspan="2">a</td><th>b</th></tr></tbody></table>');
+  });
+
+  it("closes cells, rows and sections the way a browser does", () => {
+    expect(sanitizeRichText("<table><tr><td>a<td>b<tr><th>c</table>", TABLES)).toBe(
+      "<table><tr><td>a</td><td>b</td></tr><tr><th>c</th></tr></table>",
+    );
+    expect(sanitizeRichText("<table><thead><tr><th>h<tbody><tr><td>d<tfoot><tr><td>f</table>", TABLES)).toBe(
+      "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>d</td></tr></tbody><tbody><tr><td>f</td></tr></tbody></table>",
+    );
+  });
+
+  it("drops a row or cell outside a table and keeps its text", () => {
+    expect(sanitizeRichText("<p>a</p><tr><td>loose</td></tr>", TABLES)).toBe("<p>a</p>loose");
+  });
+
+  it("gives a cell with no row the row a browser would", () => {
+    expect(sanitizeRichText("<table><td>a</td><td>b</td></table>", TABLES)).toBe("<table><tr><td>a</td><td>b</td></tr></table>");
+    expect(sanitizeRichText("<table><tbody><th>h</th></tbody></table>", TABLES)).toBe(
+      "<table><tbody><tr><th>h</th></tr></tbody></table>",
+    );
+  });
+
+  it("ends the open cell and row when a section or row starts without closing tags", () => {
+    expect(sanitizeRichText("<table><tr><td>a<tbody><tr><td>b</table>", TABLES)).toBe(
+      "<table><tr><td>a</td></tr><tbody><tr><td>b</td></tr></tbody></table>",
+    );
+    expect(sanitizeRichText("<table><tbody><tr><td><p>a<tr><td>b</table>", TABLES)).toBe(
+      "<table><tbody><tr><td><p>a</p></td></tr><tr><td>b</td></tr></tbody></table>",
+    );
+  });
+
+  it("does not close a table to end a link opened outside it", () => {
+    expect(
+      sanitizeRichText('<a href="https://x.com"><table><tr><td><a href="https://y.com">y</a></td><td>z</td></tr></table></a>', TABLES),
+    ).toBe(
+      '<a href="https://x.com" target="_blank" rel="noopener noreferrer"><table><tr><td><a href="https://y.com" target="_blank" rel="noopener noreferrer">y</a></td><td>z</td></tr></table></a>',
+    );
+  });
+
+  it("ends an open paragraph when a table starts", () => {
+    expect(sanitizeRichText("<p>before<table><tr><td>x</td></tr></table>", TABLES)).toBe(
+      "<p>before</p><table><tr><td>x</td></tr></table>",
+    );
+  });
+
+  it("keeps an empty cell, so the cells after it stay in their columns", () => {
+    expect(sanitizeRichText("<table><tr><td></td><td>x</td></tr></table>", TABLES)).toBe(
+      "<table><tr><td></td><td>x</td></tr></table>",
+    );
+    expect(sanitizeRichText("<table><tr></tr></table>", TABLES)).toBe("");
+  });
+
+  it("keeps a table nested in a cell", () => {
+    const html = "<table><tr><td><table><tr><td>inner</td></tr></table></td><td>outer</td></tr></table>";
+    expect(sanitizeRichText(html, TABLES)).toBe(html);
+  });
+
+  it("without the option keeps the text and drops the table, as before", () => {
+    expect(sanitizeRichText("<table><tr><td>a</td><td>b</td></tr></table>", { formatting: "extended" })).toBe("ab");
+  });
+
+  it("reads a span as a whole number from 1 to 50", () => {
+    expect(safeTableSpan("2")).toBe(2);
+    expect(safeTableSpan(" 50 ")).toBe(50);
+    for (const bad of ["0", "51", "1000", "2.5", "-1", "2px", "", null, undefined]) expect(safeTableSpan(bad)).toBeNull();
+  });
+
+  it("counts a table as content, even with every cell blank", () => {
+    expect(isRichTextEmpty("<table><tr><td>x</td></tr></table>")).toBe(false);
+    expect(isRichTextEmpty("<table><tbody><tr><th><p></p></th></tr><tr><td><p><br></p></td></tr></tbody></table>")).toBe(false);
+  });
+
+  it("exposes its tags", () => {
+    expect(RICH_TEXT_TABLE_TAGS).toEqual(["table", "thead", "tbody", "tr", "th", "td"]);
+  });
+});

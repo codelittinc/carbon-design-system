@@ -1,4 +1,17 @@
 /**
+ * Tables: bordered cells, a tinted header row, and a table wider than the text
+ * scrolls sideways inside it instead of widening the page (`display: block`
+ * on the table, so a phone can still read every column). Shared with the
+ * editor's surface, so a table looks the same written as read.
+ */
+export const RICH_TEXT_TABLE_PROSE = [
+  "[&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse",
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top [&_td]:min-w-16",
+  "[&_th]:border [&_th]:border-border [&_th]:bg-surface-overlay [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:align-top [&_th]:font-semibold [&_th]:text-text-primary [&_th]:min-w-16",
+  "[&_td_p]:my-0 [&_th_p]:my-0",
+].join(" ");
+
+/**
  * How stored rich text reads. Exported so an app can put the same classes on a
  * `RichTextEditor` and have a document look the same being written as it does
  * being read. Semantic tokens only, so it holds in both themes.
@@ -28,4 +41,5 @@ export const RICH_TEXT_PROSE = [
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-text-primary",
   "[&_img]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg",
+  RICH_TEXT_TABLE_PROSE,
 ].join(" ");

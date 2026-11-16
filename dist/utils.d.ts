@@ -75,6 +75,8 @@ declare const RICH_TEXT_TAGS: readonly ["p", "br", "strong", "em", "u", "s", "ul
 declare const RICH_TEXT_EXTENDED_TAGS: readonly ["p", "br", "strong", "em", "u", "s", "ul", "ol", "li", "a", "h1", "h2", "h3", "blockquote", "code", "pre"];
 /** What `RichTextEditor` adds when it is given `uploadImage`. */
 declare const RICH_TEXT_IMAGE_TAGS: readonly ["img"];
+/** What `RichTextEditor` adds with `tables`. A header row is a row of `th`. */
+declare const RICH_TEXT_TABLE_TAGS: readonly ["table", "thead", "tbody", "tr", "th", "td"];
 /**
  * Which editor configuration a call is sanitizing for. `basic` (the default) is
  * `RichTextEditor` with no opt-ins; `extended` matches `formatting="extended"`.
@@ -89,6 +91,14 @@ interface RichTextSanitizeOptions {
     formatting?: RichTextFormatting;
     /** Keeps `<img>`, with an http(s) `src`, an `alt`, a pixel `width` and an alignment, and nothing else. */
     images?: boolean;
+    /**
+     * Keeps tables: `table`, `thead`, `tbody`, `tr`, `th` and `td`, with a
+     * cell's `colspan` and `rowspan` (`safeTableSpan`) and nothing else — no
+     * widths, styles or captions. Cells, rows and sections close and open as a
+     * browser does: a cell with no row gets one. A row or cell outside any table
+     * is dropped and its text kept.
+     */
+    tables?: boolean;
     /**
      * Also keeps a root-relative `href` or image `src` (`/handbook/…`,
      * `/api/files/…`): a path on the page's own origin. Off by default, because
@@ -145,6 +155,18 @@ declare function imageAlignmentAttributes(raw: unknown): {
     "data-align"?: ImageAlignment;
     style?: string;
 };
+/**
+ * The widest or tallest a table cell may span. Small on purpose: the editor
+ * pads every other row out to a spanned width, so a pasted span of 1000 would
+ * add 1000 empty cells to each row.
+ */
+declare const MAX_TABLE_SPAN = 50;
+/**
+ * A cell's `colspan` or `rowspan`: a whole number from 1 to `MAX_TABLE_SPAN`,
+ * or `null` to drop it. Digits only, like `safeImageWidth`. A span of 1 is the
+ * default, so the sanitizer writes only spans above it.
+ */
+declare function safeTableSpan(raw: unknown): number | null;
 /**
  * Reduce arbitrary HTML to the rich-text subset, by re-emitting it.
  *
@@ -274,6 +296,13 @@ interface CategoricalSegment {
 declare function getCategoricalSegments(ids: number[]): CategoricalSegment[];
 
 /**
+ * Tables: bordered cells, a tinted header row, and a table wider than the text
+ * scrolls sideways inside it instead of widening the page (`display: block`
+ * on the table, so a phone can still read every column). Shared with the
+ * editor's surface, so a table looks the same written as read.
+ */
+declare const RICH_TEXT_TABLE_PROSE: string;
+/**
  * How stored rich text reads. Exported so an app can put the same classes on a
  * `RichTextEditor` and have a document look the same being written as it does
  * being read. Semantic tokens only, so it holds in both themes.
@@ -324,5 +353,5 @@ declare function themeScript({ defaultTheme }?: ThemeScriptOptions): string;
  */
 declare const THEME_SCRIPT: string;
 
-export { CATEGORICAL_PALETTE, IMAGE_ALIGNMENTS, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, THEME_SCRIPT, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, themeScript };
+export { CATEGORICAL_PALETTE, IMAGE_ALIGNMENTS, MAX_CHIP_SEGMENTS, MAX_TABLE_SPAN, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TABLE_PROSE, RICH_TEXT_TABLE_TAGS, RICH_TEXT_TAGS, THEME_SCRIPT, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, safeImageAlignment, safeTableSpan, sanitizeRichText, themeScript };
 export type { CategoricalSegment, ImageAlignment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, RichTextFormatting, RichTextSanitizeOptions, Theme, ThemeScriptOptions };

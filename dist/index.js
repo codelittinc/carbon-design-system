@@ -183,10 +183,12 @@ var RICH_TEXT_EXTENDED_TAGS = [
   "pre"
 ];
 var RICH_TEXT_IMAGE_TAGS = ["img"];
+var RICH_TEXT_TABLE_TAGS = ["table", "thead", "tbody", "tr", "th", "td"];
 function richTextTags(options = {}) {
   return [
     ...options.formatting === "extended" ? RICH_TEXT_EXTENDED_TAGS : RICH_TEXT_TAGS,
-    ...options.images ? RICH_TEXT_IMAGE_TAGS : []
+    ...options.images ? RICH_TEXT_IMAGE_TAGS : [],
+    ...options.tables ? RICH_TEXT_TABLE_TAGS : []
   ];
 }
 var EXTENDED_ALIASES = {
@@ -200,16 +202,27 @@ var EXTENDED_ALIASES = {
   code: "code",
   pre: "pre"
 };
+var TABLE_ALIASES = {
+  table: "table",
+  thead: "thead",
+  tbody: "tbody",
+  tfoot: "tbody",
+  tr: "tr",
+  th: "th",
+  td: "td"
+};
 var VOID_TAGS = /* @__PURE__ */ new Set(["br", "img"]);
+var KEEP_EMPTY = /* @__PURE__ */ new Set(["td", "th"]);
 function grammarFor(options) {
   const extended = options?.formatting === "extended";
-  if (!extended && !options?.images) return DEFAULT_GRAMMAR;
+  if (!extended && !options?.images && !options?.tables) return DEFAULT_GRAMMAR;
   const aliases = {
     ...TAG_ALIASES,
     ...extended ? EXTENDED_ALIASES : {},
-    ...options?.images ? { img: "img" } : {}
+    ...options?.images ? { img: "img" } : {},
+    ...options?.tables ? TABLE_ALIASES : {}
   };
-  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag));
+  const collapsible = richTextTags(options).filter((tag) => !VOID_TAGS.has(tag) && !KEEP_EMPTY.has(tag));
   return { aliases, empty: emptyElement(collapsible) };
 }
 function emptyElement(tags) {
@@ -299,6 +312,13 @@ function safeImageWidth(raw) {
   const width = Number(text);
   return width >= 1 && width <= MAX_IMAGE_WIDTH ? width : null;
 }
+var MAX_TABLE_SPAN = 50;
+function safeTableSpan(raw) {
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{1,3}$/.test(text)) return null;
+  const span2 = Number(text);
+  return span2 >= 1 && span2 <= MAX_TABLE_SPAN ? span2 : null;
+}
 function readTag(html, from) {
   const attrs = {};
   let i = from;
@@ -358,6 +378,19 @@ function sanitizeRichText(html, options) {
   const out = [];
   const stack = [];
   let i = 0;
+  const innermost = (names) => {
+    for (let d = stack.length - 1; d >= 0; d--) if (names.has(stack[d].name)) return stack[d].name;
+    return null;
+  };
+  const closeAbove = (name) => {
+    for (let d = stack.length - 1; d >= 0; d--) {
+      if (stack[d].name === name) {
+        for (let e = stack.length - 1; e > d; e--) out.push(`</${stack[e].name}>`);
+        stack.length = d + 1;
+        return;
+      }
+    }
+  };
   const closeThrough = (name) => {
     let depth = -1;
     for (let d = stack.length - 1; d >= 0; d--) {
@@ -432,12 +465,35 @@ function sanitizeRichText(html, options) {
       continue;
     }
     if (canonical === "a") {
-      if (stack.some((tag) => tag.name === "a")) closeThrough("a");
+      if (innermost(ANCHOR_SCOPE) === "a") closeThrough("a");
       const href = safeHref(attrs.href ?? "") ?? (options?.rootRelative ? safeRootRelativeUrl(attrs.href ?? "") : null);
       if (href === null) continue;
       out.push(`<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`);
       stack.push({ name: "a" });
       continue;
+    }
+    if (TABLE_PARTS.has(canonical)) {
+      const scope = innermost(TABLE_SCOPE[canonical]);
+      if (scope === null) continue;
+      if (SECTIONS.has(canonical)) {
+        if (SECTIONS.has(scope)) closeThrough(scope);
+        else closeAbove("table");
+      } else if (canonical === "tr") {
+        if (scope === "tr" || CELLS.has(scope)) closeThrough("tr");
+      } else {
+        if (CELLS.has(scope)) closeThrough(scope);
+        if (innermost(ROW_OR_GROUP) !== "tr") {
+          out.push("<tr>");
+          stack.push({ name: "tr" });
+        }
+      }
+      if (CELLS.has(canonical)) {
+        const colspan = safeTableSpan(decodeEntities(attrs.colspan ?? ""));
+        const rowspan = safeTableSpan(decodeEntities(attrs.rowspan ?? ""));
+        out.push(`<${canonical}${colspan && colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan && rowspan > 1 ? ` rowspan="${rowspan}"` : ""}>`);
+        stack.push({ name: canonical });
+        continue;
+      }
     }
     if (canonical === "li" && stack.at(-1)?.name === "li") closeThrough("li");
     if (canonical === "p" && stack.some((tag) => tag.name === "p")) closeThrough("p");
@@ -448,7 +504,19 @@ function sanitizeRichText(html, options) {
   for (let d = stack.length - 1; d >= 0; d--) out.push(`</${stack[d].name}>`);
   return collapseEmpty(out.join(""), empty);
 }
-var CLOSES_PARAGRAPH = /* @__PURE__ */ new Set(["blockquote", "pre", "h1", "h2", "h3"]);
+var CLOSES_PARAGRAPH = /* @__PURE__ */ new Set(["blockquote", "pre", "h1", "h2", "h3", "table"]);
+var CELLS = /* @__PURE__ */ new Set(["td", "th"]);
+var SECTIONS = /* @__PURE__ */ new Set(["thead", "tbody"]);
+var TABLE_PARTS = /* @__PURE__ */ new Set(["thead", "tbody", "tr", "td", "th"]);
+var TABLE_SCOPE = {
+  thead: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tbody: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  tr: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  td: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"]),
+  th: /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr", "td", "th"])
+};
+var ROW_OR_GROUP = /* @__PURE__ */ new Set(["table", "thead", "tbody", "tr"]);
+var ANCHOR_SCOPE = /* @__PURE__ */ new Set(["a", "td", "th"]);
 function collapseEmpty(html, empty) {
   let previous;
   let current = html;
@@ -460,8 +528,8 @@ function collapseEmpty(html, empty) {
 }
 function isRichTextEmpty(html) {
   if (!html) return true;
-  const stored = sanitizeRichText(html, { formatting: "extended", images: true });
-  if (/<img\b/.test(stored)) return false;
+  const stored = sanitizeRichText(html, { formatting: "extended", images: true, tables: true });
+  if (/<(img|table)\b/.test(stored)) return false;
   const text = decodeEntities(stored.replace(/<[^>]*>/g, ""));
   return text.replace(/[\s\u00a0]/g, "") === "";
 }
@@ -2190,6 +2258,12 @@ var RichTextEditor = forwardRef(
 );
 
 // src/lib/rich-text-prose.ts
+var RICH_TEXT_TABLE_PROSE = [
+  "[&_table]:my-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse",
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_td]:align-top [&_td]:min-w-16",
+  "[&_th]:border [&_th]:border-border [&_th]:bg-surface-overlay [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:align-top [&_th]:font-semibold [&_th]:text-text-primary [&_th]:min-w-16",
+  "[&_td_p]:my-0 [&_th_p]:my-0"
+].join(" ");
 var RICH_TEXT_PROSE = [
   "[&_a]:text-accent-text [&_a]:underline [&_a]:underline-offset-2",
   // flow-root: a list beside a wrapped image starts after it, so its
@@ -2207,7 +2281,8 @@ var RICH_TEXT_PROSE = [
   "[&_code]:rounded-sm [&_code]:bg-surface-overlay [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.8125rem] [&_code]:text-accent-text",
   "[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:whitespace-pre [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border-subtle [&_pre]:bg-surface-overlay [&_pre]:px-3 [&_pre]:py-2 [&_pre]:font-mono [&_pre]:text-[0.8125rem] [&_pre]:leading-relaxed",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-text-primary",
-  "[&_img]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
+  "[&_img]:my-2 [&_img]:block [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg",
+  RICH_TEXT_TABLE_PROSE
 ].join(" ");
 function selectionHtml(range, root) {
   let fragment = range.cloneContents();
@@ -2224,8 +2299,8 @@ function selectionHtml(range, root) {
   return holder.innerHTML;
 }
 var RichTextView = forwardRef(
-  ({ html, formatting = "extended", images = true, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
-    const options = useMemo(() => ({ formatting, images, rootRelative }), [formatting, images, rootRelative]);
+  ({ html, formatting = "extended", images = true, tables = false, rootRelative = false, cleanCopy = false, className, ...props }, ref) => {
+    const options = useMemo(() => ({ formatting, images, tables, rootRelative }), [formatting, images, tables, rootRelative]);
     const clean2 = useMemo(() => sanitizeRichText(html, options), [html, options]);
     function copy(event) {
       const root = event.currentTarget;
@@ -2233,7 +2308,7 @@ var RichTextView = forwardRef(
       if (selection?.rangeCount !== 1 || selection.isCollapsed || !root.contains(selection.anchorNode) || !root.contains(selection.focusNode))
         return;
       const markup = selectionHtml(selection.getRangeAt(0), root);
-      event.clipboardData.setData("text/html", sanitizeRichText(markup, { formatting, images }));
+      event.clipboardData.setData("text/html", sanitizeRichText(markup, { formatting, images, tables }));
       event.clipboardData.setData("text/plain", selection.toString());
       event.preventDefault();
     }
@@ -7701,4 +7776,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, MAX_TABLE_SPAN, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TABLE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, safeTableSpan, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };

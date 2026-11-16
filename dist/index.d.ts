@@ -1,5 +1,5 @@
 import { RichTextFormatting, Theme } from './utils.js';
-export { CATEGORICAL_PALETTE, CategoricalSegment, IMAGE_ALIGNMENTS, ImageAlignment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, MAX_CHIP_SEGMENTS, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TAGS, RichTextSanitizeOptions, THEME_SCRIPT, ThemeScriptOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, safeImageAlignment, sanitizeRichText, themeScript } from './utils.js';
+export { CATEGORICAL_PALETTE, CategoricalSegment, IMAGE_ALIGNMENTS, ImageAlignment, LinkHrefOptions, LinkHrefReason, LinkHrefResult, MAX_CHIP_SEGMENTS, MAX_TABLE_SPAN, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TABLE_TAGS, RICH_TEXT_TAGS, RichTextSanitizeOptions, THEME_SCRIPT, ThemeScriptOptions, cn, formatDate, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isRichTextEmpty, linkHrefErrorMessage, normalizeLinkHref, richTextTags, safeHref, safeImageAlignment, safeTableSpan, sanitizeRichText, themeScript } from './utils.js';
 import * as react from 'react';
 import { ReactElement, ReactNode, ComponentPropsWithoutRef, AnchorHTMLAttributes, HTMLAttributes, VideoHTMLAttributes, ElementType } from 'react';
 import * as class_variance_authority_types from 'class-variance-authority/types';
@@ -672,6 +672,15 @@ interface RichTextEditorProps {
      */
     uploadImage?: (file: File) => Promise<string | null>;
     /**
+     * Adds tables: an Insert table button (three by three, with a header row),
+     * and, while the caret is in a table, controls to add or remove a row or a
+     * column, turn the header row on or off, and delete the table. Arrow keys
+     * move between cells; Tab leaves the editor, as everywhere else in it. With
+     * `formatting="extended"`, a table pasted from a web
+     * page or a document comes in as a table. Sanitize with `tables: true`.
+     */
+    tables?: boolean;
+    /**
      * The full link panel instead of the inline link row: a "Text to show" field,
      * an inline error, URL normalisation (`normalizeLinkHref`), autolink as you
      * type, and optional link `targets`.
@@ -704,6 +713,11 @@ interface RichTextViewProps extends Omit<HTMLAttributes<HTMLDivElement>, "childr
     formatting?: RichTextFormatting;
     /** Keep images. Default `true`. */
     images?: boolean;
+    /**
+     * Keep tables. Default `false`, so markup that never went through a table
+     * editor renders as it always has; turn it on where the editor has `tables`.
+     */
+    tables?: boolean;
     /**
      * Keep root-relative links and image sources (`/handbook/…`, `/api/files/…`),
      * for markup an app sanitized on its server and resolved to its own routes.
