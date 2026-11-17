@@ -2437,6 +2437,14 @@ interface TimeEntryResponse {
         contractId: number;
     }[];
 }
+/** A public holiday the person has off, on a day in the period. */
+interface TimesheetHoliday {
+    /** YYYY-MM-DD. */
+    date: string;
+    name: string;
+    /** `"pm"`: only the afternoon is off. */
+    part: "full" | "pm";
+}
 /** A message shown above the grid, with the tone of `Alert`'s variant. */
 interface TimesheetNotice {
     variant: "info" | "warning" | "error";
@@ -2450,6 +2458,10 @@ interface ExpectedHoursResponse {
     expectedHours: number | null;
     ptoHours: number;
     timeOffs: TimesheetTimeOff[];
+    /** Listed under the grid and marked on the month calendar. */
+    holidays?: TimesheetHoliday[];
+    /** The hours holidays took off the expected hours; shown when above 0. */
+    holidayHours?: number;
     /** Shown above the grid, whether or not `expectedHours` is known. */
     notice?: TimesheetNotice;
 }
@@ -2516,7 +2528,8 @@ interface TimesheetTableProps {
 }
 /**
  * A person's timesheet: hours per contract per day, in a weekly grid or a
- * monthly calendar, with expected hours and time off from the API.
+ * monthly calendar, with expected hours, time off and holidays from the API.
+ * Holidays are only marked: their cells stay editable.
  *
  * Edits save themselves 15 seconds after the last change, or straight away
  * with Save, on navigation, or on switching view. Only the changed cells are
@@ -2782,4 +2795,4 @@ interface SignOutPageProps {
 declare function SignOutPage({ appName, onSignOut, onSignIn, onCancel, status, error, copy, supportHref, showThemeToggle, children, className, }: SignOutPageProps): react.JSX.Element;
 
 export { AccountCombobox, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RadioGroup, RadioGroupItem, RichTextEditor, RichTextFormatting, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, nextDayRange, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
-export type { AccountOption, AddressComboboxProps, AddressComboboxStatus, AddressSuggestion, AddressSuggestionProvider, AppLauncherApp, AppLauncherLogos, AppLauncherProps, AppLauncherSection, BarChartProps, BreadcrumbLinkProps, CalendarDate, CardHeaderProps, CategoryChipProps, CategoryChipSegment, ChartCardProps, ChartDataTableProps, ChartDatum, ChartLegendItem, ChartLegendProps, ChartSeries, ChartStateProps, ChartTooltipContentProps, ChartTooltipContext, ChartTooltipEntry, ChartTooltipRenderer, ChartValueFormatter, CheckboxGroupOption, CheckboxGroupProps, CommandFilter, ConfirmOptions, DayRange, DayRangePickerProps, DonutChartDatum, DonutChartProps, DonutTooltipContext, EventCalendarProps, ExpectedHoursResponse, FileViewerFallback, FileViewerFallbackContent, FileViewerFallbackReason, FileViewerFallbackRequest, FileViewerPanelProps, FileViewerProps, HoverCardProps, LineChartProps, MonthCalendarProps, MonthYearRange, MultiSelectOption, PageHeaderBack, PostalAddress, PostalAddressDraft, ProgressTone, RadioGroupOption, RadioGroupProps, RichTextEditorHandle, RichTextEditorProps, RichTextInsertAction, RichTextLinkPanelOptions, RichTextLinkTarget, RichTextViewProps, SaveResponse, SearchSelectOption, SegmentTracker, SegmentTrackerOptions, SegmentedControlOption, SignInPageCopy, SignInPageProps, SignOutPageCopy, SignOutPageProps, StatusIndicatorProps, StatusOption, SwatchProps, ThemeProviderProps, TimeEntryResponse, TimesheetApi, TimesheetContract, TimesheetEntry, TimesheetGridData, TimesheetNotice, TimesheetTableProps, TimesheetTimeOff, TimesheetViewMode, VideoSegment, VideoViewerProps, YearMonth };
+export type { AccountOption, AddressComboboxProps, AddressComboboxStatus, AddressSuggestion, AddressSuggestionProvider, AppLauncherApp, AppLauncherLogos, AppLauncherProps, AppLauncherSection, BarChartProps, BreadcrumbLinkProps, CalendarDate, CardHeaderProps, CategoryChipProps, CategoryChipSegment, ChartCardProps, ChartDataTableProps, ChartDatum, ChartLegendItem, ChartLegendProps, ChartSeries, ChartStateProps, ChartTooltipContentProps, ChartTooltipContext, ChartTooltipEntry, ChartTooltipRenderer, ChartValueFormatter, CheckboxGroupOption, CheckboxGroupProps, CommandFilter, ConfirmOptions, DayRange, DayRangePickerProps, DonutChartDatum, DonutChartProps, DonutTooltipContext, EventCalendarProps, ExpectedHoursResponse, FileViewerFallback, FileViewerFallbackContent, FileViewerFallbackReason, FileViewerFallbackRequest, FileViewerPanelProps, FileViewerProps, HoverCardProps, LineChartProps, MonthCalendarProps, MonthYearRange, MultiSelectOption, PageHeaderBack, PostalAddress, PostalAddressDraft, ProgressTone, RadioGroupOption, RadioGroupProps, RichTextEditorHandle, RichTextEditorProps, RichTextInsertAction, RichTextLinkPanelOptions, RichTextLinkTarget, RichTextViewProps, SaveResponse, SearchSelectOption, SegmentTracker, SegmentTrackerOptions, SegmentedControlOption, SignInPageCopy, SignInPageProps, SignOutPageCopy, SignOutPageProps, StatusIndicatorProps, StatusOption, SwatchProps, ThemeProviderProps, TimeEntryResponse, TimesheetApi, TimesheetContract, TimesheetEntry, TimesheetGridData, TimesheetHoliday, TimesheetNotice, TimesheetTableProps, TimesheetTimeOff, TimesheetViewMode, VideoSegment, VideoViewerProps, YearMonth };

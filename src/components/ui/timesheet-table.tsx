@@ -26,13 +26,15 @@ import {
   cellKey,
   contractCoversDay,
   createDefaultApi,
+  dayTintStyle,
   diffGrids,
+  HOLIDAY_COLOR,
   parseCellKey,
   timeOffIndexForDay,
-  timeOffTintStyle,
   type TimesheetApi,
   type TimesheetContract,
   type TimesheetGridData,
+  type TimesheetHoliday,
   type TimesheetNotice,
   type TimesheetTimeOff,
   type TimesheetViewMode,
@@ -67,6 +69,7 @@ export {
   type TimesheetContract,
   type TimesheetEntry,
   type TimesheetGridData,
+  type TimesheetHoliday,
   type TimesheetNotice,
   type TimesheetTimeOff,
   type TimesheetViewMode,
@@ -135,11 +138,13 @@ function HoursSummary({
   loggedHours,
   expectedHours,
   ptoHours,
+  holidayHours,
 }: {
   loggedHours: number;
   /** `null` when unavailable: no target, remaining or over/under. */
   expectedHours: number | null;
   ptoHours: number;
+  holidayHours: number;
 }): ReactElement {
   if (expectedHours === null) {
     return (
@@ -149,7 +154,10 @@ function HoursSummary({
             <span className="font-semibold tabular-nums text-text-primary">{loggedHours}h</span> logged
             · Expected hours unavailable
           </p>
-          {ptoHours > 0 && <Badge variant="info">{ptoHours}h time off</Badge>}
+          <div className="flex items-center gap-2">
+            {holidayHours > 0 && <Badge variant="info">{holidayHours}h holiday</Badge>}
+            {ptoHours > 0 && <Badge variant="info">{ptoHours}h time off</Badge>}
+          </div>
         </div>
       </Card>
     );
@@ -169,6 +177,7 @@ function HoursSummary({
           expected
         </p>
         <div className="flex items-center gap-2">
+          {holidayHours > 0 && <Badge variant="info">{holidayHours}h holiday</Badge>}
           {ptoHours > 0 && <Badge variant="info">{ptoHours}h time off</Badge>}
           {hasExpected &&
             (isOver ? (
@@ -193,7 +202,8 @@ function HoursSummary({
 
 /**
  * A person's timesheet: hours per contract per day, in a weekly grid or a
- * monthly calendar, with expected hours and time off from the API.
+ * monthly calendar, with expected hours, time off and holidays from the API.
+ * Holidays are only marked: their cells stay editable.
  *
  * Edits save themselves 15 seconds after the last change, or straight away
  * with Save, on navigation, or on switching view. Only the changed cells are
@@ -265,6 +275,8 @@ export function TimesheetTable({
   const [expectedHours, setExpectedHours] = useState<number | null>(null);
   const [ptoHours, setPtoHours] = useState<number>(0);
   const [timeOffs, setTimeOffs] = useState<TimesheetTimeOff[]>([]);
+  const [holidays, setHolidays] = useState<TimesheetHoliday[]>([]);
+  const [holidayHours, setHolidayHours] = useState<number>(0);
   const [notice, setNotice] = useState<TimesheetNotice | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -327,6 +339,8 @@ export function TimesheetTable({
       setExpectedHours(expectedRes?.expectedHours ?? null);
       setPtoHours(expectedRes?.ptoHours ?? 0);
       setTimeOffs(expectedRes?.timeOffs || []);
+      setHolidays(expectedRes?.holidays ?? []);
+      setHolidayHours(expectedRes?.holidayHours ?? 0);
       setNotice(expectedRes ? (expectedRes.notice ?? null) : EXPECTED_HOURS_FAILED_NOTICE);
       setRevertSnapshot(null);
       clearTimer(autoSaveTimerRef);
@@ -610,7 +624,12 @@ export function TimesheetTable({
         </Alert>
       ) : (
         <>
-          <HoursSummary loggedHours={grandTotal} expectedHours={expectedHours} ptoHours={ptoHours} />
+          <HoursSummary
+            loggedHours={grandTotal}
+            expectedHours={expectedHours}
+            ptoHours={ptoHours}
+            holidayHours={holidayHours}
+          />
 
           {notice && <Alert variant={notice.variant}>{notice.message}</Alert>}
 
@@ -663,6 +682,7 @@ export function TimesheetTable({
                             const value = gridData[key];
                             const isOutside = !contractCoversDay(contract, date);
                             const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+                            const holiday = holidays.find((h) => h.date === date);
                             return (
                               <TableCell
                                 key={date}
@@ -674,6 +694,10 @@ export function TimesheetTable({
                                   }}
                                   aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}${
                                     timeOffIndex === null ? "" : `, time off: ${timeOffs[timeOffIndex].type}`
+                                  }${
+                                    holiday
+                                      ? `, holiday: ${holiday.name}${holiday.part === "pm" ? ", afternoon off" : ""}`
+                                      : ""
                                   }`}
                                   value={value}
                                   disabled={isOutside}
@@ -681,7 +705,7 @@ export function TimesheetTable({
                                   onKeyDown={(e) => handleKeyDown(e, contractIdx, dayIdx)}
                                   placeholder={isOutside ? "" : "–"}
                                   className={cn(dayIdx >= 5 && !value && "bg-surface")}
-                                  style={timeOffIndex === null ? undefined : timeOffTintStyle(timeOffIndex)}
+                                  style={dayTintStyle(date, timeOffs, holidays)}
                                 />
                               </TableCell>
                             );
@@ -738,6 +762,7 @@ export function TimesheetTable({
                 gridData={gridData}
                 contracts={activeContracts}
                 timeOffs={timeOffs}
+                holidays={holidays}
                 today={today}
                 selectedDay={selectedDay}
                 onDaySelect={setSelectedDay}
@@ -756,7 +781,18 @@ export function TimesheetTable({
             </>
           )}
 
-          {timeOffs.length > 0 && <TimeOffList timeOffs={timeOffs} viewMode={viewMode} />}
+          {(timeOffs.length > 0 || holidays.length > 0) && (
+            // Side by side when both show (stacked on narrow screens); one alone takes the full width.
+            <div
+              className={cn(
+                "grid items-start gap-6",
+                timeOffs.length > 0 && holidays.length > 0 && "md:grid-cols-2",
+              )}
+            >
+              {timeOffs.length > 0 && <TimeOffList timeOffs={timeOffs} viewMode={viewMode} />}
+              {holidays.length > 0 && <HolidayList holidays={holidays} viewMode={viewMode} />}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -797,6 +833,52 @@ function TimeOffList({
               </TableCell>
               <TableCell className="text-text-secondary">{fmt(to.startsAt)}</TableCell>
               <TableCell className="text-text-secondary">{fmt(to.endsAt)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
+function HolidayList({
+  holidays,
+  viewMode,
+}: {
+  holidays: TimesheetHoliday[];
+  viewMode: TimesheetViewMode;
+}): ReactElement {
+  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+  return (
+    <Card padding="sm">
+      <CardHeader
+        size="sm"
+        className="mb-0 px-3 pb-3 pt-2"
+        title={`Holidays this ${viewMode === "weekly" ? "week" : "month"}`}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {["Date", "Holiday", "Day"].map((h) => (
+              <TableHead key={h}>{h}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((holiday) => (
+            <TableRow key={`${holiday.date}::${holiday.name}`} className="last:border-0">
+              <TableCell className="text-text-secondary">
+                {formatDateKey(holiday.date, { weekday: "short", month: "short", day: "numeric" })}
+              </TableCell>
+              <TableCell className="text-text-primary">
+                <span className="inline-flex items-center gap-2">
+                  <Swatch color={HOLIDAY_COLOR} size="sm" />
+                  {holiday.name}
+                </span>
+              </TableCell>
+              <TableCell className="text-text-secondary">
+                {holiday.part === "pm" ? "Afternoon off" : "Full day"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

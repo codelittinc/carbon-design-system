@@ -51,6 +51,15 @@ export interface TimeEntryResponse {
   }[];
 }
 
+/** A public holiday the person has off, on a day in the period. */
+export interface TimesheetHoliday {
+  /** YYYY-MM-DD. */
+  date: string;
+  name: string;
+  /** `"pm"`: only the afternoon is off. */
+  part: "full" | "pm";
+}
+
 /** A message shown above the grid, with the tone of `Alert`'s variant. */
 export interface TimesheetNotice {
   variant: "info" | "warning" | "error";
@@ -65,6 +74,10 @@ export interface ExpectedHoursResponse {
   expectedHours: number | null;
   ptoHours: number;
   timeOffs: TimesheetTimeOff[];
+  /** Listed under the grid and marked on the month calendar. */
+  holidays?: TimesheetHoliday[];
+  /** The hours holidays took off the expected hours; shown when above 0. */
+  holidayHours?: number;
   /** Shown above the grid, whether or not `expectedHours` is known. */
   notice?: TimesheetNotice;
 }
@@ -194,11 +207,40 @@ export function timeOffIndexForDay(date: string, timeOffs: TimesheetTimeOff[]): 
 }
 
 /**
- * The tint for a day covered by the time off at `index`: its categorical color,
- * faded. A background image rather than a color, so it lies over the cell's own
- * background (today, weekend, hover) instead of replacing it.
+ * A color, faded, as a background image rather than a color, so it lies over
+ * the cell's own background (today, weekend, hover) instead of replacing it.
  */
-export function timeOffTintStyle(index: number): CSSProperties {
-  const tint = `color-mix(in srgb, ${getCategoricalColor(index)} 20%, transparent)`;
+function tintStyle(color: string): CSSProperties {
+  const tint = `color-mix(in srgb, ${color} 20%, transparent)`;
   return { backgroundImage: `linear-gradient(${tint}, ${tint})` };
+}
+
+/** The tint for a day covered by the time off at `index`: its categorical color. */
+export function timeOffTintStyle(index: number): CSSProperties {
+  return tintStyle(getCategoricalColor(index));
+}
+
+/**
+ * Every holiday's color: the warning amber, which no time off color is, so a
+ * holiday never looks like somebody's time off (the palette starts blue).
+ */
+export const HOLIDAY_COLOR = "var(--color-warning)";
+
+/** The tint for a holiday, full day or afternoon off. */
+export function holidayTintStyle(): CSSProperties {
+  return tintStyle(HOLIDAY_COLOR);
+}
+
+/**
+ * The tint for a day in either grid, or `undefined`. A holiday's color wins over
+ * any time off on the same day, full day or afternoon off alike.
+ */
+export function dayTintStyle(
+  date: string,
+  timeOffs: TimesheetTimeOff[],
+  holidays: TimesheetHoliday[],
+): CSSProperties | undefined {
+  if (holidays.some((h) => h.date === date)) return holidayTintStyle();
+  const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+  return timeOffIndex === null ? undefined : timeOffTintStyle(timeOffIndex);
 }
