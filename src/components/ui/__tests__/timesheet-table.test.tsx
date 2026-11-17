@@ -755,15 +755,15 @@ describe("TimesheetTable holiday colors", () => {
     }
   });
 
-  it("keeps the holiday color on a full holiday with time off, and the time off's on an afternoon off", async () => {
+  it("keeps the holiday color over time off, full day and afternoon off alike", async () => {
     renderTable(colorsApi([VACATION]), { initialWeek: "2026-11-23" });
     await screen.findByText("Holidays this week");
     const full = cell("Backstage", "Wed, Nov 25, 2026", "Vacation", "QA Full Holiday");
     expect(styleOf(full)).toContain(HOLIDAY_TINT);
     expect(styleOf(full)).not.toContain("--color-category");
     const pm = cell("Backstage", "Fri, Nov 27, 2026", "Vacation", "QA Afternoon, afternoon off");
-    expect(styleOf(pm)).toContain(category(1));
-    expect(styleOf(pm)).not.toContain("--color-info");
+    expect(styleOf(pm)).toContain(HOLIDAY_TINT);
+    expect(styleOf(pm)).not.toContain("--color-category");
     expect(styleOf(cell("Backstage", "Tue, Nov 24, 2026", "Vacation"))).toContain(category(1));
   });
 
@@ -776,8 +776,8 @@ describe("TimesheetTable holiday colors", () => {
     const pm = screen.getByRole("button", {
       name: "Fri, Nov 27, 2026, time off: Vacation, holiday: QA Afternoon, afternoon off",
     });
-    expect(styleOf(pm)).toContain(category(1));
-    expect(styleOf(pm)).not.toContain("--color-info");
+    expect(styleOf(pm)).toContain(HOLIDAY_TINT);
+    expect(styleOf(pm)).not.toContain("--color-category");
 
     // Only Backstage covers November, so the full holiday edits in place.
     fireEvent.click(full);

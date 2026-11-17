@@ -126,7 +126,7 @@ const withTimeOffApi: TimesheetApi = {
 /**
  * A full-day holiday on Wednesday and an afternoon off on Friday, this week,
  * with time off over both: vacation Tuesday and Wednesday (Wednesday takes the
- * holiday's color) and a sick day Friday (Friday takes the sick day's).
+ * holiday's color) and a sick day Friday (Friday keeps the holiday's too).
  */
 const withHolidaysApi: TimesheetApi = {
   ...mockApi,

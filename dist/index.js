@@ -6004,11 +6004,9 @@ function holidayTintStyle() {
   return tintStyle(HOLIDAY_COLOR);
 }
 function dayTintStyle(date, timeOffs, holidays) {
-  const holiday = holidays.find((h) => h.date === date);
-  if (holiday?.part === "full") return holidayTintStyle();
+  if (holidays.some((h) => h.date === date)) return holidayTintStyle();
   const timeOffIndex = timeOffIndexForDay(date, timeOffs);
-  if (timeOffIndex !== null) return timeOffTintStyle(timeOffIndex);
-  return holiday ? holidayTintStyle() : void 0;
+  return timeOffIndex === null ? void 0 : timeOffTintStyle(timeOffIndex);
 }
 function dayLabel(date, weekday = "short") {
   return formatDateKey(date, { weekday, month: "short", day: "numeric", year: "numeric" });

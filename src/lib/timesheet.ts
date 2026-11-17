@@ -232,18 +232,15 @@ export function holidayTintStyle(): CSSProperties {
 }
 
 /**
- * The tint for a day in either grid, or `undefined`. A full-day holiday's color
- * wins over time off; time off wins over an afternoon-off holiday, since it
- * takes the morning too.
+ * The tint for a day in either grid, or `undefined`. A holiday's color wins over
+ * any time off on the same day, full day or afternoon off alike.
  */
 export function dayTintStyle(
   date: string,
   timeOffs: TimesheetTimeOff[],
   holidays: TimesheetHoliday[],
 ): CSSProperties | undefined {
-  const holiday = holidays.find((h) => h.date === date);
-  if (holiday?.part === "full") return holidayTintStyle();
+  if (holidays.some((h) => h.date === date)) return holidayTintStyle();
   const timeOffIndex = timeOffIndexForDay(date, timeOffs);
-  if (timeOffIndex !== null) return timeOffTintStyle(timeOffIndex);
-  return holiday ? holidayTintStyle() : undefined;
+  return timeOffIndex === null ? undefined : timeOffTintStyle(timeOffIndex);
 }

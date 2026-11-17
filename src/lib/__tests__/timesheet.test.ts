@@ -72,8 +72,8 @@ describe("dayTintStyle", () => {
     expect(dayTintStyle("2026-09-15", [VACATION], [FULL, PM])).toEqual(holidayTintStyle());
   });
 
-  it("lets time off win over an afternoon-off holiday", () => {
-    expect(dayTintStyle("2026-09-16", [VACATION], [FULL, PM])).toEqual(timeOffTintStyle(0));
+  it("lets an afternoon-off holiday win over time off too", () => {
+    expect(dayTintStyle("2026-09-16", [VACATION], [FULL, PM])).toEqual(holidayTintStyle());
   });
 
   it("leaves any other day untinted", () => {
