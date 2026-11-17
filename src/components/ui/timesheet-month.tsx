@@ -13,10 +13,11 @@ import { tableRowHoverClass } from "@/lib/ui-classes";
 import {
   cellKey,
   contractCoversDay,
+  dayTintStyle,
   timeOffIndexForDay,
-  timeOffTintStyle,
   type TimesheetContract,
   type TimesheetGridData,
+  type TimesheetHoliday,
   type TimesheetTimeOff,
 } from "@/lib/timesheet";
 import { Badge } from "./badge";
@@ -92,6 +93,7 @@ interface MonthlyCalendarGridProps {
   gridData: TimesheetGridData;
   contracts: TimesheetContract[];
   timeOffs: TimesheetTimeOff[];
+  holidays: TimesheetHoliday[];
   today: string;
   selectedDay: string | null;
   onDaySelect: (date: string) => void;
@@ -102,14 +104,16 @@ interface MonthlyCalendarGridProps {
 
 /**
  * A month of day totals. Selecting a day with one contract edits it in place;
- * a day with several opens `DayDetailPanel` below. A past weekday with no hours
- * and no time off is flagged.
+ * a day with several opens `DayDetailPanel` below. A past weekday with no hours,
+ * no time off and no full-day holiday is flagged; an afternoon-off holiday
+ * still expects the morning's hours.
  */
 export function MonthlyCalendarGrid({
   month,
   gridData,
   contracts,
   timeOffs,
+  holidays,
   today,
   selectedDay,
   onDaySelect,
@@ -147,8 +151,10 @@ export function MonthlyCalendarGrid({
         const total = dayTotal(date);
         const timeOffIndex = timeOffIndexForDay(date, timeOffs);
         const hasTimeOff = timeOffIndex !== null;
-        const tint = hasTimeOff ? timeOffTintStyle(timeOffIndex) : undefined;
-        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
+        const holiday = holidays.find((h) => h.date === date);
+        const isFullHoliday = holiday?.part === "full";
+        const tint = dayTintStyle(date, timeOffs, holidays);
+        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff && !isFullHoliday;
         const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
 
         const background = isMissingHours
@@ -169,10 +175,19 @@ export function MonthlyCalendarGrid({
             >
               {cell.day}
             </span>
-            {hasTimeOff && (
-              <Badge variant="info" className="px-1 text-[10px]">
-                PTO
-              </Badge>
+            {(hasTimeOff || holiday) && (
+              <div className="flex gap-1">
+                {hasTimeOff && (
+                  <Badge variant="info" className="px-1 text-[10px]">
+                    PTO
+                  </Badge>
+                )}
+                {holiday && (
+                  <Badge variant="default" className="px-1 text-[10px]">
+                    Holiday
+                  </Badge>
+                )}
+              </div>
             )}
           </div>
         );
@@ -209,7 +224,7 @@ export function MonthlyCalendarGrid({
             type="button"
             variant="ghost"
             aria-pressed={isSelected}
-            aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${isMissingHours ? ", no hours" : ""}`}
+            aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${holiday ? `, holiday: ${holiday.name}${holiday.part === "pm" ? ", afternoon off" : ""}` : ""}${isMissingHours ? ", no hours" : ""}`}
             onClick={() => onDaySelect(date)}
             style={tint}
             className={cn(

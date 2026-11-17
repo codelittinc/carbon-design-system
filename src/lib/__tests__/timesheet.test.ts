@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { timeOffIndexForDay, timeOffTintStyle, type TimesheetTimeOff } from "../timesheet";
+import {
+  dayTintStyle,
+  holidayTintStyle,
+  timeOffIndexForDay,
+  timeOffTintStyle,
+  type TimesheetHoliday,
+  type TimesheetTimeOff,
+} from "../timesheet";
 
 const VACATION: TimesheetTimeOff = { id: 1, type: "Vacation", startsAt: "2026-09-14", endsAt: "2026-09-17" };
 
@@ -36,5 +43,41 @@ describe("timeOffTintStyle", () => {
     expect(timeOffTintStyle(1).backgroundImage).toContain("var(--color-category-2)");
     expect(timeOffTintStyle(11)).toEqual(timeOffTintStyle(0));
     expect(timeOffTintStyle(0)).not.toHaveProperty("backgroundColor");
+  });
+});
+
+describe("holidayTintStyle", () => {
+  it("lays the info color, faded, over the background as an image", () => {
+    const tint = "color-mix(in srgb, var(--color-info) 20%, transparent)";
+    expect(holidayTintStyle()).toEqual({ backgroundImage: `linear-gradient(${tint}, ${tint})` });
+    expect(holidayTintStyle().backgroundImage).not.toContain("--color-category-");
+  });
+});
+
+describe("dayTintStyle", () => {
+  const FULL: TimesheetHoliday = { date: "2026-09-15", name: "Founders Day", part: "full" };
+  const PM: TimesheetHoliday = { date: "2026-09-16", name: "Harvest Eve", part: "pm" };
+  const LATER_PM: TimesheetHoliday = { date: "2026-09-18", name: "Market Day", part: "pm" };
+
+  it("tints a holiday with the holiday color, full day or afternoon off", () => {
+    expect(dayTintStyle("2026-09-15", [], [FULL])).toEqual(holidayTintStyle());
+    expect(dayTintStyle("2026-09-18", [], [LATER_PM])).toEqual(holidayTintStyle());
+  });
+
+  it("tints time off with its entry's color", () => {
+    expect(dayTintStyle("2026-09-14", [VACATION], [])).toEqual(timeOffTintStyle(0));
+  });
+
+  it("lets a full-day holiday win over time off", () => {
+    expect(dayTintStyle("2026-09-15", [VACATION], [FULL, PM])).toEqual(holidayTintStyle());
+  });
+
+  it("lets time off win over an afternoon-off holiday", () => {
+    expect(dayTintStyle("2026-09-16", [VACATION], [FULL, PM])).toEqual(timeOffTintStyle(0));
+  });
+
+  it("leaves any other day untinted", () => {
+    expect(dayTintStyle("2026-09-17", [VACATION], [FULL, PM])).toBeUndefined();
+    expect(dayTintStyle("2026-09-14", [], [])).toBeUndefined();
   });
 });

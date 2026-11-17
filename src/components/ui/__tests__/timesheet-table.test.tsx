@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   TimesheetTable,
   createDefaultApi,
   type TimesheetApi,
   type TimesheetContract,
+  type TimesheetHoliday,
   type TimesheetTimeOff,
 } from "../timesheet-table";
 
@@ -73,10 +74,13 @@ function renderTable(api: TimesheetApi, props: Partial<React.ComponentProps<type
   );
 }
 
-/** A weekly or day-panel input; `timeOff` is the type of the time off covering the day. */
-const cell = (project: string, day: string, timeOff?: string) =>
+/**
+ * A weekly or day-panel input; `timeOff` is the type of the time off covering
+ * the day, `holiday` the label's text after ", holiday: ".
+ */
+const cell = (project: string, day: string, timeOff?: string, holiday?: string) =>
   screen.getByLabelText(
-    `Hours for ${project} on ${day}${timeOff ? `, time off: ${timeOff}` : ""}`,
+    `Hours for ${project} on ${day}${timeOff ? `, time off: ${timeOff}` : ""}${holiday ? `, holiday: ${holiday}` : ""}`,
   ) as HTMLInputElement;
 
 describe("TimesheetTable", () => {
@@ -579,6 +583,213 @@ describe("TimesheetTable time-off colors", () => {
     renderTable(api);
     await screen.findByText("Vacation");
     expect(listSwatches().map(styleOf)).toEqual(before);
+  });
+});
+
+describe("TimesheetTable holidays", () => {
+  // After November 2026, so its weekdays without hours are in the past.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 11, 1, 12));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const HOLIDAYS: TimesheetHoliday[] = [
+    { date: "2026-11-27", name: "QA Afternoon", part: "pm" },
+    { date: "2026-11-25", name: "QA Full Holiday", part: "full" },
+  ];
+
+  const holidayApi = (extra: Record<string, unknown> = {}) =>
+    mockApi({
+      fetchTimeEntries: vi.fn(async () => ({ timeEntries: [] })),
+      fetchExpectedHours: vi.fn(async () => ({
+        expectedHours: 148,
+        ptoHours: 8,
+        timeOffs: [],
+        holidays: HOLIDAYS,
+        holidayHours: 12,
+        ...extra,
+      })),
+    });
+
+  it("shows the holiday hours before the time off in the summary", async () => {
+    renderTable(holidayApi());
+    await screen.findByText("Daily Total");
+    const holiday = screen.getByText("12h holiday");
+    const timeOff = screen.getByText("8h time off");
+    expect(holiday.compareDocumentPosition(timeOff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows the holiday hours before the time off when expected hours are unavailable", async () => {
+    renderTable(holidayApi({ expectedHours: null }));
+    await screen.findByText(/Expected hours unavailable/);
+    const holiday = screen.getByText("12h holiday");
+    const timeOff = screen.getByText("8h time off");
+    expect(holiday.compareDocumentPosition(timeOff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows no holiday badge or list when the response has none", async () => {
+    renderTable(mockApi());
+    await screen.findByText("Daily Total");
+    expect(screen.queryByText(/h holiday$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Holidays this/)).not.toBeInTheDocument();
+  });
+
+  it("shows no holiday badge or list for zero hours and an empty list", async () => {
+    renderTable(holidayApi({ holidays: [], holidayHours: 0 }));
+    await screen.findByText("Daily Total");
+    expect(screen.queryByText(/h holiday$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Holidays this/)).not.toBeInTheDocument();
+  });
+
+  it("lists the month's holidays by date, with the part of the day off", async () => {
+    renderTable(holidayApi(), { defaultView: "monthly", initialMonth: "2026-11" });
+    await screen.findByText("Holidays this month");
+    const table = screen.getByRole("columnheader", { name: "Holiday" }).closest("table")!;
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows.map((r) => within(r).getAllByRole("cell").map((c) => c.textContent))).toEqual([
+      ["Wed, Nov 25", "QA Full Holiday", "Full day"],
+      ["Fri, Nov 27", "QA Afternoon", "Afternoon off"],
+    ]);
+  });
+
+  it("titles the list for the week in the weekly view and keeps holiday cells editable", async () => {
+    const api = holidayApi();
+    renderTable(api, { initialWeek: "2026-11-23" });
+    await screen.findByText("Holidays this week");
+
+    const wed = cell("Backstage", "Wed, Nov 25, 2026", undefined, "QA Full Holiday");
+    expect(wed).toBeEnabled();
+    expect(wed.closest("td")).not.toHaveTextContent("Holiday");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.change(wed, { target: { value: "8" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(api.saveTimesheet).toHaveBeenCalledWith([{ contractId: 1, date: "2026-11-25", hours: 8 }]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("marks holidays on the calendar and flags only an afternoon-off one without hours", async () => {
+    renderTable(holidayApi(), { defaultView: "monthly", initialMonth: "2026-11" });
+
+    const full = await screen.findByRole("button", { name: /^Wed, Nov 25, 2026/ });
+    expect(full).toHaveAccessibleName("Wed, Nov 25, 2026, holiday: QA Full Holiday");
+    expect(within(full).getByText("Holiday")).toBeInTheDocument();
+    expect(within(full).queryByText("No hours")).not.toBeInTheDocument();
+    expect(full).not.toHaveClass("bg-error-soft");
+
+    const pm = screen.getByRole("button", { name: /^Fri, Nov 27, 2026/ });
+    expect(pm).toHaveAccessibleName("Fri, Nov 27, 2026, holiday: QA Afternoon, afternoon off, no hours");
+    expect(within(pm).getByText("Holiday")).toBeInTheDocument();
+    expect(within(pm).getByText("No hours")).toBeInTheDocument();
+    expect(pm).toHaveClass("bg-error-soft");
+
+    // An ordinary past weekday without hours is still flagged.
+    expect(screen.getByRole("button", { name: /^Thu, Nov 26, 2026/ })).toHaveAccessibleName(
+      "Thu, Nov 26, 2026, no hours",
+    );
+  });
+
+  it("shows both badges on a day with time off and a holiday", async () => {
+    renderTable(
+      holidayApi({ timeOffs: [{ id: 9, type: "Vacation", startsAt: "2026-11-25", endsAt: "2026-11-26" }] }),
+      { defaultView: "monthly", initialMonth: "2026-11" },
+    );
+    const day = await screen.findByRole("button", { name: /^Wed, Nov 25, 2026/ });
+    expect(day).toHaveAccessibleName("Wed, Nov 25, 2026, time off: Vacation, holiday: QA Full Holiday");
+    expect(within(day).getByText("PTO")).toBeInTheDocument();
+    expect(within(day).getByText("Holiday")).toBeInTheDocument();
+  });
+});
+
+describe("TimesheetTable holiday colors", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 11, 1, 12));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const HOLIDAY_TINT = "color-mix(in srgb, var(--color-info) 20%, transparent)";
+  const HOLIDAYS: TimesheetHoliday[] = [
+    { date: "2026-11-25", name: "QA Full Holiday", part: "full" },
+    { date: "2026-11-27", name: "QA Afternoon", part: "pm" },
+  ];
+  /** Tuesday to Friday: covers the full holiday and the afternoon off. */
+  const VACATION: TimesheetTimeOff = { id: 9, type: "Vacation", startsAt: "2026-11-24", endsAt: "2026-11-28" };
+  const colorsApi = (timeOffs: TimesheetTimeOff[] = []) =>
+    mockApi({
+      fetchTimeEntries: vi.fn(async () => ({ timeEntries: [] })),
+      fetchExpectedHours: vi.fn(async () => ({
+        expectedHours: 148,
+        ptoHours: 0,
+        timeOffs,
+        holidays: HOLIDAYS,
+        holidayHours: 12,
+      })),
+    });
+
+  it("tints every contract's cells on a holiday, full day or afternoon off, and names it", async () => {
+    renderTable(colorsApi(), { initialWeek: "2026-11-23" });
+    await screen.findByText("Holidays this week");
+    const full = cell("Backstage", "Wed, Nov 25, 2026", undefined, "QA Full Holiday");
+    const pm = cell("Backstage", "Fri, Nov 27, 2026", undefined, "QA Afternoon, afternoon off");
+    for (const input of [full, pm]) {
+      expect(styleOf(input)).toContain(HOLIDAY_TINT);
+      expect(styleOf(input)).not.toContain("--color-category");
+      expect(input).toBeEnabled();
+    }
+    expect(styleOf(cell("Backstage", "Thu, Nov 26, 2026"))).toBe("");
+    // The tint is the only difference: same classes as an untinted weekday.
+    expect(full.className).toBe(cell("Backstage", "Thu, Nov 26, 2026").className);
+  });
+
+  it("puts an info swatch before each holiday's name", async () => {
+    renderTable(colorsApi(), { initialWeek: "2026-11-23" });
+    await screen.findByText("Holidays this week");
+    for (const name of ["QA Full Holiday", "QA Afternoon"]) {
+      const swatch = screen.getByText(name).querySelector("span[aria-hidden]")!;
+      expect(swatch).not.toBeNull();
+      expect(styleOf(swatch)).toContain("var(--color-info)");
+    }
+  });
+
+  it("keeps the holiday color on a full holiday with time off, and the time off's on an afternoon off", async () => {
+    renderTable(colorsApi([VACATION]), { initialWeek: "2026-11-23" });
+    await screen.findByText("Holidays this week");
+    const full = cell("Backstage", "Wed, Nov 25, 2026", "Vacation", "QA Full Holiday");
+    expect(styleOf(full)).toContain(HOLIDAY_TINT);
+    expect(styleOf(full)).not.toContain("--color-category");
+    const pm = cell("Backstage", "Fri, Nov 27, 2026", "Vacation", "QA Afternoon, afternoon off");
+    expect(styleOf(pm)).toContain(category(1));
+    expect(styleOf(pm)).not.toContain("--color-info");
+    expect(styleOf(cell("Backstage", "Tue, Nov 24, 2026", "Vacation"))).toContain(category(1));
+  });
+
+  it("tints the month's holidays and the inline editor with the same rule", async () => {
+    renderTable(colorsApi([VACATION]), { defaultView: "monthly", initialMonth: "2026-11" });
+    const full = await screen.findByRole("button", {
+      name: "Wed, Nov 25, 2026, time off: Vacation, holiday: QA Full Holiday",
+    });
+    expect(styleOf(full)).toContain(HOLIDAY_TINT);
+    const pm = screen.getByRole("button", {
+      name: "Fri, Nov 27, 2026, time off: Vacation, holiday: QA Afternoon, afternoon off",
+    });
+    expect(styleOf(pm)).toContain(category(1));
+    expect(styleOf(pm)).not.toContain("--color-info");
+
+    // Only Backstage covers November, so the full holiday edits in place.
+    fireEvent.click(full);
+    const editor = screen.getByLabelText("Hours for Backstage on Wed, Nov 25, 2026").closest("div.ring-2")!;
+    expect(styleOf(editor)).toContain(HOLIDAY_TINT);
+  });
+
+  it("tints an afternoon off without time off with the holiday color in the month", async () => {
+    renderTable(colorsApi(), { defaultView: "monthly", initialMonth: "2026-11" });
+    const pm = await screen.findByRole("button", { name: /^Fri, Nov 27, 2026, holiday: QA Afternoon/ });
+    expect(styleOf(pm)).toContain(HOLIDAY_TINT);
+    expect(styleOf(screen.getByRole("button", { name: /^Thu, Nov 26, 2026/ }))).toBe("");
   });
 });
 

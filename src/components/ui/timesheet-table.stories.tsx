@@ -123,6 +123,37 @@ const withTimeOffApi: TimesheetApi = {
   },
 };
 
+/**
+ * A full-day holiday on Wednesday and an afternoon off on Friday, this week,
+ * with time off over both: vacation Tuesday and Wednesday (Wednesday takes the
+ * holiday's color) and a sick day Friday (Friday takes the sick day's).
+ */
+const withHolidaysApi: TimesheetApi = {
+  ...mockApi,
+  async fetchExpectedHours() {
+    await delay(300);
+    const monday = mondayOf(today);
+    const day = (offset: number) => {
+      const d = new Date(monday);
+      d.setUTCDate(monday.getUTCDate() + offset);
+      return iso(d);
+    };
+    return {
+      expectedHours: 16,
+      ptoHours: 12,
+      timeOffs: [
+        { id: 1, type: "Vacation", startsAt: day(1), endsAt: day(3) },
+        { id: 2, type: "Sick", startsAt: day(4), endsAt: day(5) },
+      ],
+      holidays: [
+        { date: day(2), name: "Founders' Day", part: "full" },
+        { date: day(4), name: "Founders' Day Eve", part: "pm" },
+      ],
+      holidayHours: 12,
+    };
+  },
+};
+
 /** The time-off source is down: no expected hours, but hours can still be logged. */
 const expectedHoursUnavailableApi: TimesheetApi = {
   ...mockApi,
@@ -156,6 +187,12 @@ export const WeeklyView: Story = { args: { ...base, defaultView: "weekly" } };
 export const MonthlyView: Story = { args: { ...base, defaultView: "monthly" } };
 
 export const WithTimeOff: Story = { args: { ...base, api: withTimeOffApi } };
+
+export const WithHolidays: Story = { args: { ...base, api: withHolidaysApi } };
+
+export const MonthlyWithHolidays: Story = {
+  args: { ...base, api: withHolidaysApi, defaultView: "monthly" },
+};
 
 export const EmptyTimesheet: Story = { args: { ...base, api: emptyApi } };
 

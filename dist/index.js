@@ -5992,9 +5992,23 @@ function timeOffIndexForDay(date, timeOffs) {
   const index = timeOffs.findIndex((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
   return index === -1 ? null : index;
 }
-function timeOffTintStyle(index) {
-  const tint = `color-mix(in srgb, ${getCategoricalColor(index)} 20%, transparent)`;
+function tintStyle(color) {
+  const tint = `color-mix(in srgb, ${color} 20%, transparent)`;
   return { backgroundImage: `linear-gradient(${tint}, ${tint})` };
+}
+function timeOffTintStyle(index) {
+  return tintStyle(getCategoricalColor(index));
+}
+var HOLIDAY_COLOR = "var(--color-info)";
+function holidayTintStyle() {
+  return tintStyle(HOLIDAY_COLOR);
+}
+function dayTintStyle(date, timeOffs, holidays) {
+  const holiday = holidays.find((h) => h.date === date);
+  if (holiday?.part === "full") return holidayTintStyle();
+  const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+  if (timeOffIndex !== null) return timeOffTintStyle(timeOffIndex);
+  return holiday ? holidayTintStyle() : void 0;
 }
 function dayLabel(date, weekday = "short") {
   return formatDateKey(date, { weekday, month: "short", day: "numeric", year: "numeric" });
@@ -6040,6 +6054,7 @@ function MonthlyCalendarGrid({
   gridData,
   contracts,
   timeOffs,
+  holidays,
   today,
   selectedDay,
   onDaySelect,
@@ -6072,8 +6087,10 @@ function MonthlyCalendarGrid({
         const total = dayTotal(date);
         const timeOffIndex = timeOffIndexForDay(date, timeOffs);
         const hasTimeOff = timeOffIndex !== null;
-        const tint = hasTimeOff ? timeOffTintStyle(timeOffIndex) : void 0;
-        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
+        const holiday = holidays.find((h) => h.date === date);
+        const isFullHoliday = holiday?.part === "full";
+        const tint = dayTintStyle(date, timeOffs, holidays);
+        const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff && !isFullHoliday;
         const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
         const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : weekend ? "bg-surface-raised" : "bg-surface";
         const header = /* @__PURE__ */ jsxs("div", { className: "flex items-start justify-between", children: [
@@ -6087,7 +6104,10 @@ function MonthlyCalendarGrid({
               children: cell.day
             }
           ),
-          hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" })
+          (hasTimeOff || holiday) && /* @__PURE__ */ jsxs("div", { className: "flex gap-1", children: [
+            hasTimeOff && /* @__PURE__ */ jsx(Badge, { variant: "info", className: "px-1 text-[10px]", children: "PTO" }),
+            holiday && /* @__PURE__ */ jsx(Badge, { variant: "default", className: "px-1 text-[10px]", children: "Holiday" })
+          ] })
         ] });
         if (isSelected && dayContracts.length === 1) {
           const contract = dayContracts[0];
@@ -6122,7 +6142,7 @@ function MonthlyCalendarGrid({
             type: "button",
             variant: "ghost",
             "aria-pressed": isSelected,
-            "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${isMissingHours ? ", no hours" : ""}`,
+            "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${holiday ? `, holiday: ${holiday.name}${holiday.part === "pm" ? ", afternoon off" : ""}` : ""}${isMissingHours ? ", no hours" : ""}`,
             onClick: () => onDaySelect(date),
             style: tint,
             className: cn(
@@ -6262,7 +6282,8 @@ function monthOf(date) {
 function HoursSummary({
   loggedHours,
   expectedHours,
-  ptoHours
+  ptoHours,
+  holidayHours
 }) {
   if (expectedHours === null) {
     return /* @__PURE__ */ jsx(Card, { padding: "md", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-3", children: [
@@ -6273,9 +6294,15 @@ function HoursSummary({
         ] }),
         " logged \xB7 Expected hours unavailable"
       ] }),
-      ptoHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
-        ptoHours,
-        "h time off"
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+        holidayHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
+          holidayHours,
+          "h holiday"
+        ] }),
+        ptoHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
+          ptoHours,
+          "h time off"
+        ] })
       ] })
     ] }) });
   }
@@ -6300,6 +6327,10 @@ function HoursSummary({
         "expected"
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+        holidayHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
+          holidayHours,
+          "h holiday"
+        ] }),
         ptoHours > 0 && /* @__PURE__ */ jsxs(Badge, { variant: "info", children: [
           ptoHours,
           "h time off"
@@ -6375,6 +6406,8 @@ function TimesheetTable({
   const [expectedHours, setExpectedHours] = useState(null);
   const [ptoHours, setPtoHours] = useState(0);
   const [timeOffs, setTimeOffs] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [holidayHours, setHolidayHours] = useState(0);
   const [notice, setNotice] = useState(null);
   const inputRefs = useRef({});
   const [revertSnapshot, setRevertSnapshot] = useState(null);
@@ -6418,6 +6451,8 @@ function TimesheetTable({
       setExpectedHours(expectedRes?.expectedHours ?? null);
       setPtoHours(expectedRes?.ptoHours ?? 0);
       setTimeOffs(expectedRes?.timeOffs || []);
+      setHolidays(expectedRes?.holidays ?? []);
+      setHolidayHours(expectedRes?.holidayHours ?? 0);
       setNotice(expectedRes ? expectedRes.notice ?? null : EXPECTED_HOURS_FAILED_NOTICE);
       setRevertSnapshot(null);
       clearTimer(autoSaveTimerRef);
@@ -6639,7 +6674,15 @@ function TimesheetTable({
       }
     ),
     loading ? /* @__PURE__ */ jsx(Spinner, { label: "Loading timesheet...", className: "py-12" }) : loadError ? /* @__PURE__ */ jsx(Alert, { variant: "error", title: "Failed to load time entries", children: /* @__PURE__ */ jsx(Button, { type: "button", variant: "outline", size: "sm", className: "mt-2", onClick: fetchEntries, children: "Try again" }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-      /* @__PURE__ */ jsx(HoursSummary, { loggedHours: grandTotal, expectedHours, ptoHours }),
+      /* @__PURE__ */ jsx(
+        HoursSummary,
+        {
+          loggedHours: grandTotal,
+          expectedHours,
+          ptoHours,
+          holidayHours
+        }
+      ),
       notice && /* @__PURE__ */ jsx(Alert, { variant: notice.variant, children: notice.message }),
       viewMode === "weekly" ? /* @__PURE__ */ jsx(Card, { padding: "sm", children: /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxs(Table, { children: [
         /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsxs(TableRow, { children: [
@@ -6672,6 +6715,7 @@ function TimesheetTable({
                 const value = gridData[key];
                 const isOutside = !contractCoversDay(contract, date);
                 const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+                const holiday = holidays.find((h) => h.date === date);
                 return /* @__PURE__ */ jsx(
                   TableCell,
                   {
@@ -6682,14 +6726,14 @@ function TimesheetTable({
                         ref: (el) => {
                           inputRefs.current[key] = el;
                         },
-                        "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}${timeOffIndex === null ? "" : `, time off: ${timeOffs[timeOffIndex].type}`}`,
+                        "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}${timeOffIndex === null ? "" : `, time off: ${timeOffs[timeOffIndex].type}`}${holiday ? `, holiday: ${holiday.name}${holiday.part === "pm" ? ", afternoon off" : ""}` : ""}`,
                         value,
                         disabled: isOutside,
                         onValueChange: (next) => handleCellChange(contract.id, date, next),
                         onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
                         placeholder: isOutside ? "" : "\u2013",
                         className: cn(dayIdx >= 5 && !value && "bg-surface"),
-                        style: timeOffIndex === null ? void 0 : timeOffTintStyle(timeOffIndex)
+                        style: dayTintStyle(date, timeOffs, holidays)
                       }
                     )
                   },
@@ -6741,6 +6785,7 @@ function TimesheetTable({
             gridData,
             contracts: activeContracts,
             timeOffs,
+            holidays,
             today,
             selectedDay,
             onDaySelect: setSelectedDay,
@@ -6759,7 +6804,8 @@ function TimesheetTable({
           }
         )
       ] }),
-      timeOffs.length > 0 && /* @__PURE__ */ jsx(TimeOffList, { timeOffs, viewMode })
+      timeOffs.length > 0 && /* @__PURE__ */ jsx(TimeOffList, { timeOffs, viewMode }),
+      holidays.length > 0 && /* @__PURE__ */ jsx(HolidayList, { holidays, viewMode })
     ] })
   ] });
 }
@@ -6787,6 +6833,33 @@ function TimeOffList({
         /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.startsAt) }),
         /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.endsAt) })
       ] }, to.id)) })
+    ] })
+  ] });
+}
+function HolidayList({
+  holidays,
+  viewMode
+}) {
+  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+  return /* @__PURE__ */ jsxs(Card, { padding: "sm", children: [
+    /* @__PURE__ */ jsx(
+      CardHeader,
+      {
+        size: "sm",
+        className: "mb-0 px-3 pb-3 pt-2",
+        title: `Holidays this ${viewMode === "weekly" ? "week" : "month"}`
+      }
+    ),
+    /* @__PURE__ */ jsxs(Table, { children: [
+      /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsx(TableRow, { children: ["Date", "Holiday", "Day"].map((h) => /* @__PURE__ */ jsx(TableHead, { children: h }, h)) }) }),
+      /* @__PURE__ */ jsx(TableBody, { children: sorted.map((holiday) => /* @__PURE__ */ jsxs(TableRow, { className: "last:border-0", children: [
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: formatDateKey(holiday.date, { weekday: "short", month: "short", day: "numeric" }) }),
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-primary", children: /* @__PURE__ */ jsxs("span", { className: "inline-flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(Swatch, { color: HOLIDAY_COLOR, size: "sm" }),
+          holiday.name
+        ] }) }),
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: holiday.part === "pm" ? "Afternoon off" : "Full day" })
+      ] }, `${holiday.date}::${holiday.name}`)) })
     ] })
   ] });
 }
