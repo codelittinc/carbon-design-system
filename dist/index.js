@@ -6802,8 +6802,20 @@ function TimesheetTable({
           }
         )
       ] }),
-      timeOffs.length > 0 && /* @__PURE__ */ jsx(TimeOffList, { timeOffs, viewMode }),
-      holidays.length > 0 && /* @__PURE__ */ jsx(HolidayList, { holidays, viewMode })
+      (timeOffs.length > 0 || holidays.length > 0) && // Side by side when both show (stacked on narrow screens); one alone takes the full width.
+      /* @__PURE__ */ jsxs(
+        "div",
+        {
+          className: cn(
+            "grid items-start gap-6",
+            timeOffs.length > 0 && holidays.length > 0 && "md:grid-cols-2"
+          ),
+          children: [
+            timeOffs.length > 0 && /* @__PURE__ */ jsx(TimeOffList, { timeOffs, viewMode }),
+            holidays.length > 0 && /* @__PURE__ */ jsx(HolidayList, { holidays, viewMode })
+          ]
+        }
+      )
     ] })
   ] });
 }

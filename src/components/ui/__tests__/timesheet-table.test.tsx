@@ -785,6 +785,19 @@ describe("TimesheetTable holiday colors", () => {
     expect(styleOf(editor)).toContain(HOLIDAY_TINT);
   });
 
+  it("puts the time off and holiday lists side by side, and one alone at full width", async () => {
+    const { unmount } = renderTable(colorsApi([VACATION]), { initialWeek: "2026-11-23" });
+    const holidaysTitle = await screen.findByText("Holidays this week");
+    const row = screen.getByText("Time off this week").closest(".grid")!;
+    expect(row).toContainElement(holidaysTitle);
+    expect(row.className).toContain("md:grid-cols-2");
+    unmount();
+
+    renderTable(colorsApi(), { initialWeek: "2026-11-23" });
+    const alone = (await screen.findByText("Holidays this week")).closest(".grid")!;
+    expect(alone.className).not.toContain("md:grid-cols-2");
+  });
+
   it("tints an afternoon off without time off with the holiday color in the month", async () => {
     renderTable(colorsApi(), { defaultView: "monthly", initialMonth: "2026-11" });
     const pm = await screen.findByRole("button", { name: /^Fri, Nov 27, 2026, holiday: QA Afternoon/ });

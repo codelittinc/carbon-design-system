@@ -17,6 +17,7 @@ uses it as the GitHub Release notes.
   - The month calendar marks a holiday with a "Holiday" badge (next to "PTO" on a day with both), and its label names it (", holiday: {name}", plus ", afternoon off" for `part: "pm"`). A past weekday with no hours is no longer flagged on a full-day holiday; an afternoon off still expects the morning's hours, so it can be.
   - A "Holidays this week" / "Holidays this month" card under the time off lists them by date, with "Full day" or "Afternoon off". It is left out when there are none.
   - Holidays are colored like time off, in one color for all of them: the warning amber (`--color-warning`), never a categorical one, so a holiday never looks like a time off (the categorical palette starts blue). Each name in the list has a swatch of it, and the days are tinted with the same faded overlay as time off: the hours inputs in every contract row of the weekly grid, and the day cells and open inline editor of the month calendar, for a full day and an afternoon off alike. On a holiday with time off, full day or afternoon off, the holiday's color shows.
+  - When a period has both time off and holidays, their two lists sit side by side in one row (stacked on narrow screens); either one alone keeps the full width.
   - A weekly input on a holiday names it too (", holiday: {name}", plus ", afternoon off"), after the time off's ", time off: {type}" when both apply. The month day's label does the same.
   - Cells on a holiday stay editable, with no warning: logging hours on one is allowed.
 

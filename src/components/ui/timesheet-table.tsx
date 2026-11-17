@@ -781,8 +781,18 @@ export function TimesheetTable({
             </>
           )}
 
-          {timeOffs.length > 0 && <TimeOffList timeOffs={timeOffs} viewMode={viewMode} />}
-          {holidays.length > 0 && <HolidayList holidays={holidays} viewMode={viewMode} />}
+          {(timeOffs.length > 0 || holidays.length > 0) && (
+            // Side by side when both show (stacked on narrow screens); one alone takes the full width.
+            <div
+              className={cn(
+                "grid items-start gap-6",
+                timeOffs.length > 0 && holidays.length > 0 && "md:grid-cols-2",
+              )}
+            >
+              {timeOffs.length > 0 && <TimeOffList timeOffs={timeOffs} viewMode={viewMode} />}
+              {holidays.length > 0 && <HolidayList holidays={holidays} viewMode={viewMode} />}
+            </div>
+          )}
         </>
       )}
     </div>
