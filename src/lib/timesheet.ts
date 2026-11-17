@@ -220,8 +220,11 @@ export function timeOffTintStyle(index: number): CSSProperties {
   return tintStyle(getCategoricalColor(index));
 }
 
-/** Every holiday's color, the info color of the "{n}h holiday" badge. */
-export const HOLIDAY_COLOR = "var(--color-info)";
+/**
+ * Every holiday's color: the warning amber, which no time off color is, so a
+ * holiday never looks like somebody's time off (the palette starts blue).
+ */
+export const HOLIDAY_COLOR = "var(--color-warning)";
 
 /** The tint for a holiday, full day or afternoon off. */
 export function holidayTintStyle(): CSSProperties {

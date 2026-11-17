@@ -48,7 +48,7 @@ describe("timeOffTintStyle", () => {
 
 describe("holidayTintStyle", () => {
   it("lays the info color, faded, over the background as an image", () => {
-    const tint = "color-mix(in srgb, var(--color-info) 20%, transparent)";
+    const tint = "color-mix(in srgb, var(--color-warning) 20%, transparent)";
     expect(holidayTintStyle()).toEqual({ backgroundImage: `linear-gradient(${tint}, ${tint})` });
     expect(holidayTintStyle().backgroundImage).not.toContain("--color-category-");
   });

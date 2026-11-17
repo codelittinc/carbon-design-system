@@ -711,7 +711,7 @@ describe("TimesheetTable holiday colors", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  const HOLIDAY_TINT = "color-mix(in srgb, var(--color-info) 20%, transparent)";
+  const HOLIDAY_TINT = "color-mix(in srgb, var(--color-warning) 20%, transparent)";
   const HOLIDAYS: TimesheetHoliday[] = [
     { date: "2026-11-25", name: "QA Full Holiday", part: "full" },
     { date: "2026-11-27", name: "QA Afternoon", part: "pm" },
@@ -745,13 +745,13 @@ describe("TimesheetTable holiday colors", () => {
     expect(full.className).toBe(cell("Backstage", "Thu, Nov 26, 2026").className);
   });
 
-  it("puts an info swatch before each holiday's name", async () => {
+  it("puts an amber swatch before each holiday's name", async () => {
     renderTable(colorsApi(), { initialWeek: "2026-11-23" });
     await screen.findByText("Holidays this week");
     for (const name of ["QA Full Holiday", "QA Afternoon"]) {
       const swatch = screen.getByText(name).querySelector("span[aria-hidden]")!;
       expect(swatch).not.toBeNull();
-      expect(styleOf(swatch)).toContain("var(--color-info)");
+      expect(styleOf(swatch)).toContain("var(--color-warning)");
     }
   });
 

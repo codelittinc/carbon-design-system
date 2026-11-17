@@ -34,7 +34,7 @@ interface AddressAutocompleteProps {
 declare function AddressAutocomplete$1({ value, onChange, onBlur, placeholder, className, variant }: AddressAutocompleteProps): react.JSX.Element;
 
 declare const buttonVariants: (props?: ({
-    variant?: "default" | "link" | "destructive" | "outline" | "ghost" | null | undefined;
+    variant?: "default" | "destructive" | "outline" | "ghost" | "link" | null | undefined;
     size?: "default" | "sm" | "lg" | "icon" | null | undefined;
     tone?: "default" | "destructive" | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
@@ -83,7 +83,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
 declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
-    padding?: "none" | "sm" | "md" | "lg" | null | undefined;
+    padding?: "sm" | "lg" | "none" | "md" | null | undefined;
     hoverable?: boolean | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {

@@ -5999,7 +5999,7 @@ function tintStyle(color) {
 function timeOffTintStyle(index) {
   return tintStyle(getCategoricalColor(index));
 }
-var HOLIDAY_COLOR = "var(--color-info)";
+var HOLIDAY_COLOR = "var(--color-warning)";
 function holidayTintStyle() {
   return tintStyle(HOLIDAY_COLOR);
 }
