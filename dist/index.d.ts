@@ -83,7 +83,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
 declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
-    padding?: "sm" | "lg" | "none" | "md" | null | undefined;
+    padding?: "none" | "sm" | "md" | "lg" | null | undefined;
     hoverable?: boolean | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
@@ -2401,6 +2401,7 @@ declare function EventCalendar<T>({ month, onMonthChange, itemsByDate, renderIte
  * (or ISO instants, of which only the date part is read) and are handled in UTC
  * throughout, so the host's zone never moves a day.
  */
+
 interface TimesheetContract {
     id: number;
     name: string;

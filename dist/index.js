@@ -5988,6 +5988,14 @@ function diffGrids(before, after) {
 function contractCoversDay(contract, date) {
   return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);
 }
+function timeOffIndexForDay(date, timeOffs) {
+  const index = timeOffs.findIndex((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
+  return index === -1 ? null : index;
+}
+function timeOffTintStyle(index) {
+  const tint = `color-mix(in srgb, ${getCategoricalColor(index)} 20%, transparent)`;
+  return { backgroundImage: `linear-gradient(${tint}, ${tint})` };
+}
 function dayLabel(date, weekday = "short") {
   return formatDateKey(date, { weekday, month: "short", day: "numeric", year: "numeric" });
 }
@@ -6027,9 +6035,6 @@ var HoursInput = forwardRef(
   }
 );
 HoursInput.displayName = "HoursInput";
-function isTimeOffDay(date, timeOffs) {
-  return timeOffs.some((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
-}
 function MonthlyCalendarGrid({
   month,
   gridData,
@@ -6065,7 +6070,9 @@ function MonthlyCalendarGrid({
       renderDay: (cell, { key: date, isToday, isWeekend: weekend }) => {
         const isSelected = date === selectedDay;
         const total = dayTotal(date);
-        const hasTimeOff = isTimeOffDay(date, timeOffs);
+        const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+        const hasTimeOff = timeOffIndex !== null;
+        const tint = hasTimeOff ? timeOffTintStyle(timeOffIndex) : void 0;
         const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
         const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
         const background = isMissingHours ? "bg-error-soft" : isToday ? "bg-accent-muted" : weekend ? "bg-surface-raised" : "bg-surface";
@@ -6084,7 +6091,7 @@ function MonthlyCalendarGrid({
         ] });
         if (isSelected && dayContracts.length === 1) {
           const contract = dayContracts[0];
-          return /* @__PURE__ */ jsxs("div", { className: cn("w-full p-2 ring-2 ring-inset ring-accent", background), children: [
+          return /* @__PURE__ */ jsxs("div", { className: cn("w-full p-2 ring-2 ring-inset ring-accent", background), style: tint, children: [
             header,
             /* @__PURE__ */ jsx(
               HoursInput,
@@ -6115,8 +6122,9 @@ function MonthlyCalendarGrid({
             type: "button",
             variant: "ghost",
             "aria-pressed": isSelected,
-            "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`,
+            "aria-label": `${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${isMissingHours ? ", no hours" : ""}`,
             onClick: () => onDaySelect(date),
+            style: tint,
             className: cn(
               // A whole calendar cell, not an inline button: stacked, square, full height.
               "flex h-auto w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",
@@ -6663,6 +6671,7 @@ function TimesheetTable({
                 const key = cellKey(contract.id, date);
                 const value = gridData[key];
                 const isOutside = !contractCoversDay(contract, date);
+                const timeOffIndex = timeOffIndexForDay(date, timeOffs);
                 return /* @__PURE__ */ jsx(
                   TableCell,
                   {
@@ -6673,13 +6682,14 @@ function TimesheetTable({
                         ref: (el) => {
                           inputRefs.current[key] = el;
                         },
-                        "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}`,
+                        "aria-label": `Hours for ${contract.projectName} on ${dayLabel(date)}${timeOffIndex === null ? "" : `, time off: ${timeOffs[timeOffIndex].type}`}`,
                         value,
                         disabled: isOutside,
                         onValueChange: (next) => handleCellChange(contract.id, date, next),
                         onKeyDown: (e) => handleKeyDown(e, contractIdx, dayIdx),
                         placeholder: isOutside ? "" : "\u2013",
-                        className: cn(dayIdx >= 5 && !value && "bg-surface")
+                        className: cn(dayIdx >= 5 && !value && "bg-surface"),
+                        style: timeOffIndex === null ? void 0 : timeOffTintStyle(timeOffIndex)
                       }
                     )
                   },
@@ -6769,8 +6779,11 @@ function TimeOffList({
     ),
     /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: /* @__PURE__ */ jsx(TableRow, { children: ["Type", "From", "To"].map((h) => /* @__PURE__ */ jsx(TableHead, { children: h }, h)) }) }),
-      /* @__PURE__ */ jsx(TableBody, { children: timeOffs.map((to) => /* @__PURE__ */ jsxs(TableRow, { className: "last:border-0", children: [
-        /* @__PURE__ */ jsx(TableCell, { className: "text-text-primary", children: to.type }),
+      /* @__PURE__ */ jsx(TableBody, { children: timeOffs.map((to, i) => /* @__PURE__ */ jsxs(TableRow, { className: "last:border-0", children: [
+        /* @__PURE__ */ jsx(TableCell, { className: "text-text-primary", children: /* @__PURE__ */ jsxs("span", { className: "inline-flex items-center gap-2", children: [
+          /* @__PURE__ */ jsx(Swatch, { color: getCategoricalColor(i), size: "sm" }),
+          to.type
+        ] }) }),
         /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.startsAt) }),
         /* @__PURE__ */ jsx(TableCell, { className: "text-text-secondary", children: fmt(to.endsAt) })
       ] }, to.id)) })
