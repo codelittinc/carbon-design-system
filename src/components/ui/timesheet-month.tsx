@@ -8,11 +8,13 @@
 
 import { forwardRef, useEffect, useRef, useState, type ReactElement } from "react";
 import { cn } from "@/lib/cn";
-import { datePart, formatDateKey, monthLabel, type YearMonth } from "@/lib/calendar";
+import { formatDateKey, monthLabel, type YearMonth } from "@/lib/calendar";
 import { tableRowHoverClass } from "@/lib/ui-classes";
 import {
   cellKey,
   contractCoversDay,
+  timeOffIndexForDay,
+  timeOffTintStyle,
   type TimesheetContract,
   type TimesheetGridData,
   type TimesheetTimeOff,
@@ -85,11 +87,6 @@ export const HoursInput = forwardRef<HTMLInputElement, HoursInputProps>(
 );
 HoursInput.displayName = "HoursInput";
 
-function isTimeOffDay(date: string, timeOffs: TimesheetTimeOff[]): boolean {
-  // endsAt is the return date, so it is exclusive.
-  return timeOffs.some((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
-}
-
 interface MonthlyCalendarGridProps {
   month: YearMonth;
   gridData: TimesheetGridData;
@@ -148,7 +145,9 @@ export function MonthlyCalendarGrid({
       renderDay={(cell, { key: date, isToday, isWeekend: weekend }) => {
         const isSelected = date === selectedDay;
         const total = dayTotal(date);
-        const hasTimeOff = isTimeOffDay(date, timeOffs);
+        const timeOffIndex = timeOffIndexForDay(date, timeOffs);
+        const hasTimeOff = timeOffIndex !== null;
+        const tint = hasTimeOff ? timeOffTintStyle(timeOffIndex) : undefined;
         const isMissingHours = !weekend && date < today && total === 0 && !hasTimeOff;
         const dayContracts = contracts.filter((c) => contractCoversDay(c, date));
 
@@ -181,7 +180,7 @@ export function MonthlyCalendarGrid({
         if (isSelected && dayContracts.length === 1) {
           const contract = dayContracts[0];
           return (
-            <div className={cn("w-full p-2 ring-2 ring-inset ring-accent", background)}>
+            <div className={cn("w-full p-2 ring-2 ring-inset ring-accent", background)} style={tint}>
               {header}
               <HoursInput
                 ref={inlineInputRef}
@@ -210,8 +209,9 @@ export function MonthlyCalendarGrid({
             type="button"
             variant="ghost"
             aria-pressed={isSelected}
-            aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? ", time off" : ""}${isMissingHours ? ", no hours" : ""}`}
+            aria-label={`${dayLabel(date)}${total > 0 ? `, ${total} hours` : ""}${hasTimeOff ? `, time off: ${timeOffs[timeOffIndex].type}` : ""}${isMissingHours ? ", no hours" : ""}`}
             onClick={() => onDaySelect(date)}
+            style={tint}
             className={cn(
               // A whole calendar cell, not an inline button: stacked, square, full height.
               "flex h-auto w-full flex-col items-stretch justify-start gap-0 whitespace-normal rounded-none p-2 text-left font-normal focus-visible:ring-inset",

@@ -21,12 +21,15 @@ import {
   type CalendarDate,
   type YearMonth,
 } from "@/lib/calendar";
+import { getCategoricalColor } from "@/lib/categorical-colors";
 import {
   cellKey,
   contractCoversDay,
   createDefaultApi,
   diffGrids,
   parseCellKey,
+  timeOffIndexForDay,
+  timeOffTintStyle,
   type TimesheetApi,
   type TimesheetContract,
   type TimesheetGridData,
@@ -43,6 +46,7 @@ import { PageHeader } from "./page-header";
 import { Progress } from "./progress";
 import { SegmentedControl } from "./segmented-control";
 import { Spinner } from "./spinner";
+import { Swatch } from "./swatch";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "./table";
 import { TableEmptyRow } from "./table-empty-row";
 import { toast } from "./toast";
@@ -658,6 +662,7 @@ export function TimesheetTable({
                             const key = cellKey(contract.id, date);
                             const value = gridData[key];
                             const isOutside = !contractCoversDay(contract, date);
+                            const timeOffIndex = timeOffIndexForDay(date, timeOffs);
                             return (
                               <TableCell
                                 key={date}
@@ -667,13 +672,16 @@ export function TimesheetTable({
                                   ref={(el) => {
                                     inputRefs.current[key] = el;
                                   }}
-                                  aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}`}
+                                  aria-label={`Hours for ${contract.projectName} on ${dayLabel(date)}${
+                                    timeOffIndex === null ? "" : `, time off: ${timeOffs[timeOffIndex].type}`
+                                  }`}
                                   value={value}
                                   disabled={isOutside}
                                   onValueChange={(next) => handleCellChange(contract.id, date, next)}
                                   onKeyDown={(e) => handleKeyDown(e, contractIdx, dayIdx)}
                                   placeholder={isOutside ? "" : "–"}
                                   className={cn(dayIdx >= 5 && !value && "bg-surface")}
+                                  style={timeOffIndex === null ? undefined : timeOffTintStyle(timeOffIndex)}
                                 />
                               </TableCell>
                             );
@@ -779,9 +787,14 @@ function TimeOffList({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {timeOffs.map((to) => (
+          {timeOffs.map((to, i) => (
             <TableRow key={to.id} className="last:border-0">
-              <TableCell className="text-text-primary">{to.type}</TableCell>
+              <TableCell className="text-text-primary">
+                <span className="inline-flex items-center gap-2">
+                  <Swatch color={getCategoricalColor(i)} size="sm" />
+                  {to.type}
+                </span>
+              </TableCell>
               <TableCell className="text-text-secondary">{fmt(to.startsAt)}</TableCell>
               <TableCell className="text-text-secondary">{fmt(to.endsAt)}</TableCell>
             </TableRow>

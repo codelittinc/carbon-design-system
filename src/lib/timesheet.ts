@@ -8,7 +8,9 @@
  * throughout, so the host's zone never moves a day.
  */
 
+import type { CSSProperties } from "react";
 import { datePart } from "./calendar";
+import { getCategoricalColor } from "./categorical-colors";
 
 export interface TimesheetContract {
   id: number;
@@ -179,4 +181,24 @@ export function diffGrids(before: TimesheetGridData, after: TimesheetGridData): 
 /** Whether a contract covers a day, both ends inclusive. */
 export function contractCoversDay(contract: TimesheetContract, date: string): boolean {
   return date >= datePart(contract.startDate) && date <= datePart(contract.endDate);
+}
+
+/**
+ * The position of the first time off covering a day, or `null`. That position
+ * picks the entry's color, so the list and the grids agree. `endsAt` is the
+ * return date, so it is exclusive.
+ */
+export function timeOffIndexForDay(date: string, timeOffs: TimesheetTimeOff[]): number | null {
+  const index = timeOffs.findIndex((to) => date >= datePart(to.startsAt) && date < datePart(to.endsAt));
+  return index === -1 ? null : index;
+}
+
+/**
+ * The tint for a day covered by the time off at `index`: its categorical color,
+ * faded. A background image rather than a color, so it lies over the cell's own
+ * background (today, weekend, hover) instead of replacing it.
+ */
+export function timeOffTintStyle(index: number): CSSProperties {
+  const tint = `color-mix(in srgb, ${getCategoricalColor(index)} 20%, transparent)`;
+  return { backgroundImage: `linear-gradient(${tint}, ${tint})` };
 }

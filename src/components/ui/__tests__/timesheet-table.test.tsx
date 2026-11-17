@@ -5,6 +5,7 @@ import {
   createDefaultApi,
   type TimesheetApi,
   type TimesheetContract,
+  type TimesheetTimeOff,
 } from "../timesheet-table";
 
 const CONTRACTS: TimesheetContract[] = [
@@ -72,8 +73,11 @@ function renderTable(api: TimesheetApi, props: Partial<React.ComponentProps<type
   );
 }
 
-const cell = (project: string, day: string) =>
-  screen.getByLabelText(`Hours for ${project} on ${day}`) as HTMLInputElement;
+/** A weekly or day-panel input; `timeOff` is the type of the time off covering the day. */
+const cell = (project: string, day: string, timeOff?: string) =>
+  screen.getByLabelText(
+    `Hours for ${project} on ${day}${timeOff ? `, time off: ${timeOff}` : ""}`,
+  ) as HTMLInputElement;
 
 describe("TimesheetTable", () => {
   it("fetches the week and renders the grid from the api", async () => {
@@ -414,6 +418,167 @@ describe("TimesheetTable time off", () => {
     const row = (await screen.findByText("Vacation")).closest("tr")!;
     expect(within(row).getByText("Thu, Sep 17")).toBeInTheDocument();
     expect(within(row).getByText("Fri, Sep 18")).toBeInTheDocument();
+  });
+});
+
+function timeOffApi(timeOffs: TimesheetTimeOff[]): TimesheetApi {
+  return mockApi({ fetchExpectedHours: vi.fn(async () => ({ expectedHours: 24, ptoHours: 16, timeOffs })) });
+}
+
+/** Monday to Wednesday: `endsAt` is the Thursday the person is back. */
+const VACATION: TimesheetTimeOff = {
+  id: "0b6f6c1e-4c1f-4f7e-9a51-2d0d7a3c9e10",
+  type: "Vacation",
+  startsAt: "2026-09-14T00:00:00.000Z",
+  endsAt: "2026-09-17T00:00:00.000Z",
+};
+
+const styleOf = (el: Element) => el.getAttribute("style") ?? "";
+const category = (n: number) => `var(--color-category-${n})`;
+const listSwatches = () =>
+  screen
+    .getAllByRole("row")
+    .filter((row) => row.closest("table")?.querySelector("th")?.textContent === "Type")
+    .slice(1)
+    .map((row) => row.querySelector("span[aria-hidden]")!);
+
+describe("TimesheetTable time-off colors", () => {
+  it("gives each listed time off its own swatch, in list order", async () => {
+    renderTable(timeOffApi([VACATION, { id: 9, type: "Sick", startsAt: "2026-09-18", endsAt: "2026-09-19" }]));
+    await screen.findByText("Vacation");
+    const swatches = listSwatches();
+    expect(swatches).toHaveLength(2);
+    expect(screen.getByText("Vacation")).toContainElement(swatches[0] as HTMLElement);
+    expect(styleOf(swatches[0])).toContain(category(1));
+    expect(styleOf(swatches[1])).toContain(category(2));
+  });
+
+  it("keeps eleven entries distinct and repeats from the twelfth", async () => {
+    renderTable(
+      timeOffApi(
+        Array.from({ length: 12 }, (_, i) => ({
+          id: i + 1,
+          type: `Leave ${i + 1}`,
+          startsAt: "2026-09-19",
+          endsAt: "2026-09-20",
+        })),
+      ),
+    );
+    await screen.findByText("Leave 12");
+    const colors = listSwatches().map(styleOf);
+    expect(new Set(colors.slice(0, 11)).size).toBe(11);
+    expect(colors[11]).toBe(colors[0]);
+  });
+
+  it("tints every contract's cells for the days off, endsAt excluded", async () => {
+    renderTable(timeOffApi([VACATION]));
+    await screen.findByText("Vacation");
+    for (const day of ["Mon, Sep 14, 2026", "Tue, Sep 15, 2026", "Wed, Sep 16, 2026"]) {
+      for (const project of ["Backstage", "Legacy"]) {
+        const input = cell(project, day, "Vacation");
+        expect(styleOf(input)).toContain(`color-mix(in srgb, ${category(1)} 20%, transparent)`);
+        expect(styleOf(input)).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+      }
+    }
+    expect(styleOf(cell("Backstage", "Thu, Sep 17, 2026"))).toBe("");
+    expect(styleOf(cell("Legacy", "Thu, Sep 17, 2026"))).toBe("");
+    // The tint is the only difference: same classes as an untinted weekday.
+    expect(cell("Backstage", "Mon, Sep 14, 2026", "Vacation").className).toBe(
+      cell("Backstage", "Thu, Sep 17, 2026").className,
+    );
+    const grid = screen.getByText("Daily Total").closest("table")!;
+    for (const part of [grid.querySelector("thead")!, grid.querySelector("tfoot")!]) {
+      expect(part.innerHTML).not.toContain("--color-category");
+    }
+  });
+
+  it("saves hours typed into a tinted cell like any other", async () => {
+    const api = timeOffApi([VACATION]);
+    renderTable(api);
+    await screen.findByText("Vacation");
+    fireEvent.change(cell("Backstage", "Tue, Sep 15, 2026", "Vacation"), { target: { value: "4" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    expect(api.saveTimesheet).toHaveBeenCalledWith([{ contractId: 1, date: "2026-09-15", hours: 4 }]);
+  });
+
+  it("colors an overlapping day with the first listed entry", async () => {
+    const sick = { id: 9, type: "Sick", startsAt: "2026-09-15", endsAt: "2026-09-16" };
+    renderTable(timeOffApi([VACATION, sick]));
+    await screen.findByText("Sick");
+    const tue = cell("Backstage", "Tue, Sep 15, 2026", "Vacation");
+    expect(styleOf(tue)).toContain(category(1));
+    expect(styleOf(tue)).not.toContain(category(2));
+    expect(listSwatches().map(styleOf)).toEqual([
+      expect.stringContaining(category(1)),
+      expect.stringContaining(category(2)),
+    ]);
+  });
+
+  it("tints the month's days and the inline editor with the list's color, keeping the PTO badge", async () => {
+    const sick = { id: 9, type: "Sick", startsAt: "2026-09-18", endsAt: "2026-09-19" };
+    renderTable(timeOffApi([VACATION, sick]), { defaultView: "monthly", initialMonth: "2026-09" });
+    await screen.findByText("Vacation");
+    for (const name of [
+      /^Mon, Sep 14, 2026, 6 hours, time off: Vacation$/,
+      /^Tue, Sep 15, 2026, 2 hours, time off: Vacation$/,
+      /^Wed, Sep 16, 2026, time off: Vacation$/,
+    ]) {
+      const day = screen.getByRole("button", { name });
+      expect(styleOf(day)).toContain(category(1));
+      expect(within(day).getByText("PTO")).toBeInTheDocument();
+    }
+    const thu = screen.getByRole("button", { name: /^Thu, Sep 17, 2026/ });
+    expect(thu).not.toHaveAccessibleName(/time off/);
+    expect(styleOf(thu)).toBe("");
+    expect(styleOf(listSwatches()[0])).toContain(category(1));
+
+    // From the 17th only Backstage covers the day, so Friday edits in place.
+    fireEvent.click(screen.getByRole("button", { name: /^Fri, Sep 18, 2026, time off: Sick$/ }));
+    const editor = screen.getByLabelText("Hours for Backstage on Fri, Sep 18, 2026").closest("div.ring-2")!;
+    expect(styleOf(editor)).toContain(category(2));
+    expect(styleOf(listSwatches()[1])).toContain(category(2));
+  });
+
+  it("tints nothing and lists nothing without time off", async () => {
+    renderTable(timeOffApi([]));
+    await screen.findByText("Daily Total");
+    expect(document.body.innerHTML).not.toContain("--color-category");
+    expect(screen.queryByText(/Time off this/)).not.toBeInTheDocument();
+  });
+
+  it("tints nothing in the month without time off", async () => {
+    renderTable(timeOffApi([]), { defaultView: "monthly", initialMonth: "2026-09" });
+    await screen.findByText("September 2026");
+    await screen.findByRole("button", { name: /^Mon, Sep 14, 2026, 6 hours/ });
+    expect(document.body.innerHTML).not.toContain("--color-category");
+    expect(screen.queryByText(/Time off this/)).not.toBeInTheDocument();
+  });
+
+  it("keeps each entry's color across navigation and a remount", async () => {
+    const api = timeOffApi([VACATION, { id: 9, type: "Sick", startsAt: "2026-09-18", endsAt: "2026-09-19" }]);
+    const { unmount } = renderTable(api);
+    await screen.findByText("Vacation");
+    const before = listSwatches().map(styleOf);
+    const monStyle = styleOf(cell("Backstage", "Mon, Sep 14, 2026", "Vacation"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    });
+    await screen.findByText("Sep 21 – Sep 27, 2026");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Previous week" }));
+    });
+    await screen.findByText("Sep 14 – Sep 20, 2026");
+    await screen.findByText("Vacation");
+    expect(listSwatches().map(styleOf)).toEqual(before);
+    expect(styleOf(cell("Backstage", "Mon, Sep 14, 2026", "Vacation"))).toBe(monStyle);
+
+    unmount();
+    renderTable(api);
+    await screen.findByText("Vacation");
+    expect(listSwatches().map(styleOf)).toEqual(before);
   });
 });
 

@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.48.0] - 2026-11-17
+
+### Added
+
+- **`TimesheetTable` colors each time off.** Every row of the "Time off this week/month" list now has a color swatch next to its type, and the days that time off covers are tinted the same color: the hours inputs in every contract row of the weekly grid, and the day cells (and the open inline editor) of the monthly calendar, where the PTO badge stays. Colors come from the categorical palette (`--color-category-*`) by the entry's position in `timeOffs`, so keep that order stable between fetches for colors to stay put; after eleven entries they repeat. A day covered by two entries takes the first one's color. `endsAt` stays exclusive. The tint is a faded overlay, so today, weekend and hover backgrounds still show through, and the cells stay editable and save as before. A tinted input's accessible name ends in ", time off: {type}", and a month day's ", time off" suffix now names the type too. No API change.
+
 ## [1.47.0] - 2026-11-16
 
 ### Added
