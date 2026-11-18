@@ -8,6 +8,12 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.49.1] - 2026-11-18
+
+### Fixed
+
+- **`Button asChild` no longer crashes on a lazy child.** When a server component renders `<Button asChild><Link …/></Button>`, the child can reach the client as a lazy reference rather than an element. `Button` wrapped it into an array, and Radix `Slot` threw "Slot failed to slot onto its children". With `asChild`, `Button` now passes its child to `Slot` untouched, and `Slot` (`@radix-ui/react-slot` 1.5.0+, via React 19's `use`) resolves the lazy reference. Lazy children only come from React 19 server components, so React 18 apps are unaffected either way. No API change.
+
 ## [1.49.0] - 2026-11-17
 
 ### Added
