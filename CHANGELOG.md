@@ -12,7 +12,7 @@ uses it as the GitHub Release notes.
 
 ### Fixed
 
-- **`Button asChild` no longer crashes on a lazy child.** When a server component renders `<Button asChild><Link …/></Button>`, the child can reach the client as a lazy reference rather than an element. `Button` wrapped it into an array, and Radix `Slot` threw "Slot failed to slot onto its children". With `asChild`, `Button` now passes its child to `Slot` untouched, and `Slot` resolves the lazy reference. No API change.
+- **`Button asChild` no longer crashes on a lazy child.** When a server component renders `<Button asChild><Link …/></Button>`, the child can reach the client as a lazy reference rather than an element. `Button` wrapped it into an array, and Radix `Slot` threw "Slot failed to slot onto its children". With `asChild`, `Button` now passes its child to `Slot` untouched, and `Slot` (`@radix-ui/react-slot` 1.5.0+, via React 19's `use`) resolves the lazy reference. Lazy children only come from React 19 server components, so React 18 apps are unaffected either way. No API change.
 
 ## [1.49.0] - 2026-11-17
 
