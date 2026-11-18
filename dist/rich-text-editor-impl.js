@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef, isValidElement, useRef, useState, createContext, useContext, useLayoutEffect, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId, cloneElement } from 'react';
+import { forwardRef, useRef, useState, createContext, useContext, useLayoutEffect, useMemo, useEffect, useImperativeHandle, Children, Fragment as Fragment$2, useSyncExternalStore, useCallback, useId, isValidElement, cloneElement } from 'react';
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Slice, Fragment as Fragment$1 } from '@tiptap/pm/model';
 import { clsx } from 'clsx';
@@ -797,7 +797,7 @@ function withTruncatableLabels(children) {
 var Button = forwardRef(
   ({ className, variant, size, tone, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
+    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild ? children : withTruncatableLabels(children) });
   }
 );
 Button.displayName = "Button";

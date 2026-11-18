@@ -2,7 +2,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React2 from 'react';
-import { forwardRef, isValidElement, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, cloneElement } from 'react';
+import { forwardRef, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, isValidElement, cloneElement } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
@@ -801,7 +801,7 @@ function withTruncatableLabels(children) {
 var Button = forwardRef(
   ({ className, variant, size, tone, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild && isValidElement(children) ? children : withTruncatableLabels(children) });
+    return /* @__PURE__ */ jsx(Comp, { className: cn(buttonVariants({ variant, size, tone, className })), ref, ...props, children: asChild ? children : withTruncatableLabels(children) });
   }
 );
 Button.displayName = "Button";

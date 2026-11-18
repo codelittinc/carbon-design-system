@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, forwardRef, isValidElement, type ReactNode } from "react";
+import { Children, forwardRef, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
@@ -149,8 +149,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp className={cn(buttonVariants({ variant, size, tone, className }))} ref={ref} {...props}>
         {/* `asChild` hands rendering to the consumer's own element, and Slot
             requires exactly one child — wrapping would both break that contract
-            and put a span inside markup somebody else owns. */}
-        {asChild && isValidElement(children) ? children : withTruncatableLabels(children)}
+            and put a span inside markup somebody else owns. Pass it through
+            untouched, not only when it is a valid element: a server component's
+            child can arrive as a lazy reference that Slot unwraps itself, and
+            wrapping that into an array made Slot throw. */}
+        {asChild ? children : withTruncatableLabels(children)}
       </Comp>
     );
   },

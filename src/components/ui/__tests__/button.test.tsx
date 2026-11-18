@@ -52,6 +52,26 @@ describe("Button", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("slots onto a lazy child when asChild is set", () => {
+    // A server component's child can reach a client component as a lazy
+    // reference (React Flight), not an element. Slot resolves it itself.
+    const value = <a href="/positions/1">Add stages</a>;
+    const payload = {
+      status: "fulfilled",
+      value,
+      then: (resolve: (v: unknown) => void) => resolve(value),
+    };
+    const lazyChild = {
+      $$typeof: Symbol.for("react.lazy"),
+      _payload: payload,
+      _init: (p: typeof payload) => p.value,
+    } as unknown as React.ReactElement;
+    render(<Button asChild>{lazyChild}</Button>);
+    const link = screen.getByRole("link", { name: "Add stages" });
+    expect(link).toHaveAttribute("href", "/positions/1");
+    expect(link).toHaveClass("bg-accent");
+  });
+
   it("forwards className alongside the variant classes", () => {
     render(<Button className="custom-class">Styled</Button>);
     const button = screen.getByRole("button", { name: "Styled" });
