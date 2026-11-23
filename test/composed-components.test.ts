@@ -60,6 +60,10 @@ const RULES: Rule[] = [
         tags: ["table", "thead", "tbody", "tr", "th", "td"],
       },
       "rich-text-image-button": { why: "the image upload's hidden file input", tags: ["input"] },
+      "file-input": {
+        why: "the FileInput primitive: the native file input is what submits with the form",
+        tags: ["input"],
+      },
       "search-select": { why: COMBOBOX_REWRITE, tags: ["button", "input"] },
       "account-combobox": { why: COMBOBOX_REWRITE, tags: ["button"] },
     },

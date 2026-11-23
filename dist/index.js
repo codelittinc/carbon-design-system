@@ -2,12 +2,12 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as React2 from 'react';
-import { forwardRef, createContext, useSyncExternalStore, useState, useRef, useImperativeHandle, useEffect, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, isValidElement, cloneElement } from 'react';
+import { forwardRef, createContext, useRef, useImperativeHandle, useState, useSyncExternalStore, useEffect, useMemo, useContext, useLayoutEffect, useCallback, Children, useId, Fragment as Fragment$1, isValidElement, cloneElement } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import * as DialogPrimitive2 from '@radix-ui/react-dialog';
-import { X, ChevronRight, Check, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, Plus, Grip, File, ArrowLeft, Search, Sun, Moon, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { X, ChevronRight, Check, File, ChevronDown, ExternalLink, TriangleAlert, Info, CheckCircle2, AlertCircle, ChevronLeft, Plus, Grip, ArrowLeft, Search, Sun, Moon, ArrowRight, LockKeyhole, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 export { AlertCircle as AlertCircleIcon, Grip as AppsIcon, ArrowDown as ArrowDownIcon, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, Ban as BanIcon, Calendar as CalendarIcon, CheckCircle2 as CheckCircleIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ChevronUp as ChevronUpIcon, ClipboardCheck as ClipboardCheckIcon, Copy as CopyIcon, Download as DownloadIcon, ExternalLink as ExternalLinkIcon, Eye as EyeIcon, File as FileIcon, FileText as FileTextIcon, Info as InfoIcon, Layers as LayersIcon, LayoutDashboard as LayoutDashboardIcon, LoaderCircle as LoaderIcon, LogOut as LogOutIcon, MapPin as MapPinIcon, Menu as MenuIcon, MoreHorizontal as MoreHorizontalIcon, PanelLeftClose as PanelLeftCloseIcon, PanelLeft as PanelLeftIcon, Pencil as PencilIcon, Plus as PlusIcon, Search as SearchIcon, Settings as SettingsIcon, Trash2 as TrashIcon, Upload as UploadIcon, Users as UsersIcon, Wallet as WalletIcon, TriangleAlert as WarningIcon, X as XIcon } from 'lucide-react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
@@ -2178,6 +2178,93 @@ function StatusBadge({ status, className }) {
   const label = status.replace(/_/g, " ");
   return /* @__PURE__ */ jsx(Badge, { variant, className, children: label });
 }
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+var FileInput = forwardRef(
+  ({
+    id,
+    className,
+    invalid = false,
+    describedBy,
+    onFileChange,
+    disabled,
+    buttonLabel = "Choose file",
+    emptyLabel = "No file chosen",
+    removeLabel = "Remove",
+    ...props
+  }, ref) => {
+    const inputRef = useRef(null);
+    useImperativeHandle(ref, () => inputRef.current);
+    const [file, setFile] = useState(null);
+    const choose = (next) => {
+      setFile(next);
+      onFileChange?.(next);
+    };
+    const remove = () => {
+      if (inputRef.current) inputRef.current.value = "";
+      choose(null);
+      inputRef.current?.focus();
+    };
+    return /* @__PURE__ */ jsxs("div", { className: cn("flex min-w-0 flex-wrap items-center gap-2", className), children: [
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          ref: inputRef,
+          id,
+          type: "file",
+          className: "peer sr-only",
+          disabled,
+          "aria-invalid": invalid || void 0,
+          "aria-describedby": describedBy,
+          onChange: (e) => choose(e.target.files?.[0] ?? null),
+          ...props
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        Label,
+        {
+          htmlFor: id,
+          className: cn(
+            buttonVariants({ variant: "outline" }),
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-accent/50",
+            invalid && "border-error-border",
+            disabled && "pointer-events-none cursor-not-allowed opacity-50"
+          ),
+          children: buttonLabel
+        }
+      ),
+      file ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsxs("span", { className: "flex min-w-0 items-center gap-1.5 text-sm text-text-primary", title: file.name, children: [
+          /* @__PURE__ */ jsx(File, { className: "h-4 w-4 shrink-0 text-text-muted", "aria-hidden": "true" }),
+          /* @__PURE__ */ jsx("span", { className: "min-w-0 truncate", children: file.name }),
+          /* @__PURE__ */ jsxs("span", { className: "shrink-0 text-text-muted", children: [
+            "\xB7 ",
+            formatFileSize(file.size)
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs(
+          Button,
+          {
+            type: "button",
+            variant: "ghost",
+            size: "sm",
+            disabled,
+            "aria-label": `${removeLabel} ${file.name}`,
+            onClick: remove,
+            children: [
+              /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5", "aria-hidden": "true" }),
+              removeLabel
+            ]
+          }
+        )
+      ] }) : /* @__PURE__ */ jsx("span", { className: "text-sm text-text-muted", children: emptyLabel })
+    ] });
+  }
+);
+FileInput.displayName = "FileInput";
 var Textarea = forwardRef(
   ({ className, ...props }, ref) => {
     return /* @__PURE__ */ jsx(
@@ -7872,4 +7959,4 @@ function SignOutPage({
   );
 }
 
-export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, MAX_TABLE_SPAN, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TABLE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, safeTableSpan, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
+export { AccountCombobox, AddressAutocomplete, AddressAutocomplete2 as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CATEGORICAL_PALETTE, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileInput, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, IMAGE_ALIGNMENTS, Input, Label, LineChart, MAX_CHIP_SEGMENTS, MAX_TABLE_SPAN, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, NEUTRAL_CATEGORICAL_COLOR, OVERFLOW_SEGMENT_COLOR, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RICH_TEXT_EXTENDED_TAGS, RICH_TEXT_IMAGE_TAGS, RICH_TEXT_PROSE, RICH_TEXT_TABLE_TAGS, RICH_TEXT_TAGS, RadioGroup, RadioGroupItem, RichTextEditor, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, THEME_SCRIPT, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, cn, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDate, formatDateKey, formatMoney, formatPeriodLabel, getCategoricalColor, getCategoricalSegments, imageAlignmentAttributes, isAllowedEditorHref, isPostalAddressDraftComplete, isRichTextEmpty, isWeekend, linkHrefErrorMessage, monthLabel, monthOfKey, monthWeeks, nextDayRange, normalizeLinkHref, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, richTextTags, safeHref, safeImageAlignment, safeTableSpan, sanitizeRichText, seriesColor, shiftMonth, startOfWeek, themeScript, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
