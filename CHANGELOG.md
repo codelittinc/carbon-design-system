@@ -8,6 +8,14 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [1.50.0] - 2026-11-23
+
+### Added
+
+- **`FileInput`**: a single-file picker drawn with the design system's controls. The native `<input type="file">` stays in the DOM, visually hidden and still focusable, so it submits with its form, keeps the browser's dialog and keyboard handling, and can be named by a `Label` elsewhere. Its visible button is an outline-button label for it. Once a file is chosen it shows the name (truncated, full name in `title`) and size, plus a ghost Remove button that clears the input and returns focus to it.
+  - Props: `id` (required), `name`, `accept`, `required`, `disabled` and the other native input attributes; `invalid` (sets `aria-invalid` and an error border on the button); `describedBy` (joined into `aria-describedby`); `onFileChange(file | null)`; and the labels `buttonLabel` ("Choose file"), `emptyLabel` ("No file chosen") and `removeLabel` ("Remove").
+  - The ref is the native input.
+
 ## [1.49.1] - 2026-11-18
 
 ### Fixed
