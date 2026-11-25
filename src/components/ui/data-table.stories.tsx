@@ -105,7 +105,7 @@ function makeColumns(t: TFunction): ColumnDef<ChargeRow>[] {
   ];
 }
 
-type Story = StoryObj<typeof DataTable<ChargeRow, unknown>>;
+type Story = StoryObj<typeof DataTable<ChargeRow>>;
 
 export const Default: Story = {
   render: () => {

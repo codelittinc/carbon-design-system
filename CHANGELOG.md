@@ -8,6 +8,23 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [2.0.0] - 2026-11-25
+
+### Changed (breaking)
+
+- **`DataTable` runs on TanStack Table 9** (`@tanstack/react-table` 8.21 → 9.3). The table looks and behaves as before; what changes is the types an app writes its columns with.
+  - **Import `ColumnDef` from this package, not from `@tanstack/react-table`.** It keeps the `ColumnDef<TData, TValue>` shape and is bound to the table's features. TanStack 9's own `ColumnDef` takes a features type first (`ColumnDef<TFeatures, TData, TValue>`), so a v8 `ColumnDef<Row>` from TanStack no longer fits `columns`.
+  - **`DataTable` has one type parameter**, the row type: `DataTable<TData>`, not `DataTable<TData, TValue>`. `columns` takes columns of any value type, so a list can mix them.
+  - **Rows must be objects or arrays** (TanStack 9's `RowData`). A row type that is an interface or object type, as every table here uses, is unaffected.
+  - **Column `meta` types come from the new `DataTableColumnMeta`** export (`align`, `className`, `headerClassName`, as before), not from a global augmentation of TanStack's `ColumnMeta`. An app that augmented `ColumnMeta` with keys of its own now augments `DataTableColumnMeta` instead: `declare module "@codelittinc/carbon-design-system" { interface DataTableColumnMeta { label?: string } }`.
+  - Every stock feature TanStack Table 8 had built in is registered, so column options (`size`, `enablePinning`, `aggregationFn`…) and the row, column and table APIs a `cell`, `header` or `footer` calls (`row.toggleSelected()`, `header.getSize()`…) work as before. TanStack 9's own renames still apply. The one a column definition is likely to hit is `sortingFn` → `sortFn`. Column pinning also uses logical `start`/`end` in place of `left`/`right`. The built-in sort, filter and aggregation names (`"alphanumeric"`, `"includesString"`, `"sum"`…) still work.
+  - New exports: `DataTableColumnMeta` and `DataTableFeatures`.
+
+### Dependencies
+
+- Updated runtime dependencies: TipTap 3.33 → 3.35, `lucide-react` 1.71 → 1.79, `recharts` 3.10 → 3.11, `papaparse` 5.7.1, `tailwind-merge` 3.7.1.
+- Development only (no effect on apps): TypeScript 6 → 7, `@testing-library/jest-dom` 7 → 8, Storybook 10.6.8, Vitest 5.1.1, and pnpm 9 → 12.
+
 ## [1.50.0] - 2026-11-23
 
 ### Added
