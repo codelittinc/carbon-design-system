@@ -56,8 +56,8 @@ export interface DataTableColumnMeta {
 }
 
 /**
- * The TanStack Table features every `DataTable` has: all of TanStack's stock
- * features, as TanStack Table 8 had built in. TanStack Table 9 exposes a column
+ * The TanStack Table features every `DataTable` has: the stock features
+ * TanStack Table 8 had built in. TanStack Table 9 exposes a column
  * option (`size`, `enablePinning`…) or a row, column or table API
  * (`row.toggleSelected()`, `header.getSize()`…) only when its feature is
  * registered, and an app's column definitions may use any of them. The full sort,
@@ -65,8 +65,12 @@ export interface DataTableColumnMeta {
  * (`"alphanumeric"`, `"includesString"`, `"sum"`…) and `"auto"` available, as in
  * TanStack Table 8. Only the row models the table renders are registered.
  */
+// Cell selection and cell spanning are new in TanStack 9, not part of v8's set.
+const { cellSelectionFeature: _cellSelection, cellSpanningFeature: _cellSpanning, ...v8Features } =
+  stockFeatures;
+
 const dataTableFeatures = tableFeatures({
-  ...stockFeatures,
+  ...v8Features,
   sortedRowModel: createSortedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),

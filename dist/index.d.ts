@@ -84,7 +84,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
 declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
-    padding?: "none" | "sm" | "md" | "lg" | null | undefined;
+    padding?: "sm" | "lg" | "none" | "md" | null | undefined;
     hoverable?: boolean | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
@@ -1326,16 +1326,6 @@ interface DataTableColumnMeta {
     /** Extra classes on the column's header cell. */
     headerClassName?: string;
 }
-/**
- * The TanStack Table features every `DataTable` has: all of TanStack's stock
- * features, as TanStack Table 8 had built in. TanStack Table 9 exposes a column
- * option (`size`, `enablePinning`…) or a row, column or table API
- * (`row.toggleSelected()`, `header.getSize()`…) only when its feature is
- * registered, and an app's column definitions may use any of them. The full sort,
- * filter and aggregation registries keep every built-in function name
- * (`"alphanumeric"`, `"includesString"`, `"sum"`…) and `"auto"` available, as in
- * TanStack Table 8. Only the row models the table renders are registered.
- */
 declare const dataTableFeatures: {
     sortedRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
     filteredRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
@@ -1382,8 +1372,6 @@ declare const dataTableFeatures: {
         last: _tanstack_react_table.AggregationFnDef<any, any, unknown, unknown>;
     };
     columnMeta: DataTableColumnMeta;
-    cellSelectionFeature: typeof _tanstack_react_table.cellSelectionFeature;
-    cellSpanningFeature: typeof _tanstack_react_table.cellSpanningFeature;
     columnFacetingFeature: typeof _tanstack_react_table.columnFacetingFeature;
     columnFilteringFeature: typeof _tanstack_react_table.columnFilteringFeature;
     columnGroupingFeature: typeof _tanstack_react_table.columnGroupingFeature;

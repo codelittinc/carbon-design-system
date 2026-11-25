@@ -22,7 +22,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { tableFeatures, aggregationFns, filterFns, sortFns, stockFeatures, metaHelper, createPaginatedRowModel, createFilteredRowModel, createSortedRowModel, useTable, flexRender } from '@tanstack/react-table';
+import { stockFeatures, tableFeatures, aggregationFns, filterFns, sortFns, metaHelper, createPaginatedRowModel, createFilteredRowModel, createSortedRowModel, useTable, flexRender } from '@tanstack/react-table';
 import { createPortal } from 'react-dom';
 import { Command } from 'cmdk';
 import { ResponsiveContainer, BarChart as BarChart$1, CartesianGrid, XAxis, YAxis, Tooltip as Tooltip$1, Bar, Cell, LabelList, AreaChart, ReferenceLine, Area, PieChart, Pie } from 'recharts';
@@ -3927,8 +3927,9 @@ function PageHeader({ title, description, actions, back, className }) {
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
 }
+var { cellSelectionFeature: _cellSelection, cellSpanningFeature: _cellSpanning, ...v8Features } = stockFeatures;
 var dataTableFeatures = tableFeatures({
-  ...stockFeatures,
+  ...v8Features,
   sortedRowModel: createSortedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
