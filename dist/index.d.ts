@@ -84,7 +84,7 @@ interface TagProps extends VariantProps<typeof badgeVariants> {
 declare function Tag({ children, variant, onRemove, removeLabel, disabled, className, }: TagProps): ReactElement;
 
 declare const cardVariants: (props?: ({
-    padding?: "sm" | "lg" | "none" | "md" | null | undefined;
+    padding?: "none" | "sm" | "md" | "lg" | null | undefined;
     hoverable?: boolean | null | undefined;
 } & class_variance_authority_types.ClassProp) | undefined) => string;
 interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
@@ -1309,7 +1309,14 @@ declare const TableCell: react.ForwardRefExoticComponent<react.TdHTMLAttributes<
  * ```
  *
  * Registered as this table's `columnMeta` slot, so it typechecks in the
- * consumer's column definitions with no cast.
+ * consumer's column definitions with no cast. An app adds keys of its own by
+ * declaration merging:
+ *
+ * ```ts
+ * declare module "@codelittinc/carbon-design-system" {
+ *   interface DataTableColumnMeta { label?: string }
+ * }
+ * ```
  */
 interface DataTableColumnMeta {
     /** Aligns the header and the cells. Right for numbers. Defaults to left. */
@@ -1320,20 +1327,16 @@ interface DataTableColumnMeta {
     headerClassName?: string;
 }
 /**
- * The TanStack Table features every `DataTable` has. TanStack Table 9 exposes a
- * row, column or table API only when its feature is registered, so a column's
- * `cell` can call `row.toggleSelected()`, `row.getIsExpanded()` and the like
- * because they are listed here. The full sort and filter registries keep every
- * built-in function name (`"alphanumeric"`, `"includesString"`…) and `"auto"`
- * available to column definitions, as in TanStack Table 8.
+ * The TanStack Table features every `DataTable` has: all of TanStack's stock
+ * features, as TanStack Table 8 had built in. TanStack Table 9 exposes a column
+ * option (`size`, `enablePinning`…) or a row, column or table API
+ * (`row.toggleSelected()`, `header.getSize()`…) only when its feature is
+ * registered, and an app's column definitions may use any of them. The full sort,
+ * filter and aggregation registries keep every built-in function name
+ * (`"alphanumeric"`, `"includesString"`, `"sum"`…) and `"auto"` available, as in
+ * TanStack Table 8. Only the row models the table renders are registered.
  */
 declare const dataTableFeatures: {
-    columnVisibilityFeature: _tanstack_react_table.TableFeature;
-    rowSortingFeature: _tanstack_react_table.TableFeature;
-    columnFilteringFeature: _tanstack_react_table.TableFeature;
-    rowPaginationFeature: _tanstack_react_table.TableFeature;
-    rowExpandingFeature: _tanstack_react_table.TableFeature;
-    rowSelectionFeature: _tanstack_react_table.TableFeature;
     sortedRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
     filteredRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
     paginatedRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
@@ -1365,7 +1368,37 @@ declare const dataTableFeatures: {
         startsWith: _tanstack_react_table.CreatedFilterFn<any, any>;
         weakEquals: _tanstack_react_table.CreatedFilterFn<any, any>;
     };
+    aggregationFns: {
+        sum: _tanstack_react_table.AggregationFnDef<any, any, unknown, number>;
+        min: _tanstack_react_table.AggregationFnDef<any, any, unknown, (number | Date) | undefined>;
+        max: _tanstack_react_table.AggregationFnDef<any, any, unknown, (number | Date) | undefined>;
+        extent: _tanstack_react_table.AggregationFnDef<any, any, unknown, [(number | Date) | undefined, (number | Date) | undefined]>;
+        mean: _tanstack_react_table.AggregationFnDef<any, any, unknown, number | undefined>;
+        median: _tanstack_react_table.AggregationFnDef<any, any, unknown, number | undefined>;
+        unique: _tanstack_react_table.AggregationFnDef<any, any, unknown, unknown[]>;
+        uniqueCount: _tanstack_react_table.AggregationFnDef<any, any, unknown, number>;
+        count: _tanstack_react_table.AggregationFnDef<any, any, unknown, number>;
+        first: _tanstack_react_table.AggregationFnDef<any, any, unknown, unknown>;
+        last: _tanstack_react_table.AggregationFnDef<any, any, unknown, unknown>;
+    };
     columnMeta: DataTableColumnMeta;
+    cellSelectionFeature: typeof _tanstack_react_table.cellSelectionFeature;
+    cellSpanningFeature: typeof _tanstack_react_table.cellSpanningFeature;
+    columnFacetingFeature: typeof _tanstack_react_table.columnFacetingFeature;
+    columnFilteringFeature: typeof _tanstack_react_table.columnFilteringFeature;
+    columnGroupingFeature: typeof _tanstack_react_table.columnGroupingFeature;
+    columnOrderingFeature: typeof _tanstack_react_table.columnOrderingFeature;
+    columnPinningFeature: typeof _tanstack_react_table.columnPinningFeature;
+    columnResizingFeature: typeof _tanstack_react_table.columnResizingFeature;
+    columnSizingFeature: typeof _tanstack_react_table.columnSizingFeature;
+    columnVisibilityFeature: typeof _tanstack_react_table.columnVisibilityFeature;
+    globalFilteringFeature: typeof _tanstack_react_table.globalFilteringFeature;
+    rowAggregationFeature: typeof _tanstack_react_table.rowAggregationFeature;
+    rowExpandingFeature: typeof _tanstack_react_table.rowExpandingFeature;
+    rowPaginationFeature: typeof _tanstack_react_table.rowPaginationFeature;
+    rowPinningFeature: typeof _tanstack_react_table.rowPinningFeature;
+    rowSelectionFeature: typeof _tanstack_react_table.rowSelectionFeature;
+    rowSortingFeature: typeof _tanstack_react_table.rowSortingFeature;
 };
 type DataTableFeatures = typeof dataTableFeatures;
 /**

@@ -22,7 +22,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { tableFeatures, filterFns, sortFns, rowSelectionFeature, rowExpandingFeature, rowPaginationFeature, columnFilteringFeature, rowSortingFeature, columnVisibilityFeature, metaHelper, createPaginatedRowModel, createFilteredRowModel, createSortedRowModel, useTable, flexRender } from '@tanstack/react-table';
+import { tableFeatures, aggregationFns, filterFns, sortFns, stockFeatures, metaHelper, createPaginatedRowModel, createFilteredRowModel, createSortedRowModel, useTable, flexRender } from '@tanstack/react-table';
 import { createPortal } from 'react-dom';
 import { Command } from 'cmdk';
 import { ResponsiveContainer, BarChart as BarChart$1, CartesianGrid, XAxis, YAxis, Tooltip as Tooltip$1, Bar, Cell, LabelList, AreaChart, ReferenceLine, Area, PieChart, Pie } from 'recharts';
@@ -3928,17 +3928,13 @@ function PageHeader({ title, description, actions, back, className }) {
   ] });
 }
 var dataTableFeatures = tableFeatures({
-  columnVisibilityFeature,
-  rowSortingFeature,
-  columnFilteringFeature,
-  rowPaginationFeature,
-  rowExpandingFeature,
-  rowSelectionFeature,
+  ...stockFeatures,
   sortedRowModel: createSortedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortFns,
   filterFns,
+  aggregationFns,
   columnMeta: metaHelper()
 });
 var alignClasses = {
@@ -4002,17 +3998,18 @@ function DataTable({
     initialState: { pagination: { pageIndex: 0, pageSize } }
   });
   const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== void 0);
+  const setPageIndex = table.setPageIndex;
   const seen = useRef(resetPageOn);
   useEffect(() => {
     if (!driven || Object.is(seen.current, resetPageOn)) return;
     seen.current = resetPageOn;
-    table.setPageIndex(0);
-  }, [driven, resetPageOn, table]);
+    setPageIndex(0);
+  }, [driven, resetPageOn, setPageIndex]);
   const pageIndex = table.state.pagination.pageIndex;
   const lastPage = Math.max(0, table.getPageCount() - 1);
   useEffect(() => {
-    if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
-  }, [paginate, pageIndex, lastPage, table]);
+    if (paginate && pageIndex > lastPage) setPageIndex(lastPage);
+  }, [paginate, pageIndex, lastPage, setPageIndex]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("div", { className: "overflow-x-auto rounded-lg border border-border", children: /* @__PURE__ */ jsxs(Table, { children: [
       /* @__PURE__ */ jsx(TableHeader, { children: table.getHeaderGroups().map((headerGroup) => /* @__PURE__ */ jsxs(TableRow, { children: [

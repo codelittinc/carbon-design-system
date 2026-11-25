@@ -360,6 +360,25 @@ describe("DataTable", () => {
       expect(notes()).toEqual(["Charlie", "Alice", "Bob"]);
     });
   });
+  describe("TanStack features beyond the table's own", () => {
+    // TanStack 9 exposes an API only when its feature is registered; v8 had
+    // them all. A column an app wrote for v8 must keep working.
+    it("gives column renderers sizing, pinning and visibility APIs", () => {
+      const sized: ColumnDef<Row, unknown>[] = [
+        {
+          accessorKey: "name",
+          size: 120,
+          header: ({ header }) => `Name ${header.getSize()}`,
+          cell: ({ column, getValue }) =>
+            `${getValue<string>()} ${column.getIsPinned() || "unpinned"} ${column.getIsVisible()}`,
+        },
+      ];
+      render(<DataTable columns={sized} data={data.slice(0, 1)} />);
+      expect(screen.getByText("Name 120")).toBeInTheDocument();
+      expect(screen.getByText("Charlie unpinned true")).toBeInTheDocument();
+    });
+  });
+
   describe("column meta", () => {
     const aligned: ColumnDef<Row, unknown>[] = [
       { accessorKey: "name", header: "Name", meta: { className: "w-40", headerClassName: "w-48" } },

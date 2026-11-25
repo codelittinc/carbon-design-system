@@ -8,19 +8,15 @@ import {
   type RowData,
   type RowSelectionState,
   type Updater,
-  columnFilteringFeature,
-  columnVisibilityFeature,
+  aggregationFns,
   createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
   filterFns,
   flexRender,
   metaHelper,
-  rowExpandingFeature,
-  rowPaginationFeature,
-  rowSelectionFeature,
-  rowSortingFeature,
   sortFns,
+  stockFeatures,
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
@@ -41,7 +37,14 @@ import { TableEmptyRow } from "./table-empty-row";
  * ```
  *
  * Registered as this table's `columnMeta` slot, so it typechecks in the
- * consumer's column definitions with no cast.
+ * consumer's column definitions with no cast. An app adds keys of its own by
+ * declaration merging:
+ *
+ * ```ts
+ * declare module "@codelittinc/carbon-design-system" {
+ *   interface DataTableColumnMeta { label?: string }
+ * }
+ * ```
  */
 export interface DataTableColumnMeta {
   /** Aligns the header and the cells. Right for numbers. Defaults to left. */
@@ -53,25 +56,23 @@ export interface DataTableColumnMeta {
 }
 
 /**
- * The TanStack Table features every `DataTable` has. TanStack Table 9 exposes a
- * row, column or table API only when its feature is registered, so a column's
- * `cell` can call `row.toggleSelected()`, `row.getIsExpanded()` and the like
- * because they are listed here. The full sort and filter registries keep every
- * built-in function name (`"alphanumeric"`, `"includesString"`…) and `"auto"`
- * available to column definitions, as in TanStack Table 8.
+ * The TanStack Table features every `DataTable` has: all of TanStack's stock
+ * features, as TanStack Table 8 had built in. TanStack Table 9 exposes a column
+ * option (`size`, `enablePinning`…) or a row, column or table API
+ * (`row.toggleSelected()`, `header.getSize()`…) only when its feature is
+ * registered, and an app's column definitions may use any of them. The full sort,
+ * filter and aggregation registries keep every built-in function name
+ * (`"alphanumeric"`, `"includesString"`, `"sum"`…) and `"auto"` available, as in
+ * TanStack Table 8. Only the row models the table renders are registered.
  */
 const dataTableFeatures = tableFeatures({
-  columnVisibilityFeature,
-  rowSortingFeature,
-  columnFilteringFeature,
-  rowPaginationFeature,
-  rowExpandingFeature,
-  rowSelectionFeature,
+  ...stockFeatures,
   sortedRowModel: createSortedRowModel(),
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortFns,
   filterFns,
+  aggregationFns,
   columnMeta: metaHelper<DataTableColumnMeta>(),
 });
 
@@ -231,13 +232,17 @@ export function DataTable<TData extends RowData>({
   // own column option, rendered with the column's alignment and classes.
   const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== undefined);
 
+  // `table` is a new object on every render (TanStack 9 rebuilds it from the
+  // options), so the effects below depend on its setter, which is stable.
+  const setPageIndex = table.setPageIndex;
+
   // Mount already starts on page 1, so only *changes* to the signature reset.
   const seen = useRef(resetPageOn);
   useEffect(() => {
     if (!driven || Object.is(seen.current, resetPageOn)) return;
     seen.current = resetPageOn;
-    table.setPageIndex(0);
-  }, [driven, resetPageOn, table]);
+    setPageIndex(0);
+  }, [driven, resetPageOn, setPageIndex]);
 
   // A list that shrinks (a refetch after a delete, with `resetPageOn` holding
   // the page) can leave the page past the last one: an empty body over
@@ -245,8 +250,8 @@ export function DataTable<TData extends RowData>({
   const pageIndex = table.state.pagination.pageIndex;
   const lastPage = Math.max(0, table.getPageCount() - 1);
   useEffect(() => {
-    if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
-  }, [paginate, pageIndex, lastPage, table]);
+    if (paginate && pageIndex > lastPage) setPageIndex(lastPage);
+  }, [paginate, pageIndex, lastPage, setPageIndex]);
 
   return (
     <div>
