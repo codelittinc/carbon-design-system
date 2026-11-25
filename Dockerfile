@@ -8,7 +8,10 @@ WORKDIR /app
 RUN corepack enable
 
 # Install dependencies against the committed lockfile first (better layer caching).
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml (overrides, allowed build scripts) and .pnpmfile.cjs (gives
+# tsup the TS 6 compiler API) are part of resolution, so a frozen install needs
+# them alongside the lockfile.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 # Build the static Storybook into /app/storybook-static.

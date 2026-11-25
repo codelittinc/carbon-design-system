@@ -8,6 +8,23 @@ Each entry corresponds to a published version. When you bump the version in
 `package.json`, add a matching `## [x.y.z]` section here — the publish workflow
 uses it as the GitHub Release notes.
 
+## [2.0.0] - 2026-11-25
+
+### Changed (breaking)
+
+- **`DataTable` runs on TanStack Table 9** (`@tanstack/react-table` 8.21 → 9.3). The table looks and behaves as before; what changes is the types an app writes its columns with.
+  - **Import `ColumnDef` from this package, not from `@tanstack/react-table`.** It keeps the `ColumnDef<TData, TValue>` shape and is bound to the table's features. TanStack 9's own `ColumnDef` takes a features type first (`ColumnDef<TFeatures, TData, TValue>`), so a v8 `ColumnDef<Row>` from TanStack no longer fits `columns`.
+  - **`DataTable` has one type parameter**, the row type: `DataTable<TData>`, not `DataTable<TData, TValue>`. `columns` takes columns of any value type, so a list can mix them.
+  - **Rows must be objects or arrays** (TanStack 9's `RowData`). A row type that is an interface or object type, as every table here uses, is unaffected.
+  - **Column `meta` types come from the new `DataTableColumnMeta`** export (`align`, `className`, `headerClassName`, as before), not from a global augmentation of TanStack's `ColumnMeta`.
+  - In a column's `cell`, `header` or `footer`, the row, column and table APIs for sorting, filtering, paging, expanding, selection and column visibility are available, as before. TanStack 9 renames `sortingFn` to `sortFn` on a column definition; the built-in sort and filter names (`"alphanumeric"`, `"includesString"`…) still work.
+  - New exports: `DataTableColumnMeta` and `DataTableFeatures`.
+
+### Dependencies
+
+- Updated runtime dependencies: TipTap 3.33 → 3.35, `lucide-react` 1.71 → 1.79, `recharts` 3.10 → 3.11, `papaparse` 5.7.1, `tailwind-merge` 3.7.1.
+- Development only (no effect on apps): TypeScript 6 → 7, `@testing-library/jest-dom` 7 → 8, Storybook 10.6.8, Vitest 5.1.1, and pnpm 9 → 12.
+
 ## [1.50.0] - 2026-11-23
 
 ### Added

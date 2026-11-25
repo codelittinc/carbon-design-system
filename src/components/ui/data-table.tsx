@@ -1,19 +1,28 @@
 "use client";
 
 import {
-  type ColumnDef,
+  type ColumnDef as TanStackColumnDef,
   type SortingState,
   type ColumnFiltersState,
   type ExpandedState,
   type RowData,
   type RowSelectionState,
   type Updater,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFns,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  useReactTable,
+  metaHelper,
+  rowExpandingFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFns,
+  tableFeatures,
+  useTable,
 } from "@tanstack/react-table";
 import { Fragment, useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight as ChevronExpand } from "lucide-react";
@@ -31,20 +40,52 @@ import { TableEmptyRow } from "./table-empty-row";
  * { accessorKey: "amount", header: "Amount", meta: { align: "right", className: "w-32" } }
  * ```
  *
- * Declared on TanStack's own `ColumnMeta` so it typechecks in the consumer's
- * column definitions with no cast.
+ * Registered as this table's `columnMeta` slot, so it typechecks in the
+ * consumer's column definitions with no cast.
  */
-declare module "@tanstack/react-table" {
-  // The type parameters must match TanStack's declaration to merge with it.
-  interface ColumnMeta<TData extends RowData, TValue> {
-    /** Aligns the header and the cells. Right for numbers. Defaults to left. */
-    align?: "left" | "right" | "center";
-    /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
-    className?: string;
-    /** Extra classes on the column's header cell. */
-    headerClassName?: string;
-  }
+export interface DataTableColumnMeta {
+  /** Aligns the header and the cells. Right for numbers. Defaults to left. */
+  align?: "left" | "right" | "center";
+  /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
+  className?: string;
+  /** Extra classes on the column's header cell. */
+  headerClassName?: string;
 }
+
+/**
+ * The TanStack Table features every `DataTable` has. TanStack Table 9 exposes a
+ * row, column or table API only when its feature is registered, so a column's
+ * `cell` can call `row.toggleSelected()`, `row.getIsExpanded()` and the like
+ * because they are listed here. The full sort and filter registries keep every
+ * built-in function name (`"alphanumeric"`, `"includesString"`…) and `"auto"`
+ * available to column definitions, as in TanStack Table 8.
+ */
+const dataTableFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowSortingFeature,
+  columnFilteringFeature,
+  rowPaginationFeature,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortFns,
+  filterFns,
+  columnMeta: metaHelper<DataTableColumnMeta>(),
+});
+
+export type DataTableFeatures = typeof dataTableFeatures;
+
+/**
+ * A `DataTable` column definition: TanStack's `ColumnDef` bound to the table's
+ * features, so it keeps the `ColumnDef<TData, TValue>` shape.
+ */
+export type ColumnDef<TData extends RowData, TValue = unknown> = TanStackColumnDef<
+  DataTableFeatures,
+  TData,
+  TValue
+>;
 
 const alignClasses = {
   left: { cell: "text-left", header: "text-left", content: "justify-start" },
@@ -52,13 +93,16 @@ const alignClasses = {
   center: { cell: "text-center", header: "text-center", content: "justify-center" },
 };
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends RowData> {
   /**
    * TanStack column definitions. Give a column a `footer` (a string, or a
    * function of the table: `({ table }) => total(table.getFilteredRowModel().rows)`)
    * and the table gets a footer row, for totals.
    */
-  columns: ColumnDef<TData, TValue>[];
+  // `any`, as TanStack's own column helper returns: a list mixes columns of
+  // different value types, and `ColumnDef<TData, number>` is not a
+  // `ColumnDef<TData, unknown>` in TanStack Table 9.
+  columns: ReadonlyArray<ColumnDef<TData, any>>;
   data: TData[];
   onRowClick?: (row: TData) => void;
   pageSize?: number;
@@ -122,7 +166,7 @@ interface DataTableProps<TData, TValue> {
 /** Distinguishes "prop omitted" from any value a caller could legitimately pass. */
 const UNSET = Symbol("DataTable.resetPageOn.unset");
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   columns,
   data,
   onRowClick,
@@ -139,7 +183,7 @@ export function DataTable<TData, TValue>({
   renderExpanded,
   getRowCanExpand,
   expandOnRowClick = false,
-}: DataTableProps<TData, TValue>): ReactElement {
+}: DataTableProps<TData>): ReactElement {
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const expandable = renderExpanded !== undefined;
   const detailId = useId();
@@ -158,13 +202,12 @@ export function DataTable<TData, TValue>({
     onSortingChange?.(next);
   }
 
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: paginate ? getPaginationRowModel() : undefined,
+    // With paging off the table trusts `data` as the whole page and renders all of it.
+    manualPagination: !paginate,
     getRowId: getRowId ? (row) => getRowId(row) : undefined,
     manualSorting,
     onSortingChange: handleSortingChange,
@@ -181,7 +224,7 @@ export function DataTable<TData, TValue>({
     // default stays exactly TanStack's.
     autoResetPageIndex: !driven,
     state: { sorting, columnFilters, rowSelection, expanded },
-    initialState: { pagination: { pageSize } },
+    initialState: { pagination: { pageIndex: 0, pageSize } },
   });
 
   // A footer row (totals, say) when any column defines a `footer`: TanStack's
@@ -199,7 +242,7 @@ export function DataTable<TData, TValue>({
   // A list that shrinks (a refetch after a delete, with `resetPageOn` holding
   // the page) can leave the page past the last one: an empty body over
   // "Showing 21–15 of 15". Move back to the last page that exists.
-  const pageIndex = table.getState().pagination.pageIndex;
+  const pageIndex = table.state.pagination.pageIndex;
   const lastPage = Math.max(0, table.getPageCount() - 1);
   useEffect(() => {
     if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
@@ -434,10 +477,10 @@ export function DataTable<TData, TValue>({
         // Renders nothing for a single page.
         <Pagination
           className="px-1 pt-3"
-          page={table.getState().pagination.pageIndex + 1}
+          page={table.state.pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
           totalItems={table.getFilteredRowModel().rows.length}
-          pageSize={table.getState().pagination.pageSize}
+          pageSize={table.state.pagination.pageSize}
           onPageChange={(page) => table.setPageIndex(page - 1)}
         />
       )}
@@ -445,4 +488,4 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export { type ColumnDef, type SortingState } from "@tanstack/react-table";
+export { type SortingState } from "@tanstack/react-table";

@@ -19,8 +19,9 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { RowData, ColumnDef, SortingState } from '@tanstack/react-table';
-export { ColumnDef, SortingState } from '@tanstack/react-table';
+import * as _tanstack_react_table from '@tanstack/react-table';
+import { RowData, ColumnDef as ColumnDef$1, SortingState } from '@tanstack/react-table';
+export { SortingState } from '@tanstack/react-table';
 import 'clsx';
 
 interface AddressAutocompleteProps {
@@ -1307,26 +1308,78 @@ declare const TableCell: react.ForwardRefExoticComponent<react.TdHTMLAttributes<
  * { accessorKey: "amount", header: "Amount", meta: { align: "right", className: "w-32" } }
  * ```
  *
- * Declared on TanStack's own `ColumnMeta` so it typechecks in the consumer's
- * column definitions with no cast.
+ * Registered as this table's `columnMeta` slot, so it typechecks in the
+ * consumer's column definitions with no cast.
  */
-declare module "@tanstack/react-table" {
-    interface ColumnMeta<TData extends RowData, TValue> {
-        /** Aligns the header and the cells. Right for numbers. Defaults to left. */
-        align?: "left" | "right" | "center";
-        /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
-        className?: string;
-        /** Extra classes on the column's header cell. */
-        headerClassName?: string;
-    }
+interface DataTableColumnMeta {
+    /** Aligns the header and the cells. Right for numbers. Defaults to left. */
+    align?: "left" | "right" | "center";
+    /** Extra classes on every body cell in the column — a width, `whitespace-nowrap`. */
+    className?: string;
+    /** Extra classes on the column's header cell. */
+    headerClassName?: string;
 }
-interface DataTableProps<TData, TValue> {
+/**
+ * The TanStack Table features every `DataTable` has. TanStack Table 9 exposes a
+ * row, column or table API only when its feature is registered, so a column's
+ * `cell` can call `row.toggleSelected()`, `row.getIsExpanded()` and the like
+ * because they are listed here. The full sort and filter registries keep every
+ * built-in function name (`"alphanumeric"`, `"includesString"`…) and `"auto"`
+ * available to column definitions, as in TanStack Table 8.
+ */
+declare const dataTableFeatures: {
+    columnVisibilityFeature: _tanstack_react_table.TableFeature;
+    rowSortingFeature: _tanstack_react_table.TableFeature;
+    columnFilteringFeature: _tanstack_react_table.TableFeature;
+    rowPaginationFeature: _tanstack_react_table.TableFeature;
+    rowExpandingFeature: _tanstack_react_table.TableFeature;
+    rowSelectionFeature: _tanstack_react_table.TableFeature;
+    sortedRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
+    filteredRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
+    paginatedRowModel: (table: _tanstack_react_table.Table<any, any>) => () => _tanstack_react_table.RowModel<any, any>;
+    sortFns: {
+        alphanumeric: _tanstack_react_table.CreatedSortFn<any, any>;
+        alphanumericCaseSensitive: _tanstack_react_table.CreatedSortFn<any, any>;
+        basic: _tanstack_react_table.CreatedSortFn<any, any>;
+        datetime: _tanstack_react_table.CreatedSortFn<any, any>;
+        text: _tanstack_react_table.CreatedSortFn<any, any>;
+        textCaseSensitive: _tanstack_react_table.CreatedSortFn<any, any>;
+    };
+    filterFns: {
+        arrIncludes: _tanstack_react_table.CreatedFilterFn<any, any>;
+        arrIncludesAll: _tanstack_react_table.CreatedFilterFn<any, any>;
+        arrHas: _tanstack_react_table.CreatedFilterFn<any, any>;
+        arrIncludesSome: _tanstack_react_table.CreatedFilterFn<any, any>;
+        between: _tanstack_react_table.CreatedFilterFn<any, any>;
+        betweenInclusive: _tanstack_react_table.CreatedFilterFn<any, any>;
+        empty: _tanstack_react_table.CreatedFilterFn<any, any>;
+        endsWith: _tanstack_react_table.CreatedFilterFn<any, any>;
+        equals: _tanstack_react_table.CreatedFilterFn<any, any>;
+        equalsString: _tanstack_react_table.CreatedFilterFn<any, any>;
+        equalsStringSensitive: _tanstack_react_table.CreatedFilterFn<any, any>;
+        inDateRange: _tanstack_react_table.CreatedFilterFn<any, any>;
+        inNumberRange: _tanstack_react_table.CreatedFilterFn<any, any>;
+        includesString: _tanstack_react_table.CreatedFilterFn<any, any>;
+        includesStringSensitive: _tanstack_react_table.CreatedFilterFn<any, any>;
+        notEmpty: _tanstack_react_table.CreatedFilterFn<any, any>;
+        startsWith: _tanstack_react_table.CreatedFilterFn<any, any>;
+        weakEquals: _tanstack_react_table.CreatedFilterFn<any, any>;
+    };
+    columnMeta: DataTableColumnMeta;
+};
+type DataTableFeatures = typeof dataTableFeatures;
+/**
+ * A `DataTable` column definition: TanStack's `ColumnDef` bound to the table's
+ * features, so it keeps the `ColumnDef<TData, TValue>` shape.
+ */
+type ColumnDef<TData extends RowData, TValue = unknown> = ColumnDef$1<DataTableFeatures, TData, TValue>;
+interface DataTableProps<TData extends RowData> {
     /**
      * TanStack column definitions. Give a column a `footer` (a string, or a
      * function of the table: `({ table }) => total(table.getFilteredRowModel().rows)`)
      * and the table gets a footer row, for totals.
      */
-    columns: ColumnDef<TData, TValue>[];
+    columns: ReadonlyArray<ColumnDef<TData, any>>;
     data: TData[];
     onRowClick?: (row: TData) => void;
     pageSize?: number;
@@ -1386,7 +1439,7 @@ interface DataTableProps<TData, TValue> {
      */
     expandOnRowClick?: boolean;
 }
-declare function DataTable<TData, TValue>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, rowClassName, sorting: controlledSorting, onSortingChange, manualSorting, renderExpanded, getRowCanExpand, expandOnRowClick, }: DataTableProps<TData, TValue>): ReactElement;
+declare function DataTable<TData extends RowData>({ columns, data, onRowClick, pageSize, paginate, getRowId, enableSelection, emptyMessage, resetPageOn, rowClassName, sorting: controlledSorting, onSortingChange, manualSorting, renderExpanded, getRowCanExpand, expandOnRowClick, }: DataTableProps<TData>): ReactElement;
 
 interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
     value: string;
@@ -2818,4 +2871,4 @@ interface SignOutPageProps {
 declare function SignOutPage({ appName, onSignOut, onSignIn, onCancel, status, error, copy, supportHref, showThemeToggle, children, className, }: SignOutPageProps): react.JSX.Element;
 
 export { AccountCombobox, AddressAutocomplete$1 as AddressAutocomplete, AddressAutocomplete as AddressCombobox, Alert, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AppLauncher, Badge, BarChart, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, CHART_GRID_COLOR, CHART_LABEL_STYLE, CHART_NEUTRAL_COLOR, CHART_SERIES_LIMIT, CHART_TICK_CATEGORY, CHART_TICK_VALUE, Card, CardHeader, CategoryChip, ChartCard, ChartDataTable, ChartEmpty, ChartLegend, ChartSkeleton, ChartSliceTooltipContent, ChartTooltipContent, Checkbox, CheckboxGroup, CommandGroup, CommandItem, CommandPalette, ConfirmProvider, DataTable, DateRangePicker, DayRangePicker, DefinitionItem, DefinitionList, Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DonutChart, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, EMPTY_POSTAL_ADDRESS, EmptyState, EventCalendar, FileInput, FileViewer, FileViewerPanel, FilterBar, FormField, HoverCard, HoverCardContent, HoverCardTrigger, Input, Label, LineChart, Money, MoneyInput, Monogram, MonthCalendar, MultiSelect, MultiStatusFilter, PageHeader, Pagination, Popover, PopoverAnchor, PopoverContent, PopoverTrigger, ProductMark, Progress, RadioGroup, RadioGroupItem, RichTextEditor, RichTextFormatting, RichTextView, ScrollArea, SearchSelect, SegmentedControl, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger, SignInPage, SignOutPage, Skeleton, Spinner, StatCard, StatusBadge, StatusIndicator, StructuredAddressInput, Swatch, Switch, Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Tag, TextLink, Textarea, Theme, ThemeProvider, ThemeToggle, TimesheetTable, ToastProvider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, VideoViewer, WEEKDAY_LABELS, addDays, alertVariants, badgeVariants, buttonVariants, capSeries, cardVariants, compareMonths, createDefaultApi, createSegmentTracker, dateKey, daysInMonth, formatCalendarDate, formatChartValue, formatDateKey, isPostalAddressDraftComplete, isWeekend, monthLabel, monthOfKey, monthWeeks, nextDayRange, parseDateKey, parseGooglePlaceAddress, postalAddressFromDraft, postalAddressToDraft, resolveSeriesColors, seriesColor, shiftMonth, startOfWeek, toast, todayIn, useConfirm, useTheme, useToast, weekdayOf };
-export type { AccountOption, AddressComboboxProps, AddressComboboxStatus, AddressSuggestion, AddressSuggestionProvider, AppLauncherApp, AppLauncherLogos, AppLauncherProps, AppLauncherSection, BarChartProps, BreadcrumbLinkProps, CalendarDate, CardHeaderProps, CategoryChipProps, CategoryChipSegment, ChartCardProps, ChartDataTableProps, ChartDatum, ChartLegendItem, ChartLegendProps, ChartSeries, ChartStateProps, ChartTooltipContentProps, ChartTooltipContext, ChartTooltipEntry, ChartTooltipRenderer, ChartValueFormatter, CheckboxGroupOption, CheckboxGroupProps, CommandFilter, ConfirmOptions, DayRange, DayRangePickerProps, DonutChartDatum, DonutChartProps, DonutTooltipContext, EventCalendarProps, ExpectedHoursResponse, FileInputProps, FileViewerFallback, FileViewerFallbackContent, FileViewerFallbackReason, FileViewerFallbackRequest, FileViewerPanelProps, FileViewerProps, HoverCardProps, LineChartProps, MonthCalendarProps, MonthYearRange, MultiSelectOption, PageHeaderBack, PostalAddress, PostalAddressDraft, ProgressTone, RadioGroupOption, RadioGroupProps, RichTextEditorHandle, RichTextEditorProps, RichTextInsertAction, RichTextLinkPanelOptions, RichTextLinkTarget, RichTextViewProps, SaveResponse, SearchSelectOption, SegmentTracker, SegmentTrackerOptions, SegmentedControlOption, SignInPageCopy, SignInPageProps, SignOutPageCopy, SignOutPageProps, StatusIndicatorProps, StatusOption, SwatchProps, ThemeProviderProps, TimeEntryResponse, TimesheetApi, TimesheetContract, TimesheetEntry, TimesheetGridData, TimesheetHoliday, TimesheetNotice, TimesheetTableProps, TimesheetTimeOff, TimesheetViewMode, VideoSegment, VideoViewerProps, YearMonth };
+export type { AccountOption, AddressComboboxProps, AddressComboboxStatus, AddressSuggestion, AddressSuggestionProvider, AppLauncherApp, AppLauncherLogos, AppLauncherProps, AppLauncherSection, BarChartProps, BreadcrumbLinkProps, CalendarDate, CardHeaderProps, CategoryChipProps, CategoryChipSegment, ChartCardProps, ChartDataTableProps, ChartDatum, ChartLegendItem, ChartLegendProps, ChartSeries, ChartStateProps, ChartTooltipContentProps, ChartTooltipContext, ChartTooltipEntry, ChartTooltipRenderer, ChartValueFormatter, CheckboxGroupOption, CheckboxGroupProps, ColumnDef, CommandFilter, ConfirmOptions, DataTableColumnMeta, DataTableFeatures, DayRange, DayRangePickerProps, DonutChartDatum, DonutChartProps, DonutTooltipContext, EventCalendarProps, ExpectedHoursResponse, FileInputProps, FileViewerFallback, FileViewerFallbackContent, FileViewerFallbackReason, FileViewerFallbackRequest, FileViewerPanelProps, FileViewerProps, HoverCardProps, LineChartProps, MonthCalendarProps, MonthYearRange, MultiSelectOption, PageHeaderBack, PostalAddress, PostalAddressDraft, ProgressTone, RadioGroupOption, RadioGroupProps, RichTextEditorHandle, RichTextEditorProps, RichTextInsertAction, RichTextLinkPanelOptions, RichTextLinkTarget, RichTextViewProps, SaveResponse, SearchSelectOption, SegmentTracker, SegmentTrackerOptions, SegmentedControlOption, SignInPageCopy, SignInPageProps, SignOutPageCopy, SignOutPageProps, StatusIndicatorProps, StatusOption, SwatchProps, ThemeProviderProps, TimeEntryResponse, TimesheetApi, TimesheetContract, TimesheetEntry, TimesheetGridData, TimesheetHoliday, TimesheetNotice, TimesheetTableProps, TimesheetTimeOff, TimesheetViewMode, VideoSegment, VideoViewerProps, YearMonth };

@@ -22,7 +22,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as HoverCardPrimitive from '@radix-ui/react-hover-card';
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
-import { useReactTable, getPaginationRowModel, getFilteredRowModel, getSortedRowModel, getCoreRowModel, flexRender } from '@tanstack/react-table';
+import { tableFeatures, filterFns, sortFns, rowSelectionFeature, rowExpandingFeature, rowPaginationFeature, columnFilteringFeature, rowSortingFeature, columnVisibilityFeature, metaHelper, createPaginatedRowModel, createFilteredRowModel, createSortedRowModel, useTable, flexRender } from '@tanstack/react-table';
 import { createPortal } from 'react-dom';
 import { Command } from 'cmdk';
 import { ResponsiveContainer, BarChart as BarChart$1, CartesianGrid, XAxis, YAxis, Tooltip as Tooltip$1, Bar, Cell, LabelList, AreaChart, ReferenceLine, Area, PieChart, Pie } from 'recharts';
@@ -3927,6 +3927,20 @@ function PageHeader({ title, description, actions, back, className }) {
     actions && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: actions })
   ] });
 }
+var dataTableFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowSortingFeature,
+  columnFilteringFeature,
+  rowPaginationFeature,
+  rowExpandingFeature,
+  rowSelectionFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortFns,
+  filterFns,
+  columnMeta: metaHelper()
+});
 var alignClasses = {
   left: { cell: "text-left", header: "text-left", content: "justify-start" },
   right: { cell: "text-right", header: "text-right", content: "justify-end" },
@@ -3965,13 +3979,12 @@ function DataTable({
     if (controlledSorting === void 0) setInternalSorting(next);
     onSortingChange?.(next);
   }
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: paginate ? getPaginationRowModel() : void 0,
+    // With paging off the table trusts `data` as the whole page and renders all of it.
+    manualPagination: !paginate,
     getRowId: getRowId ? (row) => getRowId(row) : void 0,
     manualSorting,
     onSortingChange: handleSortingChange,
@@ -3986,7 +3999,7 @@ function DataTable({
     // default stays exactly TanStack's.
     autoResetPageIndex: !driven,
     state: { sorting, columnFilters, rowSelection, expanded },
-    initialState: { pagination: { pageSize } }
+    initialState: { pagination: { pageIndex: 0, pageSize } }
   });
   const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== void 0);
   const seen = useRef(resetPageOn);
@@ -3995,7 +4008,7 @@ function DataTable({
     seen.current = resetPageOn;
     table.setPageIndex(0);
   }, [driven, resetPageOn, table]);
-  const pageIndex = table.getState().pagination.pageIndex;
+  const pageIndex = table.state.pagination.pageIndex;
   const lastPage = Math.max(0, table.getPageCount() - 1);
   useEffect(() => {
     if (paginate && pageIndex > lastPage) table.setPageIndex(lastPage);
@@ -4191,10 +4204,10 @@ function DataTable({
       Pagination,
       {
         className: "px-1 pt-3",
-        page: table.getState().pagination.pageIndex + 1,
+        page: table.state.pagination.pageIndex + 1,
         totalPages: table.getPageCount(),
         totalItems: table.getFilteredRowModel().rows.length,
-        pageSize: table.getState().pagination.pageSize,
+        pageSize: table.state.pagination.pageSize,
         onPageChange: (page) => table.setPageIndex(page - 1)
       }
     )
